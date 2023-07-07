@@ -1,0 +1,4 @@
+.env
+target
+data/*
+crates/frontend/dist/*

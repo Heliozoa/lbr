@@ -1,0 +1,29 @@
+[workspace]
+members = [
+    "./crates/*",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Heliozoa <daniel.x.martinez@helsinki.fi>"]
+edition = "2021"
+rust-version = "1.56"
+repository = "https://github.com/Heliozoa/lbr"
+license = "AGPL-3.0-or-later"
+
+[workspace.dependencies]
+jadata = { path = "./crates/jadata" }
+lbr = { path = "./crates/lbr" }
+lbr_api = { path = "./crates/api" }
+lbr_core = { path = "./crates/core" }
+lbr_web = { path = "./crates/frontend" }
+lbr_server = { path = "./crates/backend" }
+
+[profile.dev.package]
+serde-xml-rs.opt-level = 3
+serde.opt-level = 3
+serde_json.opt-level = 3
+
+[patch.crates-io]
+ichiran = { path = "../ichiran" }

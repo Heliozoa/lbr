@@ -1,0 +1,16 @@
+[package]
+name = "lbr_core"
+description = "Provides core types of LBR, a project for studying Japanese."
+readme = "README.md"
+keywords = []
+categories = []
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { version = "1.0.148", features = ["derive"] }

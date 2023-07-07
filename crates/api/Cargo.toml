@@ -1,0 +1,19 @@
+[package]
+name = "lbr_api"
+description = "API types for lbr-server."
+readme = "README.md"
+keywords = []
+categories = []
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+lbr_core.workspace = true
+
+chrono = { version = "0.4.26", features = ["serde"] }
+serde = { version = "1.0.164", features = ["derive"] }
