@@ -145,7 +145,7 @@ fn build_cookie(value: impl Into<Cow<'static, str>>) -> Cookie<'static> {
         .path("/")
         .secure(false)
         .http_only(false)
-        .same_site(SameSite::Strict)
+        .same_site(SameSite::None)
         .finish()
 }
 

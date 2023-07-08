@@ -105,7 +105,7 @@ pub async fn router(state: Arc<LbrStateInner>) -> Router {
                     .allow_methods(vec![Method::GET, Method::POST, Method::DELETE])
                     .allow_headers(vec![header::CONTENT_TYPE])
                     .allow_origin(AllowOrigin::exact(HeaderValue::from_static(
-                        "http://localhost:8080",
+                        "http://0.0.0.0:8080",
                     )))
                     .allow_credentials(true),
             ),

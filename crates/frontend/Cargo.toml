@@ -1,7 +1,7 @@
 # cargo-features = ["per-package-target"]
 
 [package]
-name = "lbr-web"
+name = "lbr_web"
 description = "Web frontend for lbr-server."
 readme = "README.md"
 keywords = []

@@ -1519,27 +1519,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lbr-web"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "console_error_panic_hook",
- "eyre",
- "lbr_api",
- "leptos",
- "leptos_router",
- "reqwasm",
- "serde",
- "serde_json",
- "thiserror",
- "tracing",
- "tracing-wasm",
- "wasm-bindgen",
- "wasm-cookies",
- "web-sys",
-]
-
-[[package]]
 name = "lbr_api"
 version = "0.1.0"
 dependencies = [
@@ -1584,6 +1563,27 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "wana_kana",
+]
+
+[[package]]
+name = "lbr_web"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "console_error_panic_hook",
+ "eyre",
+ "lbr_api",
+ "leptos",
+ "leptos_router",
+ "reqwasm",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tracing",
+ "tracing-wasm",
+ "wasm-bindgen",
+ "wasm-cookies",
+ "web-sys",
 ]
 
 [[package]]
