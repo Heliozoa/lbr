@@ -17,13 +17,13 @@ pub fn hydrate() {
             .build(),
     );
 
-    let backend_addr = option_env!("LBR_BACKEND_ADDRESS").unwrap_or("http://localhost:3000");
-
-    tracing::debug!(
-        "initialising (backend at {}, logging level {})",
-        backend_addr,
-        wasm_log
-    );
+    // if no env var given, assume that the server is running at the same address
+    let backend_addr = option_env!("LBR_BACKEND_ADDRESS").unwrap_or("");
+    if backend_addr.is_empty() {
+        tracing::info!("hydrating (logging level {wasm_log})");
+    } else {
+        tracing::info!("hydrating (backend at {backend_addr}, logging level {wasm_log})");
+    };
 
     leptos::mount_to_body(move |cx| {
         lbr_web::context::initialise_context(cx, backend_addr);
