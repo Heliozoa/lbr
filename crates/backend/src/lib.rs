@@ -161,7 +161,7 @@ pub async fn router_from_vars(
                 .await
                 .wrap_err("Failed to generate kanji to readings mapping")?;
             let kanji_to_readings_json = serde_json::to_string_pretty(&kanji_to_readings)?;
-            tokio::fs::create_dir("./data").await?;
+            tokio::fs::create_dir_all("./data").await?;
             tokio::fs::write("./data/kanji_to_readings.json", kanji_to_readings_json).await?;
             kanji_to_readings
         }
@@ -181,7 +181,7 @@ pub async fn router_from_vars(
                     .await?;
             let ichiran_seq_to_word_id_json =
                 serde_json::to_string_pretty(&ichiran_seq_to_word_id)?;
-            tokio::fs::create_dir("./data").await?;
+            tokio::fs::create_dir_all("./data").await?;
             tokio::fs::write(
                 "./data/ichiran_seq_to_word_id.json",
                 ichiran_seq_to_word_id_json,

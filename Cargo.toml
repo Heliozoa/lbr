@@ -29,9 +29,16 @@ serde_json.opt-level = 3
 # [patch.crates-io]
 # ichiran = { path = "../ichiran" }
 
+[profile.wasm-release]
+inherits = "release"
+opt-level = 'z'
+lto = true
+codegen-units = 1
+
 [[workspace.metadata.leptos]]
 name = "lbr"
 bin-package = "lbr_server"
 bin-target = "lbr_server"
 lib-package = "lbr_frontend"
+lib-profile-release = "wasm-release"
 style-file = "style/css/bulma.css"
