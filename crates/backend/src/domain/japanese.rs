@@ -1,7 +1,39 @@
 //! Functionality related to the Japanese language.
 
-use crate::utils::database::Furigana;
+use crate::{
+    error::EyreResult,
+    query,
+    schema::{kanji as k, kanji_readings as kr},
+    utils::database::Furigana,
+    LbrPool,
+};
+use diesel::prelude::*;
 use std::collections::HashMap;
+
+/// Returns a mapping from kanji to its potential readings.
+pub async fn kanji_to_readings(pool: LbrPool) -> eyre::Result<HashMap<String, Vec<String>>> {
+    let ktr = tokio::task::spawn_blocking(move || {
+        let mut conn = pool.get()?;
+        let kanji_with_reading = k::table
+            .inner_join(kr::table.on(kr::kanji_id.eq(k::id)))
+            .select(KanjiWithReading::as_select())
+            .get_results(&mut conn)?;
+        let mut map: HashMap<String, Vec<String>> = HashMap::new();
+        for kwr in kanji_with_reading {
+            map.entry(kwr.kanji).or_default().push(kwr.reading);
+        }
+        EyreResult::Ok(map)
+    })
+    .await??;
+    Ok(ktr)
+}
+
+query! {
+    struct KanjiWithReading {
+        kanji: String = kanji::chara,
+        reading: String = kanji_readings::reading,
+    }
+}
 
 /// Maps a reading onto a word with the database `Furigana` type.
 pub fn map_to_db_furigana(

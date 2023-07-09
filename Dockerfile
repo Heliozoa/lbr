@@ -48,6 +48,7 @@ COPY ./data/kanji_to_readings.json /lbr/data/kanji_to_readings.json
 ENV RUST_LOG                debug
 ENV SERVER_URL              0.0.0.0:3000
 ENV DATABASE_URL            postgres://lbr:lbr@host.docker.internal/lbr
+ENV ICHIRAN_DATABASE_URL    postgres://lbr:lbr@host.docker.internal/ichiran
 ENV ICHIRAN_CLI_PATH        /lbr/ichiran-cli
 ENV PRIVATE_COOKIE_PASSWORD uvoo4rei1aiN0po4aitix9pie0eo7aaZei0aem6ix5oi5quooxaiQuooTohs2Pha
 ENV LEPTOS_OUTPUT_NAME      lbr
