@@ -15,15 +15,12 @@ async fn main() -> eyre::Result<()> {
         .wrap_err("Invalid SERVER_URL")?;
 
     let lbr_database_url = env::var("DATABASE_URL").wrap_err("Missing DATABASE_URL")?;
-    let ichiran_database_url =
-        env::var("ICHIRAN_DATABASE_URL").wrap_err("Missing ICHIRAN_DATABASE_URL")?;
     let ichiran_cli_path = env::var("ICHIRAN_CLI_PATH").wrap_err("Missing ICHIRAN_CLI_PATH")?;
     let private_cookie_password =
         env::var("PRIVATE_COOKIE_PASSWORD").wrap_err("Missing PRIVATE_COOKIE_PASSWORD")?;
 
     let router = lbr_server::router_from_vars(
         &lbr_database_url,
-        &ichiran_database_url,
         ichiran_cli_path.into(),
         &private_cookie_password,
     )

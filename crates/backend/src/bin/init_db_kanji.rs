@@ -19,6 +19,13 @@ fn main() -> eyre::Result<()> {
     dotenvy::dotenv().ok();
 
     let database_url = std::env::var("DATABASE_URL").wrap_err("Missing DATABASE_URL")?;
+    tracing::info!("This operation will delete old data from {database_url}, confirm? (y/n)");
+    let mut buf = String::new();
+    std::io::stdin().read_line(&mut buf)?;
+    if buf.trim() != "y" {
+        tracing::info!("Did not confirm")
+    }
+
     let mut conn = PgConnection::establish(&database_url)?;
 
     tracing::info!("Reading kanjifile");

@@ -41,18 +41,19 @@ WORKDIR /lbr
 RUN apt update -y
 RUN apt install -y libpq5
 COPY ./data/ichiran-cli /lbr/ichiran-cli
+COPY ./data/ichiran_seq_to_word_id.json /lbr/data/ichiran_seq_to_word_id.json
+COPY ./data/kanji_to_readings.json /lbr/data/kanji_to_readings.json
 
-# set up env
+# set up default env
 ENV RUST_LOG                debug
 ENV SERVER_URL              0.0.0.0:3000
 ENV DATABASE_URL            postgres://lbr:lbr@host.docker.internal/lbr
-ENV ICHIRAN_DATABASE_URL    postgres://lbr:lbr@host.docker.internal/ichiran
 ENV ICHIRAN_CLI_PATH        /lbr/ichiran-cli
-ENV PRIVATE_COOKIE_PASSWORD abcdefghijklmnopqrstuvwxyzåäöABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖ
+ENV PRIVATE_COOKIE_PASSWORD uvoo4rei1aiN0po4aitix9pie0eo7aaZei0aem6ix5oi5quooxaiQuooTohs2Pha
 ENV LEPTOS_OUTPUT_NAME      lbr
 ENV LEPTOS_SITE_ROOT        site
 ENV LEPTOS_SITE_PKG_DIR     pkg
-ENV LEPTOS_SITE_ADDR        127.0.0.1:3000
+ENV LEPTOS_SITE_ADDR        0.0.0.0:3000
 ENV LEPTOS_RELOAD_PORT      3001
 
 # server entrypoint

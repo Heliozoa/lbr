@@ -25,6 +25,13 @@ fn main() -> eyre::Result<()> {
     dotenvy::dotenv().ok();
 
     let lbr_database_url = std::env::var("DATABASE_URL").wrap_err("Missing DATABASE_URL")?;
+    tracing::info!("This operation will delete old data from {lbr_database_url}, confirm? (y/n)");
+    let mut buf = String::new();
+    std::io::stdin().read_line(&mut buf)?;
+    if buf.trim() != "y" {
+        tracing::info!("Did not confirm")
+    }
+
     let mut lbr_conn = PgConnection::establish(&lbr_database_url)?;
     let ichiran_database_url =
         std::env::var("ICHIRAN_DATABASE_URL").wrap_err("Missing ICHIRAN_DATABASE_URL")?;
