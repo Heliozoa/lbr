@@ -41,15 +41,13 @@ pub fn Navbar(cx: Scope) -> impl IntoView {
     };
 
     view! { cx,
-        <Suspense fallback=move || utils::loading_fallback(cx, "Loading...")>
-            <nav class="navbar is-flex is-vcentered">
-                <A class="p-3" exact=true href="/">"Home"</A>
-                {navbar_links}
-            </nav>
-            <ErrorBoundary fallback={utils::errors_fallback}>
-                <div>{move || logout_action.value()}</div>
-            </ErrorBoundary>
-        </Suspense>
+        <nav class="navbar is-flex is-vcentered">
+            <A class="p-3" exact=true href="/">"Home"</A>
+            {navbar_links}
+        </nav>
+        <ErrorBoundary fallback={utils::errors_fallback}>
+            <div>{move || logout_action.value()}</div>
+        </ErrorBoundary>
     }
 }
 

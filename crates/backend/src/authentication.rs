@@ -13,7 +13,7 @@ use axum::{
 };
 use moka::{future::Cache, Expiry};
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, sync::Arc, time::Duration};
+use std::{borrow::Cow, time::Duration};
 use tower_cookies::{cookie::SameSite, Cookie, Cookies, SignedCookies};
 
 pub type SessionCache = Cache<i32, Session>;
@@ -114,13 +114,13 @@ pub struct Authentication {
 }
 
 #[async_trait]
-impl FromRequestParts<Arc<LbrStateInner>> for Authentication {
+impl FromRequestParts<LbrStateInner> for Authentication {
     type Rejection = (StatusCode, &'static str);
 
     /// Checks the cache for a session that corresponds to the cookie.
     async fn from_request_parts(
         parts: &mut Parts,
-        state: &Arc<LbrStateInner>,
+        state: &LbrStateInner,
     ) -> Result<Self, Self::Rejection> {
         let cookies: Cookies = parts.extract::<Cookies>().await?;
         let signed_cookies = cookies.signed(&state.private_cookie_key);

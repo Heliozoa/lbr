@@ -16,8 +16,9 @@ license.workspace = true
 [dependencies]
 jadata.workspace = true
 lbr.workspace = true
-lbr_core.workspace = true
 lbr_api.workspace = true
+lbr_core.workspace = true
+lbr_web = { workspace = true, features = ["ssr"] }
 
 argon2 = "0.5.0"
 axum = "0.6.18"
@@ -26,17 +27,20 @@ diesel = { version = "2.1.0", features = ["postgres", "chrono", "r2d2"] }
 dotenvy = "0.15.7"
 eyre = "0.6.8"
 furigana = "0.1.1"
-tokio-util = { version = "0.7.8", features = ["io"] }
 ichiran = "0.4.0"
-itertools = "0.10.5"
+itertools = "0.11.0"
+leptos = { version = "0.4.2", features = ["nightly", "ssr"] }
+leptos_axum = "0.4.2"
 moka = { version = "0.11.2", features = ["future"] }
 rand = "0.8.5"
 serde = "1.0.164"
 serde_json = "1.0.97"
 tempfile = "3.6.0"
 tokio = { version = "1.28.2", features = ["full"] }
+tokio-util = { version = "0.7.8", features = ["io"] }
 tower-cookies = { version = "0.9.0", features = ["signed"] }
-tower-http = { version = "0.4.1", features = ["cors"] }
+tower-http = { version = "0.4.1", features = ["cors", "fs"] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.17"
 wana_kana = "3.0.0"
+tower = "0.4.13"

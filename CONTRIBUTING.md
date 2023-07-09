@@ -5,12 +5,30 @@ Thanks for your interest in contributing to LBR! Issues, pull requests and discu
 
 The project is split into a few crates in the `./crates` directory:
 
-- `lbr_api` (`./crates/api`): Contains types for communicating between the backend and frontend.
-- `lbr_server` (`./crates/backend`): A web server offering the functionality of LBR in its endpoints.
-- `lbr_core` (`./crates/core`): Contains some core types shared by the main library and frontends.
-- `lbr_web` (`./crates/frontend`): A web frontend that works with the backend.
-- `jadata` (`./crates/jadata`): Generates files used by LBR related to the Japanese language.
-- `lbr` (`./crates/lbr`): The main library of the project that offers all the core functionality.
+### `lbr_api` (`./crates/api`)
+Contains types for communicating between the backend and frontend.
+
+### `lbr_server` (`./crates/backend`)
+A web server offering the functionality of LBR in its endpoints.
+
+Uses [axum](https://docs.rs/axum) for the web server and [diesel](https://docs.rs/diesel) with postgres for the database.
+
+### `lbr_core` (`./crates/core`)
+Contains some core types shared by the main library and frontends.
+
+### `lbr_frontend` (`./crates/frontend`)
+A thin wrapper around `lbr_web`.
+
+### `lbr_web` (`./crates/web`)
+A web frontend that works with the backend.
+
+Uses the [Leptos](https://docs.rs/leptos) web framework.
+
+### `jadata` (`./crates/jadata`)
+Generates files used by LBR related to the Japanese language.
+
+### `lbr` (`./crates/lbr`)
+The main library of the project that offers all the core functionality.
 
 
 ## Setting up LBR locally

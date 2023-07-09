@@ -17,13 +17,21 @@ jadata = { path = "./crates/jadata" }
 lbr = { path = "./crates/lbr" }
 lbr_api = { path = "./crates/api" }
 lbr_core = { path = "./crates/core" }
-lbr_web = { path = "./crates/frontend" }
+lbr_web = { path = "./crates/web" }
 lbr_server = { path = "./crates/backend" }
+lbr_frontend = { path = "./crates/frontend" }
 
 [profile.dev.package]
 serde-xml-rs.opt-level = 3
 serde.opt-level = 3
 serde_json.opt-level = 3
 
-[patch.crates-io]
-ichiran = { path = "../ichiran" }
+# [patch.crates-io]
+# ichiran = { path = "../ichiran" }
+
+[[workspace.metadata.leptos]]
+name = "lbr"
+bin-package = "lbr_server"
+bin-target = "lbr_server"
+lib-package = "lbr_frontend"
+style-file = "style/css/bulma.css"

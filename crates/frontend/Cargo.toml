@@ -1,12 +1,9 @@
-# cargo-features = ["per-package-target"]
-
 [package]
-name = "lbr_web"
+name = "lbr_frontend"
 description = "Web frontend for lbr-server."
 readme = "README.md"
 keywords = []
 categories = []
-# default-target = "wasm32-unknown-unknown"
 
 version.workspace = true
 authors.workspace = true
@@ -15,14 +12,17 @@ rust-version.workspace = true
 repository.workspace = true
 license.workspace = true
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 lbr_api.workspace = true
+lbr_web = { workspace = true, features = ["hydrate"] }
 
 chrono = "0.4.26"
 console_error_panic_hook = "0.1.7"
 eyre = "0.6.8"
-leptos = { version = "0.4.1", features = ["nightly", "csr"] }
-leptos_router = { version = "0.4.1", features=["nightly", "csr"] }
+leptos = { version = "0.4.2", features = ["nightly", "hydrate"] }
 reqwasm = "0.5.0"
 serde = { version = "1.0.164", features = ["derive"] }
 serde_json = "1.0.97"

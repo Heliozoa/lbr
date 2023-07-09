@@ -17,13 +17,24 @@ pub fn initialise_context(cx: Scope, backend_addr: &'static str) {
 }
 
 pub fn get_client(cx: Scope) -> Client {
-    leptos::expect_context::<ClientBuilder>(cx).build(cx)
+    if cfg!(feature = "ssr") {
+        ClientBuilder::new("").build(cx)
+    } else {
+        leptos::expect_context::<ClientBuilder>(cx).build(cx)
+    }
 }
 
 pub fn get_session(cx: Scope) -> Session {
-    leptos::expect_context::<Session>(cx)
+    if cfg!(feature = "ssr") {
+        Session::new(cx)
+    } else {
+        leptos::expect_context::<Session>(cx)
+    }
 }
 
 pub fn refresh_session(cx: Scope) {
+    if cfg!(feature = "ssr") {
+        return;
+    }
     leptos::use_context::<Session>(cx).map(|s| s.refresh());
 }

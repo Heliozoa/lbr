@@ -1,0 +1,38 @@
+[package]
+name = "lbr_web"
+description = "Leptos app for lbr."
+readme = "README.md"
+keywords = []
+categories = []
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+lbr_api.workspace = true
+
+chrono = "0.4.26"
+console_error_panic_hook = "0.1.7"
+eyre = "0.6.8"
+leptos = { version = "0.4.2", features = ["nightly"] }
+leptos_axum = { version = "0.4.2", optional = true }
+leptos_router = { version = "0.4.2", features = ["nightly"] }
+reqwasm = "0.5.0"
+serde = { version = "1.0.164", features = ["derive"] }
+serde_json = "1.0.97"
+thiserror = "1.0.40"
+tracing = "0.1.37"
+tracing-wasm = "0.2.1"
+wasm-bindgen = "0.2.87"
+wasm-cookies = "0.2.1"
+web-sys = { version = "0.3.60", features = ["HtmlDocument"] }
+leptos_meta = { version = "0.4.2", features = ["nightly"] }
+
+[features]
+default = []
+hydrate = ["leptos/hydrate", "leptos_router/hydrate", "leptos_meta/hydrate"]
+ssr = ["leptos/ssr", "leptos_router/ssr", "leptos_meta/ssr", "dep:leptos_axum"]
