@@ -60,9 +60,9 @@ pub fn Home(cx: Scope) -> impl IntoView {
     };
 
     let other_view = move || {
-        let logg = get_session(cx).logged_in();
-        tracing::info!("updating other view {logg:#?}");
-        if logg.unwrap_or_default() {
+        tracing::info!("other");
+        if get_session(cx).logged_in().unwrap_or_default() {
+            tracing::info!("lg");
             Some(view! { cx,
                 <div id="col-3" class="column">
                     <h2 class="subtitle is-6 has-text-weight-bold">"Other"</h2>
@@ -70,7 +70,8 @@ pub fn Home(cx: Scope) -> impl IntoView {
                 </div>
             })
         } else {
-            None
+            tracing::info!("nl");
+            Some(view! { cx, <div>"not logged"</div> })
         }
     };
 

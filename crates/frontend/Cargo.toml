@@ -22,7 +22,7 @@ lbr_web = { workspace = true, features = ["hydrate"] }
 chrono = "0.4.26"
 console_error_panic_hook = "0.1.7"
 eyre = "0.6.8"
-leptos = { version = "0.4.2", features = ["nightly", "hydrate"] }
+leptos = { git = "https://github.com/leptos-rs/leptos.git", branch = "main", features = ["nightly", "hydrate"] }
 reqwasm = "0.5.0"
 serde = { version = "1.0.164", features = ["derive"] }
 serde_json = "1.0.97"
