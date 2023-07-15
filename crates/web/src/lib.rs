@@ -27,31 +27,9 @@ pub fn Root(cx: Scope) -> impl IntoView {
     view! { cx,
             <Stylesheet id="lbr" href="/pkg/lbr.css"/>
             <Title text="LBR"/>
-            <div class="is-flex is-flex-direction-column" style="min-height: 100vh">
-                <div class="section is-flex is-flex-grow-1">
-                    <div class="container">
-                        <ErrorBoundary fallback>
-                            <Content/>
-                        </ErrorBoundary>
-                    </div>
-                </div>
-                <footer class="footer">
-                    <div class="container">
-                        <a href="https://github.com/Heliozoa/lbr">"Source code"</a>
-                        " - Powered by "
-                        <a href="https://github.com/tshatrov/ichiran">"ichiran"</a>
-                        " / "
-                        <a href="https://github.com/tokio-rs/axum">"axum"</a>
-                        " / "
-                        <a href="https://github.com/diesel-rs/diesel">"diesel"</a>
-                        " / "
-                        <a href="https://github.com/leptos-rs/leptos/">"Leptos"</a>
-                        " / "
-                        <a href="https://bulma.io/">"Bulma"</a>
-                        " and more"
-                    </div>
-                </footer>
-            </div>
+            <ErrorBoundary fallback>
+                <Content/>
+            </ErrorBoundary>
     }
 }
 
@@ -67,38 +45,6 @@ pub fn Content(cx: Scope) -> impl IntoView {
                     <Route
                         path=""
                         view=|cx| view! { cx, <Home/> }
-                    />
-                    <Route
-                        path="source/new"
-                        view=|cx| view! { cx, <SourceNew/>}
-                    />
-                    <Route
-                        path="source/:source_id"
-                        view=|cx| view! { cx, <Source/> }
-                    />
-                    <Route
-                        path="source/:source_id/add-sentences"
-                        view=|cx| view! { cx, <SourceAddSentences/> }
-                    />
-                    <Route
-                        path="source/:source_id/sentence/:sentence_id"
-                        view=|cx| view! { cx, <SourceSentence/> }
-                    />
-                    <Route
-                        path="deck/new"
-                        view=|cx| view! { cx, <DeckNew/> }
-                    />
-                    <Route
-                        path="deck/:deck_id"
-                        view=|cx| view! { cx, <Deck/> }
-                    />
-                    <Route
-                        path="login"
-                        view=|cx| view! { cx, <Login/> }
-                    />
-                    <Route
-                        path="register"
-                        view=|cx| view! { cx, <Register/> }
                     />
                 </AnimatedRoutes>
             </main>

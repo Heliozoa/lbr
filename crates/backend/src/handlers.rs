@@ -2,9 +2,6 @@
 
 pub mod auth;
 pub mod decks;
-pub mod segment;
-pub mod sentences;
-pub mod sources;
 
 use axum::{
     body::{boxed, Body, BoxBody},

@@ -13,10 +13,6 @@ repository = "https://github.com/Heliozoa/lbr"
 license = "AGPL-3.0-or-later"
 
 [workspace.dependencies]
-jadata = { path = "./crates/jadata" }
-lbr = { path = "./crates/lbr" }
-lbr_api = { path = "./crates/api" }
-lbr_core = { path = "./crates/core" }
 lbr_web = { path = "./crates/web" }
 lbr_server = { path = "./crates/backend" }
 lbr_frontend = { path = "./crates/frontend" }

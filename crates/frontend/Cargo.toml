@@ -16,7 +16,6 @@ license.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-lbr_api.workspace = true
 lbr_web = { workspace = true, features = ["hydrate"] }
 
 chrono = "0.4.26"
