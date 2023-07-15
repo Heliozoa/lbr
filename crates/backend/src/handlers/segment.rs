@@ -5,43 +5,35 @@ use crate::{
     domain::sentences,
     eq,
     error::{EyreResult, LbrResult},
-    LbrState,
+    query, LbrState,
 };
-use axum::Json;
+use axum::{extract::State, Json};
 use diesel::prelude::*;
 use lbr::sentence_splitter::SentenceSplitter;
 use lbr_api::{request as req, response as res};
-use lbr_core::ichiran_types::Segment;
-use std::collections::HashSet;
 
 pub async fn segment(
-    state: LbrState,
+    State(state): State<LbrState>,
     user: Authentication,
     paragraph: Json<req::Paragraph<'static>>,
 ) -> LbrResult<Json<Vec<res::SegmentedSentence>>> {
-    use crate::schema::{ignored_words as iw, sentences as se, sources as so};
-    tracing::info!("Segmenting paragraph");
-
+    use crate::schema::{sentences as se, sources as so};
     let user_id = user.user_id;
     let req::Paragraph {
         source_id,
         paragraph,
     } = paragraph.0;
+
+    tracing::info!("Segmenting paragraph for source {source_id} and user {user_id}");
+
     let segmented_sentences = tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
-        let source = so::table
-            .select(so::id.eq(source_id).and(so::user_id.eq(user_id)))
-            .execute(&mut conn)?;
-        if source != 1 {
-            return Err(eyre::eyre!("No such source"));
-        }
+        let _source = so::table
+            .filter(so::id.eq(source_id).and(so::user_id.eq(user_id)))
+            .select(so::id)
+            .get_result::<i32>(&mut conn)?;
 
-        let ignored_word_ids = iw::table
-            .select(iw::word_id)
-            .filter(iw::user_id.eq(user_id))
-            .get_results::<i32>(&mut conn)?
-            .into_iter()
-            .collect::<HashSet<_>>();
+        let ignored_word_ids = query::ignored_words(&mut conn, user_id)?;
 
         let mut segmented_sentences = Vec::new();
         for sentence in SentenceSplitter::new(&paragraph) {
@@ -53,33 +45,12 @@ pub async fn segment(
                 tracing::info!("Skipping existing sentence {sentence}");
                 continue;
             }
-            let segments = sentences::process(&state.ichiran_cli, sentence)?;
-            let segment_word_ids = segments
-                .iter()
-                .filter_map(|s| {
-                    if let Segment::Phrase {
-                        interpretations, ..
-                    } = s
-                    {
-                        Some(interpretations)
-                    } else {
-                        None
-                    }
-                })
-                .flatten()
-                .flat_map(|i| &i.components)
-                .filter_map(|c| c.word_id)
-                .collect::<Vec<_>>();
-            let ignored_words = segment_word_ids
-                .iter()
-                .copied()
-                .filter(|swi| ignored_word_ids.contains(&swi))
-                .collect();
-            segmented_sentences.push(res::SegmentedSentence {
-                sentence: sentence.to_string(),
-                segments,
-                ignored_words,
-            });
+            let segmented_sentence = sentences::process_sentence(
+                &state.ichiran_cli,
+                sentence.to_string(),
+                &ignored_word_ids,
+            )?;
+            segmented_sentences.push(segmented_sentence);
         }
         EyreResult::Ok(segmented_sentences)
     })

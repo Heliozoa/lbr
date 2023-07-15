@@ -18,26 +18,26 @@ impl Session {
                     Some(user)
                 }
                 _ => {
-                    tracing::trace!("Current user: none");
+                    tracing::info!("Current user: none");
                     None
                 }
             }
         });
+        if !cfg!(feature = "ssr") {
+            user_id.dispatch(());
+        }
         Self { user_id }
     }
 
     pub fn logged_in(&self) -> Option<bool> {
-        match self.user_id.value().get() {
-            Some(Some(_user_id)) => Some(true),
-            Some(None) => Some(false),
-            None => None,
-        }
-    }
-
-    pub fn refresh(&self) {
-        // not sure if untracked works here...
-        if !self.user_id.pending().get_untracked() {
-            self.user_id.dispatch(());
+        if self.user_id.pending().get() {
+            None
+        } else {
+            match self.user_id.value().get() {
+                Some(Some(_user_id)) => Some(true),
+                Some(None) => Some(false),
+                None => None,
+            }
         }
     }
 }

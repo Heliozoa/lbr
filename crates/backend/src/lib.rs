@@ -4,6 +4,7 @@ pub mod authentication;
 pub mod domain;
 pub mod error;
 pub mod handlers;
+pub mod query;
 pub mod schema;
 pub mod schema_ichiran;
 pub mod utils;
@@ -11,7 +12,7 @@ pub mod utils;
 use crate::handlers::{decks, sentences, sources};
 use authentication::{Expiration, SessionCache};
 use axum::{
-    extract::{FromRef, State},
+    extract::FromRef,
     routing::{get, post},
     Router,
 };
@@ -30,13 +31,12 @@ use std::{collections::HashMap, ops::Deref, path::PathBuf, sync::Arc};
 use tokio::io::AsyncReadExt;
 use tower_cookies::{CookieManagerLayer, Key};
 
-pub type LbrState = State<LbrStateInner>;
 pub type LbrPool = Pool<ConnectionManager<PgConnection>>;
 
 #[derive(Clone)]
-pub struct LbrStateInner(Arc<LbrStateCore>);
+pub struct LbrState(Arc<LbrStateCore>);
 
-impl Deref for LbrStateInner {
+impl Deref for LbrState {
     type Target = LbrStateCore;
 
     fn deref(&self) -> &Self::Target {
@@ -55,13 +55,13 @@ pub struct LbrStateCore {
     pub leptos_options: LeptosOptions,
 }
 
-impl FromRef<LbrStateInner> for LeptosOptions {
-    fn from_ref(input: &LbrStateInner) -> Self {
+impl FromRef<LbrState> for LeptosOptions {
+    fn from_ref(input: &LbrState) -> Self {
         input.leptos_options.clone()
     }
 }
 
-pub async fn router(state: LbrStateInner) -> Router<()> {
+pub async fn router(state: LbrState) -> Router<()> {
     let router = Router::new()
         .nest(
             "/api",
@@ -87,6 +87,7 @@ pub async fn router(state: LbrStateInner) -> Router<()> {
                                         .post(sources::update)
                                         .delete(sources::delete),
                                 )
+                                .route("/details", get(sources::get_details))
                                 .route("/sentence", post(sources::add_sentence)),
                         ),
                 )
@@ -103,20 +104,22 @@ pub async fn router(state: LbrStateInner) -> Router<()> {
                                         .post(decks::update)
                                         .delete(decks::delete),
                                 )
-                                .route("/sources", post(decks::update_sources))
                                 .route("/generate/:filename", get(decks::generate)),
                         ),
                 )
                 .nest(
                     "/sentences",
-                    Router::new()
-                        .route("/", get(sentences::get).post(sentences::insert))
-                        .route(
-                            "/:id",
-                            get(sentences::get_one)
-                                .post(sentences::update)
-                                .delete(sentences::delete),
-                        ),
+                    Router::new().nest(
+                        "/:id",
+                        Router::new()
+                            .route(
+                                "/",
+                                get(sentences::get_one)
+                                    .post(sentences::update)
+                                    .delete(sentences::delete),
+                            )
+                            .route("/segment", post(sentences::segment)),
+                    ),
                 )
                 .route("/segment", post(segment::segment))
                 .layer(CookieManagerLayer::new()),
@@ -200,7 +203,7 @@ pub async fn router_from_vars(
         .unwrap()
         .leptos_options;
 
-    let state = LbrStateInner(Arc::new(LbrStateCore {
+    let state = LbrState(Arc::new(LbrStateCore {
         lbr_pool,
         ichiran_pool,
         ichiran_cli,

@@ -15,7 +15,7 @@ pub struct Source {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SourceWithSentences {
+pub struct SourceDetails {
     pub id: i32,
     pub name: String,
     pub sentences: Vec<Sentence>,
@@ -38,6 +38,30 @@ pub struct DeckDetails {
 pub struct Sentence {
     pub id: i32,
     pub sentence: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SentenceDetails {
+    pub id: i32,
+    pub sentence: String,
+    pub words: Vec<SentenceWord>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SentenceWord {
+    pub reading: Option<String>,
+    pub idx_start: i32,
+    pub idx_end: i32,
+    pub furigana: Vec<Furigana>,
+    pub translations: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Furigana {
+    pub word_start_idx: i32,
+    pub word_end_idx: i32,
+    pub reading_start_idx: i32,
+    pub reading_end_idx: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

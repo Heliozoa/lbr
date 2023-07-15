@@ -18,7 +18,7 @@ pub fn SegmentedParagraphView(
         .into_iter()
         .map(|segmented_sentence| {
             view! { cx,
-                <SegmentedSentenceView source_id segmented_sentence />
+                <SegmentedSentenceView source_id sentence_id=None segmented_sentence />
             }
         })
         .collect_view(cx);
@@ -36,7 +36,7 @@ pub struct Component {
     idx_start: usize,
     idx_end: usize,
     status: Status,
-    reading: String,
+    reading: Option<String>,
     reading_override: String,
 }
 
@@ -104,6 +104,11 @@ impl Form {
                                 } else {
                                     Status::Undecided
                                 };
+                                let reading = if component.word == component.reading_hiragana {
+                                    None
+                                } else {
+                                    Some(component.reading_hiragana.clone())
+                                };
                                 let signal = leptos::create_signal(
                                     cx,
                                     Component {
@@ -111,7 +116,7 @@ impl Form {
                                         idx_end,
                                         word_id,
                                         status,
-                                        reading: component.reading_hiragana.clone(),
+                                        reading,
                                         reading_override: String::new(),
                                     },
                                 );
@@ -153,6 +158,7 @@ impl Form {
 pub fn SegmentedSentenceView(
     cx: Scope,
     source_id: i32,
+    sentence_id: Option<i32>,
     segmented_sentence: res::SegmentedSentence,
 ) -> impl IntoView {
     let form = Form::init(cx, &segmented_sentence);
@@ -169,7 +175,13 @@ pub fn SegmentedSentenceView(
     let submit = leptos::create_action(cx, move |sentence: &req::SegmentedSentence| {
         let client = get_client(cx);
         let sentence = sentence.clone();
-        async move { client.new_sentence(source_id, &sentence).await }
+        async move {
+            if let Some(sentence_id) = sentence_id {
+                client.update_sentence(sentence_id, &sentence).await
+            } else {
+                client.new_sentence(source_id, &sentence).await
+            }
+        }
     });
 
     let components = form
@@ -187,11 +199,11 @@ pub fn SegmentedSentenceView(
                     let reading = if component.reading_override.is_empty() {
                         component.reading
                     } else {
-                        component.reading_override
+                        Some(component.reading_override)
                     };
                     words.push(req::Word {
                         id: component.word_id,
-                        reading: Some(reading),
+                        reading,
                         idx_start: i32::try_from(component.idx_start).unwrap_or_default(),
                         idx_end: i32::try_from(component.idx_end).unwrap_or_default(),
                     })

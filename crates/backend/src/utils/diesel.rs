@@ -148,6 +148,7 @@ macro_rules! query {
     ) => {
         $(#[ $attr ])*
         #[derive(::diesel::Queryable)]
+        #[diesel(check_for_backend(::diesel::pg::Pg))]
         $v $kw $name {
             $($fv $field: $t),*
         }

@@ -1,4 +1,4 @@
 .env
 target
-data/*
-crates/frontend/dist/*
+data
+crates/frontend/dist

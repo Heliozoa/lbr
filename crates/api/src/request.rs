@@ -31,10 +31,6 @@ pub struct NewDeck<'a> {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct UpdateDeck<'a> {
     pub name: Cow<'a, str>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct UpdateDeckSources<'a> {
     pub included_sources: Cow<'a, [i32]>,
 }
 

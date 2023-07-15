@@ -2,7 +2,6 @@ Thanks for your interest in contributing to LBR! Issues, pull requests and discu
 
 
 ## Project structure
-
 The project is split into a few crates in the `./crates` directory:
 
 ### `lbr_api` (`./crates/api`)
@@ -32,7 +31,6 @@ The main library of the project that offers all the core functionality.
 
 
 ## Setting up LBR locally
-
 ### Prepare data files
 1. Download the files listed in `./jadata/README.md` to `./jadata/external`
 2. Run `bash ./scripts/jadata.bash`
@@ -44,8 +42,11 @@ The main library of the project that offers all the core functionality.
 4. Run `bash ./scripts/init-ichiran-db.bash`
 5. Run `bash ./scripts/generate-ichiran-schema.bash`
 
-
 ### Setting up ichiran
+#### With Docker
+https://github.com/tshatrov/ichiran#dockerized-version
+
+#### Without Docker
 See https://readevalprint.tumblr.com/post/639359547843215360/ichiranhome-2021-the-ultimate-guide
 
 0. Make sure the ichiran database has been set up in the previous step
@@ -66,8 +67,10 @@ See https://readevalprint.tumblr.com/post/639359547843215360/ichiranhome-2021-th
 
 
 ## Development
-
 LBR uses the nightly toolchain.
+
+### Logging
+Setting the logging level for the backend is done with the `RUST_LOG` environment variable. For the frontend, the `WASM_LOG` environment variable is used. The levels available are the usual `trace`, `debug`, `info`, `warn` and `error`.
 
 ### Formatting
 `cargo fmt`
@@ -76,6 +79,8 @@ LBR uses the nightly toolchain.
 `cargo clippy`
 
 ### Running the project
-Run `bash ./scripts/dev.bash`
+Install `cargo leptos` with `cargo install cargo-leptos`
 
-The backend will start at `http://0.0.0.0:3000` and the frontend will be available at `http://0.0.0.0:8080`.
+Run `cargo leptos watch`
+
+LBR will be available at `http://0.0.0.0:8080`.

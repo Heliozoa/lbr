@@ -43,9 +43,12 @@ pub fn Root(cx: Scope) -> impl IntoView {
                         " / "
                         <a href="https://github.com/tokio-rs/axum">"axum"</a>
                         " / "
+                        <a href="https://github.com/diesel-rs/diesel">"diesel"</a>
+                        " / "
                         <a href="https://github.com/leptos-rs/leptos/">"Leptos"</a>
                         " / "
                         <a href="https://bulma.io/">"Bulma"</a>
+                        " and more"
                     </div>
                 </footer>
             </div>
@@ -70,23 +73,23 @@ pub fn Content(cx: Scope) -> impl IntoView {
                         view=|cx| view! { cx, <SourceNew/>}
                     />
                     <Route
-                        path="source/:id"
+                        path="source/:source_id"
                         view=|cx| view! { cx, <Source/> }
                     />
                     <Route
-                        path="source/:id/add-sentences"
+                        path="source/:source_id/add-sentences"
                         view=|cx| view! { cx, <SourceAddSentences/> }
                     />
                     <Route
-                        path="sentence/:id"
-                        view=|cx| view! { cx, <Sentence/> }
+                        path="source/:source_id/sentence/:sentence_id"
+                        view=|cx| view! { cx, <SourceSentence/> }
                     />
                     <Route
                         path="deck/new"
                         view=|cx| view! { cx, <DeckNew/> }
                     />
                     <Route
-                        path="deck/:id"
+                        path="deck/:deck_id"
                         view=|cx| view! { cx, <Deck/> }
                     />
                     <Route

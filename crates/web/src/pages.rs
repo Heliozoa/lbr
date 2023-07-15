@@ -2,13 +2,14 @@
 
 use crate::{
     components::{analysis::*, *},
-    context::get_client,
+    context::{get_client, get_session},
     error::{WebError, WebResult},
     utils,
 };
 use lbr_api::response as res;
 use leptos::{
     html::{Input, Textarea},
+    leptos_dom::helpers::TimeoutHandle,
     *,
 };
 use leptos_router::*;
@@ -58,15 +59,31 @@ pub fn Home(cx: Scope) -> impl IntoView {
         }
     };
 
+    let other_view = move || {
+        let logg = get_session(cx).logged_in();
+        tracing::info!("updating other view {logg:#?}");
+        if logg.unwrap_or_default() {
+            Some(view! { cx,
+                <div id="col-3" class="column">
+                    <h2 class="subtitle is-6 has-text-weight-bold">"Other"</h2>
+                    <A href="/ignored-words">"Ignored words"</A>
+                </div>
+            })
+        } else {
+            None
+        }
+    };
+
     view! { cx,
         <h2 class="subtitle">"Welcome to LBR!"</h2>
         <div class="columns">
-            <div class="column">
+            <div id="col-1" class="column">
                 <ResourceView resource=sources_res view=sources_view/>
             </div>
-            <div class="column">
+            <div id="col-2" class="column">
                 <ResourceView resource=decks_res view=decks_view/>
             </div>
+            {other_view}
         </div>
     }
 }
@@ -94,12 +111,10 @@ pub fn SourceNew(cx: Scope) -> impl IntoView {
         <LoginGuard require_login=true>
             <h2 class="subtitle">"Adding new source"</h2>
             <form>
-                <div class="block">
-                    <label class="label">
-                        "Source name"
-                        <input class="input" node_ref=name_ref type="text"/>
-                    </label>
-                </div>
+                <label class="label">
+                    "Source name"
+                    <input class="input" node_ref=name_ref type="text"/>
+                </label>
                 <div class="block">
                     <button class="button" type="submit" on:click=move |ev| {
                         ev.prevent_default();
@@ -116,13 +131,36 @@ pub fn SourceNew(cx: Scope) -> impl IntoView {
 
 #[derive(Debug, Clone, PartialEq, Params)]
 pub struct SourceParams {
-    id: i32,
+    source_id: i32,
 }
 #[component]
 pub fn Source(cx: Scope) -> impl IntoView {
-    let SourceParams { id } = utils::params(cx)?;
-    tracing::info!("Rendering Source {id}");
+    let SourceParams { source_id } = utils::params(cx)?;
+    tracing::info!("Rendering Source {source_id}");
 
+    // resources
+    let source_res = utils::logged_in_resource!(cx, get_source_details(source_id));
+
+    // actions
+    let name_ref = leptos::create_node_ref::<Input>(cx);
+    let (update_result_message, set_update_result_message) =
+        leptos::create_signal(cx, ().into_view(cx));
+    let update_act = leptos::create_action(cx, move |&()| {
+        let name = name_ref().unwrap().value();
+        let client = get_client(cx);
+        async move {
+            client.update_source(source_id, &name).await?;
+            source_res.refetch();
+            set_update_result_message(view! { cx, <div>"Updated source!"</div> }.into_view(cx));
+            leptos::set_timeout(
+                move || {
+                    set_update_result_message(().into_view(cx));
+                },
+                Duration::from_secs(4),
+            );
+            WebResult::Ok(())
+        }
+    });
     let delete_act = leptos::create_action(cx, move |&()| {
         // TODO: make the user type the name of the source
         let confirmed =
@@ -131,7 +169,7 @@ pub fn Source(cx: Scope) -> impl IntoView {
         async move {
             let confirmed = confirmed?;
             let view = if confirmed {
-                client.delete_source(id).await?;
+                client.delete_source(source_id).await?;
                 view! { cx, <Redirect path="/" /> }.into_view(cx)
             } else {
                 ().into_view(cx)
@@ -141,16 +179,15 @@ pub fn Source(cx: Scope) -> impl IntoView {
     });
 
     // source
-    let source_res = utils::logged_in_resource!(cx, get_source(id));
-    let source_content = move |source: res::SourceWithSentences| {
-        let href = format!("/source/{id}/add-sentences");
+    let source_content = move |source: res::SourceDetails| {
+        let href = format!("/source/{source_id}/add-sentences");
         let sentence_list = source
             .sentences
             .into_iter()
             .map(|sentence| {
                 view! { cx,
                     <li>
-                        <A href=format!("/sentence/{}", sentence.id)>
+                        <A href=format!("/source/{source_id}/sentence/{}", sentence.id)>
                             {sentence.sentence}
                         </A>
                     </li>
@@ -158,15 +195,9 @@ pub fn Source(cx: Scope) -> impl IntoView {
             })
             .collect_view(cx);
         view! { cx,
-            <h2 class="subtitle">"Viewing source " {source.name}</h2>
+            <h2 class="subtitle">{format!("Viewing source {}", source.name)}</h2>
             <div class="block">
                 <A href>"Add sentences"</A>
-            </div>
-            <div class="block">
-                <button class="button is-danger" on:click=move |_ev| delete_act.dispatch(())>
-                    "Delete"
-                </button>
-                <ActionView action=delete_act/>
             </div>
             <div class="block">
                 <h3 class="subtitle">"Sentences"</h3>
@@ -175,6 +206,29 @@ pub fn Source(cx: Scope) -> impl IntoView {
                         {sentence_list}
                     </ul>
                 </div>
+            </div>
+            <div class="block">
+                <h3 class="subtitle">"Edit"</h3>
+                <form>
+                    <label class="label">
+                        "Name"
+                        <input class="input" type="text" value=source.name node_ref=name_ref/>
+                    </label>
+                    <button class="button" type="submit" on:click=move |ev| {
+                        ev.prevent_default();
+                        update_act.dispatch(());
+                    }>
+                        "Update"
+                    </button>
+                    <ActionView action=update_act/>
+                    {update_result_message}
+                </form>
+            </div>
+            <div class="block">
+                <button class="button is-danger" on:click=move |_ev| delete_act.dispatch(())>
+                    "Delete source"
+                </button>
+                <ActionView action=delete_act/>
             </div>
         }
     };
@@ -193,11 +247,11 @@ pub fn Source(cx: Scope) -> impl IntoView {
 
 #[derive(Debug, Clone, PartialEq, Params)]
 pub struct SourceAddSentencesParams {
-    id: i32,
+    source_id: i32,
 }
 #[component]
 pub fn SourceAddSentences(cx: Scope) -> impl IntoView {
-    let SourceAddSentencesParams { id: source_id } = utils::params(cx)?;
+    let SourceAddSentencesParams { source_id } = utils::params(cx)?;
     tracing::info!("Rendering SourceAddSentences {source_id}");
 
     let analyse_textarea_ref = leptos::create_node_ref::<Textarea>(cx);
@@ -209,7 +263,7 @@ pub fn SourceAddSentences(cx: Scope) -> impl IntoView {
 
     // source
     let source_res = utils::logged_in_resource!(cx, get_source(source_id));
-    let source_content = move |source: res::SourceWithSentences| {
+    let source_content = move |source: res::Source| {
         view! { cx,
             <h2 class="subtitle">{source.name}</h2>
             <label class="label">
@@ -221,7 +275,7 @@ pub fn SourceAddSentences(cx: Scope) -> impl IntoView {
             </button>
         }
     };
-    let source_view = move |source: Option<res::SourceWithSentences>| match source {
+    let source_view = move |source: Option<res::Source>| match source {
         Some(source) => source_content(source).into_view(cx),
         None => view! { cx, <div>"Loading source..."</div> }.into_view(cx),
     };
@@ -236,7 +290,7 @@ pub fn SourceAddSentences(cx: Scope) -> impl IntoView {
     };
     let analysis = move || {
         let view = if analyse_act.pending().get() {
-            view! { cx, <div>"Segmenting..."</div> }.into_view(cx)
+            view! { cx, <div>"Analysing..."</div> }.into_view(cx)
         } else {
             let segmented = analyse_act.value().get().transpose()?;
             analysis_view(segmented).into_view(cx)
@@ -250,40 +304,141 @@ pub fn SourceAddSentences(cx: Scope) -> impl IntoView {
     };
 
     let view = view! { cx,
-        <div class="block">
-            <ResourceView resource=source_res view=source_view/>
-        </div>
-        <div class="block">
-            {analysis}
-        </div>
+        <LoginGuard require_login=true>
+            <div class="block">
+                <ResourceView resource=source_res view=source_view/>
+            </div>
+            <div class="block">
+                {analysis}
+            </div>
+        </LoginGuard>
     };
     WebResult::Ok(view)
 }
 
 #[derive(Debug, Clone, PartialEq, Params)]
-pub struct SentenceParams {
-    id: i32,
+pub struct SourceSentenceParams {
+    source_id: i32,
+    sentence_id: i32,
 }
 #[component]
-pub fn Sentence(cx: Scope) -> impl IntoView {
-    let SentenceParams { id } = utils::params(cx)?;
-    tracing::info!("Rendering Sentence {id}");
+pub fn SourceSentence(cx: Scope) -> impl IntoView {
+    let SourceSentenceParams {
+        source_id,
+        sentence_id,
+    } = utils::params(cx)?;
+    tracing::info!("Rendering Sentence {source_id}");
 
-    // sentence
-    let sentence_res = utils::logged_in_resource!(cx, get_sentence(id));
-    let sentence_content = move |sentence: res::Sentence| {
+    let sentence_res = utils::logged_in_resource!(cx, get_sentence(sentence_id));
+
+    let reanalyse_act = leptos::create_action(cx, move |&()| {
+        let client = get_client(cx);
+        async move { client.segment_sentence(sentence_id).await }
+    });
+    let delete_act = leptos::create_action(cx, move |&()| {
+        let confirmed =
+            leptos::window().confirm_with_message("Are you sure you want to delete this sentence?");
+        let client = get_client(cx);
+        async move {
+            let confirmed = confirmed?;
+            let view = if confirmed {
+                client.delete_sentence(sentence_id).await?;
+                Some(view! { cx, <Redirect path={format!("/source/{source_id}")} /> })
+            } else {
+                None
+            };
+            WebResult::Ok(view)
+        }
+    });
+
+    // analysis
+    let analysis_content = move |segmented_sentence: res::SegmentedSentence| {
         view! { cx,
-            <div>{sentence.sentence}</div>
+            <SegmentedSentenceView source_id sentence_id=Some(sentence_id) segmented_sentence />
         }
     };
-    let sentence_view = move |sentence: Option<res::Sentence>| match sentence {
+    let analysis_view =
+        move |segmented: Option<res::SegmentedSentence>| segmented.map(analysis_content);
+    let analysis = move || {
+        let view = if reanalyse_act.pending().get() {
+            view! { cx, <div>"Analysing..."</div> }.into_view(cx)
+        } else {
+            let segmented = reanalyse_act.value().get().transpose()?;
+            analysis_view(segmented).into_view(cx)
+        };
+        WebResult::Ok(view)
+    };
+    let analysis = move || {
+        view! { cx,
+            <ErrorBoundary fallback={utils::errors_fallback}>
+                {analysis}
+            </ErrorBoundary>
+        }
+    };
+
+    // sentence
+    let sentence_content = move |sentence: res::SentenceDetails| {
+        let mut words = sentence.words;
+        words.sort_by_key(|v| v.idx_start);
+        let words = words
+            .into_iter()
+            .map(|sw| {
+                let word =
+                    sentence.sentence[sw.idx_start as usize..sw.idx_end as usize].to_string();
+                let translations = sw.translations.join(", ");
+                if let Some(reading) = sw.reading {
+                    view! { cx,
+                        <li>
+                            <div>{format!("{word} ({reading})")}</div>
+                            <div>{translations}</div>
+                        </li>
+                    }
+                } else {
+                    view! { cx,
+                        <li>
+                            <div>{word}</div>
+                            <div>{translations}</div>
+                        </li>
+                    }
+                }
+            })
+            .collect_view(cx);
+        view! { cx,
+            <div class="block">
+                <div>{sentence.sentence}</div>
+            </div>
+            <div class="block">
+                <button class="button is-primary" on:click=move |_ev| reanalyse_act.dispatch(())>
+                    "Reanalyse"
+                </button>
+            </div>
+            {analysis}
+            <div class="block">
+                <h3 class="subtitle">"Words"</h3>
+                <div class="content">
+                    <ul>
+                        {words}
+                    </ul>
+                </div>
+            </div>
+            <div class="block">
+                <button class="button is-danger" on:click=move |_ev| delete_act.dispatch(())>
+                    "Delete sentence"
+                </button>
+                <ActionView action=delete_act/>
+            </div>
+        }
+    };
+    let sentence_view = move |sentence: Option<res::SentenceDetails>| match sentence {
         Some(sentence) => sentence_content(sentence).into_view(cx),
         None => view! { cx, <div>"Loading sentence..."</div> }.into_view(cx),
     };
 
     let view = view! { cx,
-        <h2 class="subtitle">"Sentence"</h2>
-        <ResourceView resource=sentence_res view=sentence_view/>
+        <LoginGuard require_login=true>
+            <h2 class="subtitle">"Sentence"</h2>
+            <ResourceView resource=sentence_res view=sentence_view/>
+        </LoginGuard>
     };
     WebResult::Ok(view)
 }
@@ -310,12 +465,10 @@ pub fn DeckNew(cx: Scope) -> impl IntoView {
     view! { cx,
         <h2 class="subtitle">"Adding new source"</h2>
         <form>
-            <div class="block">
-                <label class="label">
-                    "Deck name"
-                    <input class="input" node_ref=name_ref type="text"/>
-                </label>
-            </div>
+            <label class="label">
+                "Deck name"
+                <input class="input" node_ref=name_ref type="text"/>
+            </label>
             <div class="block">
                 <button class="button" type="submit" on:click=move |ev| {
                     ev.prevent_default();
@@ -331,24 +484,26 @@ pub fn DeckNew(cx: Scope) -> impl IntoView {
 
 #[derive(Debug, Clone, PartialEq, Params)]
 pub struct DeckParams {
-    id: i32,
+    deck_id: i32,
 }
 #[component]
 pub fn Deck(cx: Scope) -> impl IntoView {
-    let DeckParams { id } = utils::params(cx)?;
-    tracing::info!("Rendering Deck {id}");
+    let DeckParams { deck_id } = utils::params(cx)?;
+    tracing::info!("Rendering Deck {deck_id}");
 
     // resources
-    let deck_res = utils::logged_in_resource!(cx, get_deck(id));
+    let deck_res = utils::logged_in_resource!(cx, get_deck(deck_id));
     let sources_res = utils::logged_in_resource!(cx, get_sources());
 
     // actions
+    let name_ref = leptos::create_node_ref::<Input>(cx);
     let (source_checkbox_refs, set_source_checkbox_refs) =
         leptos::create_signal(cx, Vec::<(i32, NodeRef<Input>)>::new());
     let (update_result_message, set_update_result_message) =
-        leptos::create_signal(cx, ().into_view(cx));
-    let update_sources_act = leptos::create_action(cx, move |&()| {
+        leptos::create_signal(cx, (().into_view(cx), None::<TimeoutHandle>));
+    let update_act = leptos::create_action(cx, move |&()| {
         let client = get_client(cx);
+        let name = name_ref().unwrap().value();
         let mut included_sources = Vec::new();
         for (id, node_ref) in source_checkbox_refs() {
             let include = node_ref().map(|r| r.checked()).unwrap_or_default();
@@ -357,16 +512,25 @@ pub fn Deck(cx: Scope) -> impl IntoView {
             }
         }
         async move {
-            client.update_deck_sources(id, &included_sources).await?;
-            set_update_result_message(
-                view! { cx, <div>"Updated included sources!"</div> }.into_view(cx),
-            );
-            leptos::set_timeout(
+            client
+                .update_deck(deck_id, &name, &included_sources)
+                .await?;
+            deck_res.refetch();
+            if let Some(handle) = update_result_message.get().1 {
+                handle.clear();
+            }
+            let handle = leptos::set_timeout_with_handle(
                 move || {
-                    set_update_result_message(().into_view(cx));
+                    set_update_result_message((().into_view(cx), None));
                 },
                 Duration::from_secs(4),
-            );
+            )
+            .expect("Failed to set timeout");
+            set_update_result_message((
+                view! { cx, <div>"Updated deck!"</div> }.into_view(cx),
+                Some(handle),
+            ));
+
             WebResult::Ok(())
         }
     });
@@ -377,7 +541,7 @@ pub fn Deck(cx: Scope) -> impl IntoView {
         async move {
             let confirmed = confirmed?;
             let view = if confirmed {
-                client.delete_deck(id).await?;
+                client.delete_deck(deck_id).await?;
                 view! { cx, <Redirect path="/" /> }.into_view(cx)
             } else {
                 ().into_view(cx)
@@ -391,7 +555,7 @@ pub fn Deck(cx: Scope) -> impl IntoView {
         let client = get_client(cx);
         let today = chrono::Utc::now().date_naive();
         let filename = format!("lbr-{}-{}.apkg", deck.name, today);
-        let generate_deck_url = client.generate_deck_url(id, &filename);
+        let generate_deck_url = client.generate_deck_url(deck_id, &filename);
 
         let mut refs = vec![];
         let sources_list = sources
@@ -414,32 +578,45 @@ pub fn Deck(cx: Scope) -> impl IntoView {
         set_source_checkbox_refs(refs);
 
         view! { cx,
-            <h2 class="subtitle">"Viewing deck " {deck.name}</h2>
+            <h2 class="subtitle">{format!("Viewing deck {}", deck.name)}</h2>
             <div class="block">
-                <a href=generate_deck_url download=filename class="button is-primary" >"Generate"</a>
+                <a href=generate_deck_url download=filename class="button is-primary">
+                    "Generate"
+                </a>
             </div>
             <div class="block">
-                <button class="button is-danger" on:click=move |_ev| delete_act.dispatch(())>"Delete"</button>
-                    <ErrorBoundary fallback={utils::errors_fallback}>
-                        {move || delete_act.value()}
-                    </ErrorBoundary>
+                <h3 class="subtitle">"Edit"</h3>
+                <form>
+                    <label class="label">
+                        "Name"
+                        <input class="input" value=deck.name node_ref=name_ref/>
+                    </label>
+                    <label class="label" for="sources-list">
+                        "Included sources"
+                    </label>
+                    <div id="sources-list" class="content">
+                        <ul>
+                            {sources_list}
+                        </ul>
+                    </div>
+                    <button class="button" type="submit" on:click=move |ev| {
+                        ev.prevent_default();
+                        update_act.dispatch(());
+                    }>
+                        "Update"
+                    </button>
+                    <ActionView action=update_act/>
+                    {move || update_result_message().0}
+                </form>
             </div>
-
-            <h2>"Included sources"</h2>
-            <form>
-                <div class="content">
-                    <ul>
-                        {sources_list}
-                    </ul>
-                </div>
-                <button class="button" type="submit" on:click=move |ev| {
-                    ev.prevent_default();
-                    update_sources_act.dispatch(());
-                }>
-                    "Update included sources"
+            <div class="block">
+                <button class="button is-danger" on:click=move |_ev| delete_act.dispatch(())>
+                    "Delete deck"
                 </button>
-            </form>
-        }.into_view(cx)
+                <ActionView action=delete_act/>
+            </div>
+        }
+        .into_view(cx)
     };
     let deck_sources_view = move |deck: Option<res::DeckDetails>,
                                   sources: Option<Vec<res::Source>>| {
@@ -465,9 +642,6 @@ pub fn Deck(cx: Scope) -> impl IntoView {
     let view = view! { cx,
         <LoginGuard require_login=true>
             {deck_sources}
-            <div>{move || update_result_message()}</div>
-            <ActionView action=update_sources_act/>
-            <ActionView action=delete_act/>
         </LoginGuard>
     };
     WebResult::Ok(view)
@@ -479,11 +653,13 @@ pub fn Login(cx: Scope) -> impl IntoView {
 
     let redirect = move || {
         leptos_router::use_query_map(cx)
-            .get_untracked()
+            .get()
             .get("redirect")
             .map(String::to_string)
             .unwrap_or_else(|| "/".to_string())
     };
+
+    let logged_in = move || get_session(cx).logged_in();
 
     // form
     let email_ref = leptos::create_node_ref::<Input>(cx);
@@ -500,32 +676,46 @@ pub fn Login(cx: Scope) -> impl IntoView {
                 return Err(WebError::new("Password cannot be empty"));
             }
             client.login(email.as_str(), password.as_str()).await?;
-            let redirect = redirect();
-            WebResult::Ok(view! { cx, <Redirect path=redirect /> }.into_view(cx))
+            let view = move || view! { cx, <Redirect path=redirect() /> };
+            WebResult::Ok(view)
         }
     });
 
-    view! { cx,
-        <h2 class="subtitle">"Login"</h2>
-        <form>
-            <label class="label">
-                "Email"
-                <input class="input" node_ref=email_ref/>
-            </label>
-            <label class="label">
-                "Password"
-                <input class="input" node_ref=password_ref/>
-            </label>
-            <button class="button" type="submit" on:click={move |ev| {
-                ev.prevent_default();
-                submission_act.dispatch(());
-            }}>
-                "Submit"
-            </button>
-            <ErrorBoundary fallback={utils::errors_fallback}>
-                {move || submission_act.value()}
-            </ErrorBoundary>
-        </form>
+    move || {
+        if logged_in()? {
+            Some(
+                view! { cx,
+                    <Redirect path=redirect() />
+                }
+                .into_view(cx),
+            )
+        } else {
+            Some(
+                view! { cx,
+                    <h2 class="subtitle">"Login"</h2>
+                    <form>
+                        <label class="label">
+                            "Email"
+                            <input class="input" node_ref=email_ref/>
+                        </label>
+                        <label class="label">
+                            "Password"
+                            <input class="input" node_ref=password_ref/>
+                        </label>
+                        <button class="button" type="submit" on:click={move |ev| {
+                            ev.prevent_default();
+                            submission_act.dispatch(());
+                        }}>
+                            "Submit"
+                        </button>
+                        <ErrorBoundary fallback={utils::errors_fallback}>
+                            {move || submission_act.value()}
+                        </ErrorBoundary>
+                    </form>
+                }
+                .into_view(cx),
+            )
+        }
     }
 }
 

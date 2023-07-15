@@ -97,11 +97,24 @@ pub fn DeckList(cx: Scope, decks: Vec<Deck>) -> impl IntoView {
 #[component]
 pub fn LoginGuard(cx: Scope, children: Children, require_login: bool) -> impl IntoView {
     let logged_in = move || get_session(cx).logged_in();
-    let pass = move || logged_in().map(|li| li == require_login);
+    let stored_passed = leptos::create_rw_signal(cx, false);
+    let pass = move || {
+        if stored_passed.get() {
+            Some(true)
+        } else {
+            if logged_in().map(|li| li == require_login)? {
+                stored_passed.set(true);
+                Some(true)
+            } else {
+                Some(false)
+            }
+        }
+    };
 
     let children = RefCell::new(Some(children));
     move || {
         let view = if pass()? {
+            tracing::info!("taking");
             children.borrow_mut().take().unwrap()(cx).into_view(cx)
         } else {
             let redirect = if require_login {
@@ -110,8 +123,10 @@ pub fn LoginGuard(cx: Scope, children: Children, require_login: bool) -> impl In
             } else {
                 "/".to_string()
             };
+            tracing::info!("redirecting");
             view! { cx, <Redirect path=redirect /> }.into_view(cx)
         };
+        tracing::info!("rending");
         Some(view)
     }
 }

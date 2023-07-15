@@ -9,7 +9,10 @@ use crate::{
     utils::diesel::PostgresChunks,
     LbrState,
 };
-use axum::{extract::Path, Json};
+use axum::{
+    extract::{Path, State},
+    Json,
+};
 use diesel::prelude::*;
 use eyre::Context;
 use lbr_api::{request as req, response as res};
@@ -31,7 +34,10 @@ impl From<Source> for res::Source {
 }
 
 /// Gets the user's sources
-pub async fn get_all(state: LbrState, user: Authentication) -> LbrResult<Json<Vec<res::Source>>> {
+pub async fn get_all(
+    State(state): State<LbrState>,
+    user: Authentication,
+) -> LbrResult<Json<Vec<res::Source>>> {
     use crate::schema::sources as s;
     tracing::info!("Fetching sources");
 
@@ -61,10 +67,36 @@ query! {
 
 /// Gets the given source for the user
 pub async fn get_one(
-    state: LbrState,
+    State(state): State<LbrState>,
     Path(id): Path<i32>,
     user: Authentication,
-) -> LbrResult<Json<res::SourceWithSentences>> {
+) -> LbrResult<Json<res::Source>> {
+    use crate::schema::sources as so;
+    tracing::info!("Fetching source");
+
+    let user_id = user.user_id;
+    let source = tokio::task::spawn_blocking(move || {
+        let mut conn = state.lbr_pool.get()?;
+        let source = so::table
+            .select(Source::as_select())
+            .filter(so::id.eq(id).and(so::user_id.eq(user_id)))
+            .get_result(&mut conn)?;
+        EyreResult::Ok(source)
+    })
+    .await??;
+
+    Ok(Json(res::Source {
+        id: source.id,
+        name: source.name,
+    }))
+}
+
+/// Gets the given source for the user
+pub async fn get_details(
+    State(state): State<LbrState>,
+    Path(id): Path<i32>,
+    user: Authentication,
+) -> LbrResult<Json<res::SourceDetails>> {
     use crate::schema::{sentences as se, sources as so};
     tracing::info!("Fetching source");
 
@@ -84,7 +116,7 @@ pub async fn get_one(
     })
     .await??;
 
-    Ok(Json(res::SourceWithSentences {
+    Ok(Json(res::SourceDetails {
         id: source.id,
         name: source.name,
         sentences: sentences
@@ -99,7 +131,7 @@ pub async fn get_one(
 
 /// Inserts a new source for the user
 pub async fn insert(
-    state: LbrState,
+    State(state): State<LbrState>,
     user: Authentication,
     new_source: Json<req::NewSource<'static>>,
 ) -> LbrResult<String> {
@@ -122,7 +154,7 @@ pub async fn insert(
 }
 
 pub async fn update(
-    state: LbrState,
+    State(state): State<LbrState>,
     Path(id): Path<i32>,
     user: Authentication,
     update_source: Json<req::UpdateSource<'static>>,
@@ -144,7 +176,11 @@ pub async fn update(
     Ok(())
 }
 
-pub async fn delete(state: LbrState, Path(id): Path<i32>, user: Authentication) -> LbrResult<()> {
+pub async fn delete(
+    State(state): State<LbrState>,
+    Path(id): Path<i32>,
+    user: Authentication,
+) -> LbrResult<()> {
     use crate::schema::{deck_sources as ds, sentence_words as sw, sentences as se, sources as so};
     tracing::info!("Deleting source {id}");
 
@@ -171,7 +207,7 @@ pub async fn delete(state: LbrState, Path(id): Path<i32>, user: Authentication) 
 }
 
 pub async fn add_sentence(
-    state: LbrState,
+    State(state): State<LbrState>,
     Path(source_id): Path<i32>,
     user: Authentication,
     sentence: Json<req::SegmentedSentence>,

@@ -86,7 +86,9 @@ pub fn params<T>(cx: Scope) -> WebResult<T>
 where
     T: Params + Clone + PartialEq + 'static,
 {
-    leptos_router::use_params(cx).get().map_err(WebError::from)
+    leptos_router::use_params(cx)
+        .get_untracked()
+        .map_err(WebError::from)
 }
 
 #[macro_export]

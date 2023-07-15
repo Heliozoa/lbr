@@ -2,13 +2,17 @@
 
 use crate::{
     authentication::Authentication,
+    domain::sentences,
     eq,
     error::{EyreResult, LbrResult},
     query,
     utils::{database, diesel::PostgresChunks},
     LbrState,
 };
-use axum::{extract::Path, Json};
+use axum::{
+    extract::{Path, State},
+    Json,
+};
 use diesel::prelude::*;
 use lbr_api::{request as req, response as res};
 
@@ -19,101 +23,71 @@ query! {
     }
 }
 
-pub async fn get(state: LbrState) -> LbrResult<Json<Vec<res::Sentence>>> {
-    use crate::schema::sentences as s;
-    tracing::info!("Fetching sentences");
-
-    let sentences = tokio::task::spawn_blocking(move || {
-        let mut conn = state.lbr_pool.get()?;
-        let sentences = s::table.select(Sentence::as_select()).load(&mut conn)?;
-        EyreResult::Ok(sentences)
-    })
-    .await??
-    .into_iter()
-    .map(|s| res::Sentence {
-        id: s.id,
-        sentence: s.sentence,
-    })
-    .collect();
-
-    Ok(Json(sentences))
-}
-
-pub async fn insert(
-    state: LbrState,
-    user: Authentication,
-    new_sentence: Json<req::NewSentence<'static>>,
-) -> LbrResult<()> {
-    use crate::schema::{sentence_words as sw, sentences as s};
-    tracing::info!("Inserting sentence");
-
-    let req::NewSentence {
-        source_id,
-        deck_id: _,
-        sentence,
-        sentence_words,
-    } = new_sentence.0;
-    tokio::task::spawn_blocking(move || {
-        let mut conn = state.lbr_pool.get()?;
-        // TODO: check if identical sentence already exists in db
-        conn.transaction(|conn| {
-            let sentence_id = diesel::insert_into(s::table)
-                .values(eq!(s, sentence, source_id))
-                .returning(s::id)
-                .get_result::<i32>(conn)?;
-            let sw_values = sentence_words
-                .into_iter()
-                .map(
-                    |req::NewSentenceWord {
-                         word_id,
-                         reading,
-                         idx_start,
-                         idx_end,
-                         furigana,
-                     }| {
-                        let furigana = furigana
-                            .into_iter()
-                            .map(|f| database::Furigana {
-                                word_start_idx: f.word_start_idx,
-                                word_end_idx: f.word_end_idx,
-                                reading_start_idx: f.reading_start_idx,
-                                reading_end_idx: f.reading_end_idx,
-                            })
-                            .collect::<Vec<_>>();
-                        eq!(
-                            sw,
-                            sentence_id,
-                            word_id,
-                            reading,
-                            idx_start,
-                            idx_end,
-                            furigana
-                        )
-                    },
-                )
-                .collect::<Vec<_>>();
-            for chunk in sw_values.pg_chunks() {
-                diesel::insert_into(sw::table).values(chunk).execute(conn)?;
-            }
-            EyreResult::Ok(())
-        })?;
-        EyreResult::Ok(())
-    })
-    .await??;
-
-    Ok(())
+query! {
+    struct SentenceWord {
+        reading: Option<String> = sentence_words::reading,
+        idx_start: i32 = sentence_words::idx_start,
+        idx_end: i32 = sentence_words::idx_end,
+        furigana: Vec<Option<database::Furigana>> = sentence_words::furigana,
+        translations: Vec<Option<String>> = words::translations,
+    }
 }
 
 pub async fn get_one(
-    state: LbrState,
+    State(state): State<LbrState>,
     Path(id): Path<i32>,
     user: Authentication,
-) -> LbrResult<Json<res::Sentence>> {
-    todo!()
+) -> LbrResult<Json<res::SentenceDetails>> {
+    use crate::schema::{sentence_words as sw, sentences as s, sources as so, words as w};
+    tracing::info!("Fetching sentence {id}");
+
+    let sentence = tokio::task::spawn_blocking(move || {
+        let mut conn = state.lbr_pool.get()?;
+
+        let sentence = s::table
+            .inner_join(so::table.on(s::source_id.eq(so::id)))
+            .filter(so::user_id.eq(user.user_id).and(s::id.eq(id)))
+            .select(Sentence::as_select())
+            .get_result(&mut conn)?;
+        let words = sw::table
+            .inner_join(w::table.on(sw::word_id.eq(w::id)))
+            .filter(sw::sentence_id.eq(id))
+            .select(SentenceWord::as_select())
+            .get_results(&mut conn)?;
+        let words = words
+            .into_iter()
+            .map(|sw| res::SentenceWord {
+                reading: sw.reading,
+                idx_start: sw.idx_start,
+                idx_end: sw.idx_end,
+                furigana: sw
+                    .furigana
+                    .into_iter()
+                    .flatten()
+                    .map(|f| res::Furigana {
+                        word_start_idx: f.word_start_idx,
+                        word_end_idx: f.word_end_idx,
+                        reading_start_idx: f.reading_start_idx,
+                        reading_end_idx: f.reading_end_idx,
+                    })
+                    .collect(),
+                translations: sw.translations.into_iter().flatten().collect(),
+            })
+            .collect();
+        let sentence = res::SentenceDetails {
+            id: sentence.id,
+            sentence: sentence.sentence,
+            words,
+        };
+        EyreResult::Ok(sentence)
+    })
+    .await??;
+
+    Ok(Json(sentence))
 }
 
 pub async fn update(
-    state: LbrState,
+    State(state): State<LbrState>,
     Path(id): Path<i32>,
     user: Authentication,
     update_sentence: Json<req::UpdateSentence<'static>>,
@@ -176,12 +150,21 @@ pub async fn update(
     Ok(())
 }
 
-pub async fn delete(state: LbrState, Path(id): Path<i32>, user: Authentication) -> LbrResult<()> {
-    use crate::schema::{sentence_words as sw, sentences as s};
+pub async fn delete(
+    State(state): State<LbrState>,
+    Path(id): Path<i32>,
+    user: Authentication,
+) -> LbrResult<()> {
+    use crate::schema::{sentence_words as sw, sentences as s, sources as so};
     tracing::info!("Deleting sentence {id}");
 
     tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
+        let id = s::table
+            .inner_join(so::table.on(so::id.eq(s::source_id)))
+            .filter(so::user_id.eq(user.user_id))
+            .select(s::id)
+            .get_result::<i32>(&mut conn)?;
         conn.transaction(|conn| {
             diesel::delete(sw::table.filter(sw::sentence_id.eq(id))).execute(conn)?;
             diesel::delete(s::table.filter(s::id.eq(id))).execute(conn)?;
@@ -192,4 +175,29 @@ pub async fn delete(state: LbrState, Path(id): Path<i32>, user: Authentication) 
     .await??;
 
     Ok(())
+}
+
+pub async fn segment(
+    State(state): State<LbrState>,
+    Path(id): Path<i32>,
+    user: Authentication,
+) -> LbrResult<Json<res::SegmentedSentence>> {
+    use crate::schema::{sentence_words as sw, sentences as s};
+    tracing::info!("Segmenting sentence {id}");
+
+    let segmented_sentence = tokio::task::spawn_blocking(move || {
+        let mut conn = state.lbr_pool.get()?;
+        let ignored_words = query::ignored_words(&mut conn, user.user_id)?;
+        let sentence = s::table
+            .filter(s::id.eq(id))
+            .select(s::sentence)
+            .get_result::<String>(&mut conn)?;
+        let sentence_words = sw::table.filter(sw::sentence_id.eq(id));
+        let segmented_sentence =
+            sentences::process_sentence(&state.ichiran_cli, sentence, &ignored_words)?;
+        EyreResult::Ok(segmented_sentence)
+    })
+    .await??;
+
+    Ok(Json(segmented_sentence))
 }

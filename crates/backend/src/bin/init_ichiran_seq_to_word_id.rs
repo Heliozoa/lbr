@@ -1,4 +1,5 @@
-/// Creates a mapping from ichiran's seqs to LBR word ids.
+//! Creates a mapping from ichiran's seqs to LBR word ids.
+
 use diesel::prelude::*;
 use eyre::WrapErr;
 use lbr_server::{schema::words as w, schema_ichiran as si};
@@ -7,7 +8,7 @@ use std::{collections::HashMap, env};
 fn main() -> eyre::Result<()> {
     tracing_subscriber::fmt::init();
     dotenvy::dotenv().ok();
-    
+
     let lbr_database_url = env::var("DATABASE_URL").wrap_err("Missing DATABASE_URL")?;
     let ichiran_database_url =
         env::var("ICHIRAN_DATABASE_URL").wrap_err("Missing ICHIRAN_DATABASE_URL")?;

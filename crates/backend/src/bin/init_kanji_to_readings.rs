@@ -1,4 +1,5 @@
-/// Creates a mapping from kanji to its potential readings.
+//! Creates a mapping from kanji to its potential readings.
+
 use diesel::prelude::*;
 use eyre::WrapErr;
 use lbr_server::{
@@ -17,7 +18,7 @@ query! {
 pub fn main() -> eyre::Result<()> {
     tracing_subscriber::fmt::init();
     dotenvy::dotenv().ok();
-    
+
     let database_url = env::var("DATABASE_URL").wrap_err("Missing DATABASE_URL")?;
     let mut conn = PgConnection::establish(&database_url)?;
     let kanji_with_reading = k::table
