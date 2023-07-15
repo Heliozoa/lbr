@@ -17,7 +17,7 @@ pub fn hydrate() {
             .build(),
     );
 
-    tracing::info!("hydrating (logging level {wasm_log})");
+    tracing::info!("Hydrating (logging level {wasm_log})");
 
     leptos::mount_to_body(move |cx| {
         lbr_web::context::initialise_context(cx);

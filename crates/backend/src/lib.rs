@@ -1,45 +1,32 @@
 //! Web backend for LBR.
 
-pub mod authentication;
-pub mod handlers;
-
-use crate::handlers::{auth, decks};
-use axum::{extract::FromRef, routing::get, Router};
+use axum::{
+    async_trait,
+    body::{boxed, Body, BoxBody},
+    extract::{FromRequestParts, State},
+    http::{request::Parts, Request, Response, StatusCode, Uri},
+    response::{IntoResponse, Response as AxumResponse},
+    routing::get,
+    Json, Router,
+};
 use lbr_web::Root;
 use leptos::LeptosOptions;
 use leptos_axum::LeptosRoutes;
-use std::{ops::Deref, sync::Arc};
-use tower_cookies::Key;
+use serde::{Deserialize, Serialize};
+use tower::ServiceExt;
+use tower_http::services::ServeDir;
 
-#[derive(Clone)]
-pub struct LbrState(Arc<LbrStateCore>);
-
-impl Deref for LbrState {
-    type Target = LbrStateCore;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-pub struct LbrStateCore {
-    pub private_cookie_key: Key,
-    pub leptos_options: LeptosOptions,
-}
-
-impl FromRef<LbrState> for LeptosOptions {
-    fn from_ref(input: &LbrState) -> Self {
-        input.leptos_options.clone()
-    }
-}
-
-pub async fn router(state: LbrState) -> Router<()> {
+pub async fn router() -> Router<()> {
+    let state = leptos::get_configuration(None)
+        .await
+        .unwrap()
+        .leptos_options;
     let router = Router::new()
         .nest(
             "/api",
             Router::new()
-                .nest("/auth", Router::new().route("/current", get(auth::current)))
-                .nest("/decks", Router::new().route("/", get(decks::get_all))),
+                .nest("/auth", Router::new().route("/current", get(current)))
+                .nest("/decks", Router::new().route("/", get(get_all))),
         )
         .leptos_routes(
             &state,
@@ -51,22 +38,55 @@ pub async fn router(state: LbrState) -> Router<()> {
                 leptos::view! { cx, <Root/> }
             },
         )
-        .fallback(handlers::file_and_error_handler)
+        .fallback(file_and_error_handler)
         .with_state(state);
     router
 }
 
-pub async fn router_from_vars(private_cookie_password: &str) -> eyre::Result<Router<()>> {
-    let private_cookie_key = Key::from(private_cookie_password.as_bytes());
-    let leptos_options = leptos::get_configuration(None)
-        .await
-        .unwrap()
-        .leptos_options;
+pub async fn current(user: Option<Authentication>) -> Json<Option<i32>> {
+    Json(user.map(|u| u.user_id))
+}
 
-    let state = LbrState(Arc::new(LbrStateCore {
-        private_cookie_key,
-        leptos_options,
-    }));
-    let router = self::router(state).await;
-    Ok(router)
+pub async fn get_all(_: Authentication) -> Json<Vec<String>> {
+    Json(vec!["a".to_string(), "b".to_string()])
+}
+
+pub async fn file_and_error_handler(
+    uri: Uri,
+    State(options): State<LeptosOptions>,
+) -> AxumResponse {
+    let root = options.site_root.clone();
+    let res = get_static_file(uri.clone(), &root).await.unwrap();
+    res.into_response()
+}
+
+async fn get_static_file(uri: Uri, root: &str) -> Result<Response<BoxBody>, (StatusCode, String)> {
+    let req = Request::builder()
+        .uri(uri.clone())
+        .body(Body::empty())
+        .unwrap();
+    match ServeDir::new(root).oneshot(req).await {
+        Ok(res) => Ok(res.map(boxed)),
+        Err(err) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Something went wrong: {err}"),
+        )),
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct Authentication {
+    pub session_id: i32,
+    pub user_id: i32,
+}
+
+#[async_trait]
+impl FromRequestParts<LeptosOptions> for Authentication {
+    type Rejection = (StatusCode, &'static str);
+    async fn from_request_parts(_: &mut Parts, _: &LeptosOptions) -> Result<Self, Self::Rejection> {
+        Ok(Authentication {
+            session_id: 1,
+            user_id: 1,
+        })
+    }
 }

@@ -1,9 +1,6 @@
-//! Our custom error type.
-
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use thiserror::Error;
-use wasm_bindgen::JsValue;
 
 pub type WebResult<T> = Result<T, WebError>;
 
@@ -22,22 +19,6 @@ impl WebError {
     pub fn from<E: std::error::Error>(e: E) -> Self {
         Self {
             message: e.to_string(),
-        }
-    }
-}
-
-impl From<eyre::Report> for WebError {
-    fn from(value: eyre::Report) -> Self {
-        Self {
-            message: value.to_string(),
-        }
-    }
-}
-
-impl From<JsValue> for WebError {
-    fn from(value: JsValue) -> Self {
-        Self {
-            message: format!("{value:#?}"),
         }
     }
 }
