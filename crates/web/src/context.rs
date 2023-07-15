@@ -61,10 +61,11 @@ impl Session {
     }
 
     pub fn logged_in(&self) -> Option<bool> {
+        let val = self.user_id.value().get();
         if self.user_id.pending().get() {
             None
         } else {
-            match self.user_id.value().get() {
+            match val {
                 Some(Some(_user_id)) => Some(true),
                 Some(None) => Some(false),
                 None => None,
