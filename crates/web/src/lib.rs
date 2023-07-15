@@ -41,14 +41,13 @@ pub fn Home(cx: Scope) -> impl IntoView {
 
     let other_view = move || {
         if get_session(cx).logged_in().unwrap_or_default() {
-            tracing::info!("logged in");
-            Some(view! { cx,
-                <div>
-                    "hi!"
-                </div>
-            })
+            view! { cx,
+                <div>"true"</div>
+            }
         } else {
-            None
+            view! { cx,
+                <div>"false"</div>
+            }
         }
     };
 
