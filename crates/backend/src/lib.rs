@@ -9,11 +9,11 @@ pub mod schema;
 pub mod schema_ichiran;
 pub mod utils;
 
-use crate::handlers::{decks, sentences, sources};
+use crate::handlers::{decks, sentences, sources, words};
 use authentication::{Expiration, SessionCache};
 use axum::{
     extract::FromRef,
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 use diesel::{
@@ -119,6 +119,15 @@ pub async fn router(state: LbrState) -> Router<()> {
                                     .delete(sentences::delete),
                             )
                             .route("/segment", post(sentences::segment)),
+                    ),
+                )
+                .nest(
+                    "/words",
+                    Router::new().nest(
+                        "/ignored",
+                        Router::new()
+                            .route("/", get(words::ignored_words))
+                            .route("/:id", delete(words::delete_ignored_word)),
                     ),
                 )
                 .route("/segment", post(segment::segment))

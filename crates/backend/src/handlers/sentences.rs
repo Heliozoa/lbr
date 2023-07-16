@@ -182,7 +182,7 @@ pub async fn segment(
     Path(id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<Json<res::SegmentedSentence>> {
-    use crate::schema::{sentence_words as sw, sentences as s};
+    use crate::schema::sentences as s;
     tracing::info!("Segmenting sentence {id}");
 
     let segmented_sentence = tokio::task::spawn_blocking(move || {
@@ -192,9 +192,12 @@ pub async fn segment(
             .filter(s::id.eq(id))
             .select(s::sentence)
             .get_result::<String>(&mut conn)?;
-        let sentence_words = sw::table.filter(sw::sentence_id.eq(id));
-        let segmented_sentence =
-            sentences::process_sentence(&state.ichiran_cli, sentence, &ignored_words)?;
+        let segmented_sentence = sentences::process_sentence(
+            &state.ichiran_cli,
+            sentence,
+            &ignored_words,
+            &state.ichiran_seq_to_word_id,
+        )?;
         EyreResult::Ok(segmented_sentence)
     })
     .await??;

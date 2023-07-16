@@ -4,7 +4,7 @@ use eyre::WrapErr;
 use ichiran::IchiranCli;
 use lbr_api::response as res;
 use lbr_core::ichiran_types;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 /// Segments a sentence using ichiran.
 pub fn segment_sentence(
@@ -24,9 +24,10 @@ pub fn process_sentence(
     ichiran_cli: &IchiranCli,
     sentence: String,
     ignored_word_ids: &HashSet<i32>,
+    ichiran_seq_to_word_id: &HashMap<i32, i32>,
 ) -> eyre::Result<res::SegmentedSentence> {
     let segments = segment_sentence(&ichiran_cli, &sentence)?;
-    let segment_word_ids = segments
+    let segment_word_seqs = segments
         .iter()
         .filter_map(|s| {
             if let ichiran_types::Segment::Phrase {
@@ -41,11 +42,18 @@ pub fn process_sentence(
         .flatten()
         .flat_map(|i| &i.components)
         .filter_map(|c| c.word_id)
+        .filter_map(|seq| ichiran_seq_to_word_id.get(&seq).map(|&wi| (seq, wi)))
         .collect::<Vec<_>>();
-    let ignored_words = segment_word_ids
+    let ignored_words = segment_word_seqs
         .iter()
         .copied()
-        .filter(|swi| ignored_word_ids.contains(&swi))
+        .filter_map(|(seq, id)| {
+            if ignored_word_ids.contains(&id) {
+                Some(seq)
+            } else {
+                None
+            }
+        })
         .collect();
     Ok(res::SegmentedSentence {
         sentence: sentence.to_string(),

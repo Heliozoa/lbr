@@ -93,6 +93,10 @@ pub fn Content(cx: Scope) -> impl IntoView {
                         view=|cx| view! { cx, <Deck/> }
                     />
                     <Route
+                        path="ignored-words"
+                        view=|cx| view! { cx, <IgnoredWords/> }
+                    />
+                    <Route
                         path="login"
                         view=|cx| view! { cx, <Login/> }
                     />

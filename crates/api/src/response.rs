@@ -35,6 +35,19 @@ pub struct DeckDetails {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IgnoredWord {
+    pub word_id: i32,
+    pub translations: Vec<String>,
+    pub written_forms: Vec<IgnoredWordWrittenForm>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IgnoredWordWrittenForm {
+    pub written_form: String,
+    pub readings: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Sentence {
     pub id: i32,
     pub sentence: String,

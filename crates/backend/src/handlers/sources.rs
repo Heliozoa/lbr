@@ -18,9 +18,9 @@ use eyre::Context;
 use lbr_api::{request as req, response as res};
 
 query! {
-    pub struct Source {
-        pub id: i32 = sources::id,
-        pub name: String = sources::name,
+    struct Source {
+        id: i32 = sources::id,
+        name: String = sources::name,
     }
 }
 

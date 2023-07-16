@@ -114,7 +114,6 @@ pub fn LoginGuard(cx: Scope, children: Children, require_login: bool) -> impl In
     let children = RefCell::new(Some(children));
     move || {
         let view = if pass()? {
-            tracing::info!("taking");
             children.borrow_mut().take().unwrap()(cx).into_view(cx)
         } else {
             let redirect = if require_login {
@@ -123,10 +122,8 @@ pub fn LoginGuard(cx: Scope, children: Children, require_login: bool) -> impl In
             } else {
                 "/".to_string()
             };
-            tracing::info!("redirecting");
             view! { cx, <Redirect path=redirect /> }.into_view(cx)
         };
-        tracing::info!("rending");
         Some(view)
     }
 }
@@ -160,8 +157,9 @@ where
 }
 
 #[component]
-pub fn ActionView<V>(cx: Scope, action: Action<(), WebResult<V>>) -> impl IntoView
+pub fn ActionView<T, V>(cx: Scope, action: Action<T, WebResult<V>>) -> impl IntoView
 where
+    T: 'static,
     V: IntoView + Clone + 'static,
 {
     view! { cx,

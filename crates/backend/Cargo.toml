@@ -30,8 +30,8 @@ eyre = "0.6.8"
 furigana = "0.1.1"
 ichiran = "0.4.0"
 itertools = "0.11.0"
-leptos = { git = "https://github.com/leptos-rs/leptos.git", branch = "main", features = ["nightly", "ssr"] }
-leptos_axum = { git = "https://github.com/leptos-rs/leptos.git", branch = "main" }
+leptos = { git = "https://github.com/leptos-rs/leptos.git", branch = "keys", features = ["nightly", "ssr"] }
+leptos_axum = { git = "https://github.com/leptos-rs/leptos.git", branch = "keys" }
 moka = { version = "0.11.2", features = ["future"] }
 rand = "0.8.5"
 serde = "1.0.164"

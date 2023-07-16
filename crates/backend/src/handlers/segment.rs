@@ -49,6 +49,7 @@ pub async fn segment(
                 &state.ichiran_cli,
                 sentence.to_string(),
                 &ignored_word_ids,
+                &state.ichiran_seq_to_word_id,
             )?;
             segmented_sentences.push(segmented_sentence);
         }

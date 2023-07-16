@@ -5,6 +5,7 @@ pub mod decks;
 pub mod segment;
 pub mod sentences;
 pub mod sources;
+pub mod words;
 
 use axum::{
     body::{boxed, Body, BoxBody},

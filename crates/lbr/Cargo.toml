@@ -18,6 +18,5 @@ lbr_core.workspace = true
 genanki-rs = "0.3.1"
 ichiran = "0.4.0"
 serde = { version = "1.0.148", features = ["derive"] }
-serde-xml-rs = "0.6.0"
 thiserror = "1.0.40"
 tracing = "0.1.37"

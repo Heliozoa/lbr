@@ -3,7 +3,7 @@
 use crate::error::{WebError, WebResult};
 use lbr_api::{request as req, response as res};
 use leptos::*;
-use reqwasm::http::Response;
+use reqwasm::http::{Request, Response};
 use web_sys::RequestCredentials;
 
 #[derive(Clone, Copy)]
@@ -64,7 +64,7 @@ impl Client {
             password: password.into(),
         };
         let json = serde_json::to_string(&register).map_err(WebError::from)?;
-        let res = reqwasm::http::Request::post(&format!("/api/auth/register"))
+        let res = Request::post(&format!("/api/auth/register"))
             .credentials(RequestCredentials::Include)
             .body(json)
             .header("Content-Type", "application/json")
@@ -85,7 +85,7 @@ impl Client {
             password: password.into(),
         };
         let json = serde_json::to_string(&login).map_err(WebError::from)?;
-        let res = reqwasm::http::Request::post(&format!("/api/auth/login"))
+        let res = Request::post(&format!("/api/auth/login"))
             .credentials(RequestCredentials::Include)
             .body(json)
             .header("Content-Type", "application/json")
@@ -103,7 +103,7 @@ impl Client {
     pub async fn current_user(&self) -> WebResult<Option<i32>> {
         tracing::info!("Fetching current user");
 
-        let res = reqwasm::http::Request::get(&format!("/api/auth/current"))
+        let res = Request::get(&format!("/api/auth/current"))
             .credentials(RequestCredentials::Include)
             .send()
             .await
@@ -117,7 +117,7 @@ impl Client {
     pub async fn logout(&self) -> WebResult<()> {
         tracing::info!("Logging out");
 
-        let res = reqwasm::http::Request::post(&format!("/api/auth/logout"))
+        let res = Request::post(&format!("/api/auth/logout"))
             .credentials(RequestCredentials::Include)
             .send()
             .await
@@ -133,7 +133,7 @@ impl Client {
     pub async fn get_sources(&self) -> WebResult<Vec<res::Source>> {
         tracing::info!("Fetching sources");
 
-        let res = reqwasm::http::Request::get(&format!("/api/sources"))
+        let res = Request::get(&format!("/api/sources"))
             .credentials(RequestCredentials::Include)
             .send()
             .await
@@ -150,7 +150,7 @@ impl Client {
 
         let json =
             serde_json::to_string(&req::NewSource { name: name.into() }).map_err(WebError::from)?;
-        let res = reqwasm::http::Request::post(&format!("/api/sources"))
+        let res = Request::post(&format!("/api/sources"))
             .credentials(RequestCredentials::Include)
             .body(json)
             .header("Content-Type", "application/json")
@@ -167,7 +167,7 @@ impl Client {
     pub async fn get_source(&self, id: i32) -> WebResult<res::Source> {
         tracing::info!("Fetching source {id}");
 
-        let res = reqwasm::http::Request::get(&format!("/api/sources/{id}"))
+        let res = Request::get(&format!("/api/sources/{id}"))
             .credentials(RequestCredentials::Include)
             .send()
             .await
@@ -182,7 +182,7 @@ impl Client {
     pub async fn get_source_details(&self, id: i32) -> WebResult<res::SourceDetails> {
         tracing::info!("Fetching source {id}");
 
-        let res = reqwasm::http::Request::get(&format!("/api/sources/{id}/details"))
+        let res = Request::get(&format!("/api/sources/{id}/details"))
             .credentials(RequestCredentials::Include)
             .send()
             .await
@@ -199,7 +199,7 @@ impl Client {
 
         let json = serde_json::to_string(&req::UpdateSource { name: name.into() })
             .map_err(WebError::from)?;
-        let res = reqwasm::http::Request::post(&format!("/api/sources/{id}"))
+        let res = Request::post(&format!("/api/sources/{id}"))
             .credentials(RequestCredentials::Include)
             .body(json)
             .header("Content-Type", "application/json")
@@ -214,7 +214,7 @@ impl Client {
     pub async fn delete_source(&self, id: i32) -> WebResult<()> {
         tracing::info!("Deleting source {id}");
 
-        let res = reqwasm::http::Request::delete(&format!("/api/sources/{id}"))
+        let res = Request::delete(&format!("/api/sources/{id}"))
             .credentials(RequestCredentials::Include)
             .send()
             .await
@@ -228,7 +228,7 @@ impl Client {
     pub async fn get_sentence(&self, id: i32) -> WebResult<res::SentenceDetails> {
         tracing::info!("Fetching sentence {id}");
 
-        let res = reqwasm::http::Request::get(&format!("/api/sentences/{id}"))
+        let res = Request::get(&format!("/api/sentences/{id}"))
             .credentials(RequestCredentials::Include)
             .send()
             .await
@@ -243,7 +243,7 @@ impl Client {
     pub async fn delete_sentence(&self, id: i32) -> WebResult<()> {
         tracing::info!("Deleting sentence {id}");
 
-        let res = reqwasm::http::Request::delete(&format!("/api/sentences/{id}"))
+        let res = Request::delete(&format!("/api/sentences/{id}"))
             .credentials(RequestCredentials::Include)
             .send()
             .await
@@ -257,7 +257,7 @@ impl Client {
     pub async fn get_decks(&self) -> WebResult<Vec<res::Deck>> {
         tracing::info!("Fetching decks");
 
-        let res = reqwasm::http::Request::get(&format!("/api/decks"))
+        let res = Request::get(&format!("/api/decks"))
             .credentials(RequestCredentials::Include)
             .send()
             .await
@@ -274,7 +274,7 @@ impl Client {
 
         let json =
             serde_json::to_string(&req::NewDeck { name: name.into() }).map_err(WebError::from)?;
-        let res = reqwasm::http::Request::post(&format!("/api/decks"))
+        let res = Request::post(&format!("/api/decks"))
             .credentials(RequestCredentials::Include)
             .body(json)
             .header("Content-Type", "application/json")
@@ -291,7 +291,7 @@ impl Client {
     pub async fn get_deck(&self, id: i32) -> WebResult<res::DeckDetails> {
         tracing::info!("Fetching decks");
 
-        let res = reqwasm::http::Request::get(&format!("/api/decks/{id}"))
+        let res = Request::get(&format!("/api/decks/{id}"))
             .credentials(RequestCredentials::Include)
             .send()
             .await
@@ -311,7 +311,7 @@ impl Client {
             included_sources: sources.into(),
         })
         .map_err(WebError::from)?;
-        let res = reqwasm::http::Request::post(&format!("/api/decks/{id}"))
+        let res = Request::post(&format!("/api/decks/{id}"))
             .credentials(RequestCredentials::Include)
             .body(json)
             .header("Content-Type", "application/json")
@@ -331,7 +331,7 @@ impl Client {
     pub async fn delete_deck(&self, id: i32) -> WebResult<()> {
         tracing::info!("Deleting deck {id}");
 
-        let res = reqwasm::http::Request::delete(&format!("/api/decks/{id}"))
+        let res = Request::delete(&format!("/api/decks/{id}"))
             .credentials(RequestCredentials::Include)
             .send()
             .await
@@ -339,6 +339,35 @@ impl Client {
         self.assert_success(&res).await?;
 
         tracing::info!("Deleted deck {id}");
+        Ok(())
+    }
+
+    pub async fn get_ignored_words(&self) -> WebResult<Vec<res::IgnoredWord>> {
+        tracing::info!("Fetching ignored words");
+
+        let res = Request::get("/api/words/ignored")
+            .credentials(RequestCredentials::Include)
+            .send()
+            .await
+            .map_err(WebError::from)?;
+        self.assert_success(&res).await?;
+        let ignored_words = res.json().await.map_err(WebError::from)?;
+
+        tracing::info!("Fetched ignored words");
+        Ok(ignored_words)
+    }
+
+    pub async fn delete_ignored_word(&self, word_id: i32) -> WebResult<()> {
+        tracing::info!("Deleting ignored word {word_id}");
+
+        let res = Request::delete(&format!("/api/words/ignored/{word_id}"))
+            .credentials(RequestCredentials::Include)
+            .send()
+            .await
+            .map_err(WebError::from)?;
+        self.assert_success(&res).await?;
+
+        tracing::info!("Deleted ignored word {word_id}");
         Ok(())
     }
 
@@ -354,7 +383,7 @@ impl Client {
             paragraph: paragraph.into(),
         })
         .map_err(WebError::from)?;
-        let res = reqwasm::http::Request::post("/api/segment")
+        let res = Request::post("/api/segment")
             .credentials(RequestCredentials::Include)
             .body(json)
             .header("Content-Type", "application/json")
@@ -371,7 +400,7 @@ impl Client {
     pub async fn segment_sentence(&self, sentence_id: i32) -> WebResult<res::SegmentedSentence> {
         tracing::info!("Segmenting sentence {sentence_id}");
 
-        let res = reqwasm::http::Request::post(&format!("/api/sentences/{sentence_id}/segment"))
+        let res = Request::post(&format!("/api/sentences/{sentence_id}/segment"))
             .credentials(RequestCredentials::Include)
             .header("Content-Type", "application/json")
             .send()
@@ -392,7 +421,7 @@ impl Client {
         tracing::info!("Sending sentence '{}'", sentence.sentence);
 
         let json = serde_json::to_string(&sentence).map_err(WebError::from)?;
-        let res = reqwasm::http::Request::post(&format!("/api/sources/{source_id}/sentence",))
+        let res = Request::post(&format!("/api/sources/{source_id}/sentence",))
             .credentials(RequestCredentials::Include)
             .body(json)
             .header("Content-Type", "application/json")
@@ -413,7 +442,7 @@ impl Client {
         tracing::info!("Sending sentence '{}'", sentence.sentence);
 
         let json = serde_json::to_string(&sentence).map_err(WebError::from)?;
-        let res = reqwasm::http::Request::post(&format!("/api/sentences/{sentence_id}"))
+        let res = Request::post(&format!("/api/sentences/{sentence_id}"))
             .credentials(RequestCredentials::Include)
             .body(json)
             .header("Content-Type", "application/json")

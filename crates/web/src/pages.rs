@@ -60,31 +60,30 @@ pub fn Home(cx: Scope) -> impl IntoView {
     };
 
     let other_view = move || {
-        tracing::info!("other");
         if get_session(cx).logged_in().unwrap_or_default() {
-            tracing::info!("lg");
-            Some(view! { cx,
-                <div id="col-3" class="column">
+            Some({
+                view! { cx,
                     <h2 class="subtitle is-6 has-text-weight-bold">"Other"</h2>
-                    <A href="/ignored-words">"Ignored words"</A>
-                </div>
+                    <A href=format!("/ignored-words")>"Ignored words"</A>
+                }
             })
         } else {
-            tracing::info!("nl");
-            Some(view! { cx, <div>"not logged"</div> })
+            None
         }
     };
 
     view! { cx,
         <h2 class="subtitle">"Welcome to LBR!"</h2>
         <div class="columns">
-            <div id="col-1" class="column">
+            <div class="column">
                 <ResourceView resource=sources_res view=sources_view/>
             </div>
-            <div id="col-2" class="column">
+            <div class="column">
                 <ResourceView resource=decks_res view=decks_view/>
             </div>
-            {other_view}
+            <div class="column">
+                {other_view}
+            </div>
         </div>
     }
 }
@@ -464,22 +463,24 @@ pub fn DeckNew(cx: Scope) -> impl IntoView {
     });
 
     view! { cx,
-        <h2 class="subtitle">"Adding new source"</h2>
-        <form>
-            <label class="label">
-                "Deck name"
-                <input class="input" node_ref=name_ref type="text"/>
-            </label>
-            <div class="block">
-                <button class="button" type="submit" on:click=move |ev| {
-                    ev.prevent_default();
-                    save_act.dispatch(());
-                }>
-                    "Save"
-                </button>
-                <ActionView action=save_act/>
-            </div>
-        </form>
+        <LoginGuard require_login=true>
+            <h2 class="subtitle">"Adding new source"</h2>
+            <form>
+                <label class="label">
+                    "Deck name"
+                    <input class="input" node_ref=name_ref type="text"/>
+                </label>
+                <div class="block">
+                    <button class="button" type="submit" on:click=move |ev| {
+                        ev.prevent_default();
+                        save_act.dispatch(());
+                    }>
+                        "Save"
+                    </button>
+                    <ActionView action=save_act/>
+                </div>
+            </form>
+        </LoginGuard>
     }
 }
 
@@ -644,8 +645,101 @@ pub fn Deck(cx: Scope) -> impl IntoView {
         <LoginGuard require_login=true>
             {deck_sources}
         </LoginGuard>
-    };
+    }
+    .into_view(cx);
     WebResult::Ok(view)
+}
+
+#[component]
+pub fn IgnoredWords(cx: Scope) -> impl IntoView {
+    tracing::info!("Rendering IgnoredWords");
+
+    let delete_act = leptos::create_action(cx, move |word_id: &i32| {
+        let confirmed = leptos::window()
+            .confirm_with_message("Are you sure you want to delete this ignored word?");
+        let word_id = *word_id;
+        let client = get_client(cx);
+        async move {
+            if confirmed? {
+                client.delete_ignored_word(word_id).await?;
+            }
+            Ok(())
+        }
+    });
+
+    let ignored_words_res = utils::logged_in_resource!(cx, get_ignored_words());
+    let ignored_words_content = move |mut ignored_words: Vec<res::IgnoredWord>| {
+        if ignored_words.is_empty() {
+            return view! { cx, <div>"No ignored words"</div> }.into_view(cx);
+        }
+        ignored_words.sort_by_key(|iw| iw.word_id);
+        let ignored_words = ignored_words
+            .into_iter()
+            .map(|iw| {
+                let translations = iw.translations.join(", ");
+                let written_forms = iw
+                    .written_forms
+                    .into_iter()
+                    .map(|wf| {
+                        let readings = wf.readings.join(", ");
+                        let contents = if readings.is_empty() {
+                            wf.written_form
+                        } else {
+                            format!("{} ({})", wf.written_form, readings)
+                        };
+                        view! { cx,
+                            <li>{contents}</li>
+                        }
+                    })
+                    .collect_view(cx);
+                view! { cx,
+                    <div class="column">
+                        <div class="box">
+                            <div>
+                                <span class="has-text-weight-bold">"Word id"</span>
+                                ": "
+                                {iw.word_id}
+                            </div>
+                            <div>
+                                <span class="has-text-weight-bold">"Translations"</span>
+                                ": "
+                                {translations}
+                            </div>
+                            <div>
+                                <div>
+                                    <span class="has-text-weight-bold">"Written forms"</span>
+                                    ": "
+                                </div>
+                                <ul>
+                                    {written_forms}
+                                </ul>
+                            </div>
+                            <button class="button is-danger mt-2" on:click=move |_ev| delete_act.dispatch(iw.word_id)>"Delete ignored word"</button>
+                        </div>
+                    </div>
+                }
+            })
+            .collect_view(cx);
+        view! { cx,
+            <div class="columns is-flex-wrap-wrap">
+                {ignored_words}
+            </div>
+        }
+        .into_view(cx)
+    };
+    let ignored_words_view = move |ignored_words: Option<Vec<res::IgnoredWord>>| match ignored_words
+    {
+        Some(ignored_words) => ignored_words_content(ignored_words).into_view(cx),
+        None => view! { cx, <div>"Loading..."</div> }.into_view(cx),
+    };
+
+    view! { cx,
+        <LoginGuard require_login=true>
+            <h2 class="subtitle">"Ignored words"</h2>
+            <ActionView action=delete_act/>
+            <ResourceView resource=ignored_words_res view=ignored_words_view/>
+        </LoginGuard>
+    }
 }
 
 #[component]
