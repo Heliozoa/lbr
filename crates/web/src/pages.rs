@@ -645,8 +645,7 @@ pub fn Deck(cx: Scope) -> impl IntoView {
         <LoginGuard require_login=true>
             {deck_sources}
         </LoginGuard>
-    }
-    .into_view(cx);
+    };
     WebResult::Ok(view)
 }
 
