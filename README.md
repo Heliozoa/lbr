@@ -23,6 +23,10 @@ LBR is a [LWT](https://github.com/HugoFara/lwt)-inspired project for learning Ja
 [Aozora Bunko](https://www.aozora.gr.jp/) is a great library of public domain Japanese novels.
 
 
+## Extracting text from games
+[Game2Text](https://game2text.com/) can be used to copy text from games such as JRPGs or visual novels as you play.
+
+
 ## License
 Code licensed under the GNU Affero General Public License Version 3 or any later version.
 
