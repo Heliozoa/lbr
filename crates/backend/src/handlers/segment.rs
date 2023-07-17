@@ -35,24 +35,35 @@ pub async fn segment(
 
         let ignored_word_ids = query::ignored_words(&mut conn, user_id)?;
 
-        let mut segmented_sentences = Vec::new();
-        for sentence in SentenceSplitter::new(&paragraph) {
-            let existing_sentences = se::table
-                .select(se::id)
-                .filter(eq!(se, sentence).and(eq!(se, source_id)))
-                .execute(&mut conn)?;
-            if existing_sentences != 0 {
-                tracing::info!("Skipping existing sentence {sentence}");
-                continue;
+        let segmented_sentences = std::thread::scope(|scope| {
+            let mut segmented_sentences = Vec::new();
+            let mut handles = Vec::new();
+            for sentence in SentenceSplitter::new(&paragraph) {
+                let existing_sentences = se::table
+                    .select(se::id)
+                    .filter(eq!(se, sentence).and(eq!(se, source_id)))
+                    .execute(&mut conn)?;
+                if existing_sentences != 0 {
+                    tracing::info!("Skipping existing sentence {sentence}");
+                    continue;
+                }
+                let segmented_sentence = scope.spawn(|| {
+                    sentences::process_sentence(
+                        &state.ichiran_cli,
+                        sentence.to_string(),
+                        &ignored_word_ids,
+                        &state.ichiran_seq_to_word_id,
+                    )
+                });
+                handles.push(segmented_sentence);
             }
-            let segmented_sentence = sentences::process_sentence(
-                &state.ichiran_cli,
-                sentence.to_string(),
-                &ignored_word_ids,
-                &state.ichiran_seq_to_word_id,
-            )?;
-            segmented_sentences.push(segmented_sentence);
-        }
+            for handle in handles {
+                let segmented_sentence = handle.join().expect("Failed to join thread handle")?;
+                segmented_sentences.push(segmented_sentence)
+            }
+            EyreResult::Ok(segmented_sentences)
+        })
+        .expect("Failed to finish scope");
         EyreResult::Ok(segmented_sentences)
     })
     .await??;
