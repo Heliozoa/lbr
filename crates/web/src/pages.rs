@@ -144,20 +144,24 @@ pub fn Source(cx: Scope) -> impl IntoView {
     // actions
     let name_ref = leptos::create_node_ref::<Input>(cx);
     let (update_result_message, set_update_result_message) =
-        leptos::create_signal(cx, ().into_view(cx));
+        leptos::create_signal(cx, (None::<View>, None::<TimeoutHandle>));
     let update_act = leptos::create_action(cx, move |&()| {
         let name = name_ref().unwrap().value();
         let client = get_client(cx);
         async move {
             client.update_source(source_id, &name).await?;
             source_res.refetch();
-            set_update_result_message(view! { cx, <div>"Updated source!"</div> }.into_view(cx));
-            leptos::set_timeout(
+            let handle = leptos::set_timeout_with_handle(
                 move || {
-                    set_update_result_message(().into_view(cx));
+                    set_update_result_message((None, None));
                 },
                 Duration::from_secs(4),
-            );
+            )
+            .ok();
+            set_update_result_message((
+                Some(view! { cx, <div>"Updated source!"</div> }.into_view(cx)),
+                handle,
+            ));
             WebResult::Ok(())
         }
     });
@@ -185,8 +189,12 @@ pub fn Source(cx: Scope) -> impl IntoView {
             .sentences
             .into_iter()
             .map(|sentence| {
+                let sentence_id = format!("[{}] ", sentence.id);
                 view! { cx,
                     <li>
+                        <span>
+                            {sentence_id}
+                        </span>
                         <A href=format!("/source/{source_id}/sentence/{}", sentence.id)>
                             {sentence.sentence}
                         </A>
@@ -221,7 +229,7 @@ pub fn Source(cx: Scope) -> impl IntoView {
                         "Update"
                     </button>
                     <ActionView action=update_act/>
-                    {update_result_message}
+                    {move || update_result_message.get().0}
                 </form>
             </div>
             <div class="block">
@@ -502,7 +510,7 @@ pub fn Deck(cx: Scope) -> impl IntoView {
     let (source_checkbox_refs, set_source_checkbox_refs) =
         leptos::create_signal(cx, Vec::<(i32, NodeRef<Input>)>::new());
     let (update_result_message, set_update_result_message) =
-        leptos::create_signal(cx, (().into_view(cx), None::<TimeoutHandle>));
+        leptos::create_signal(cx, (None::<View>, None::<TimeoutHandle>));
     let update_act = leptos::create_action(cx, move |&()| {
         let client = get_client(cx);
         let name = name_ref().unwrap().value();
@@ -523,14 +531,14 @@ pub fn Deck(cx: Scope) -> impl IntoView {
             }
             let handle = leptos::set_timeout_with_handle(
                 move || {
-                    set_update_result_message((().into_view(cx), None));
+                    set_update_result_message((None, None));
                 },
                 Duration::from_secs(4),
             )
-            .expect("Failed to set timeout");
+            .ok();
             set_update_result_message((
-                view! { cx, <div>"Updated deck!"</div> }.into_view(cx),
-                Some(handle),
+                Some(view! { cx, <div>"Updated deck!"</div> }.into_view(cx)),
+                handle,
             ));
 
             WebResult::Ok(())
@@ -629,16 +637,22 @@ pub fn Deck(cx: Scope) -> impl IntoView {
         };
         view
     };
-    let deck_sources = view! { cx,
-        <Suspense fallback={move || deck_sources_view(None, None)}>
-            <ErrorBoundary fallback={utils::errors_fallback}>
-                {move || {
-                    let deck = utils::untangle!(cx, deck_res);
-                    let sources = utils::untangle!(cx, sources_res);
-                    WebResult::Ok(Some(deck_sources_view(deck, sources)))
-                }}
-            </ErrorBoundary>
-        </Suspense>
+    let deck_sources = move || {
+        let res = move || match (deck_res.read(cx), sources_res.read(cx)) {
+            (Some(Ok(Some(deck_res))), Some(Ok(Some(sources_res)))) => Ok(Some(
+                deck_sources_view(Some(deck_res), Some(sources_res)).into_view(cx),
+            )),
+            (Some(Ok(None)), _) | (_, Some(Ok(None))) => Ok(None),
+            (Some(Err(err)), _) | (_, Some(Err(err))) => Err(err),
+            (None, _) | (_, None) => Ok(Some(deck_sources_view(None, None).into_view(cx))),
+        };
+        view! { cx,
+            <Suspense fallback={move || deck_sources_view(None, None)}>
+                <ErrorBoundary fallback={utils::errors_fallback}>
+                    {res}
+                </ErrorBoundary>
+            </Suspense>
+        }
     };
 
     let view = view! { cx,
@@ -691,13 +705,14 @@ pub fn IgnoredWords(cx: Scope) -> impl IntoView {
                         }
                     })
                     .collect_view(cx);
+                let word_id = format!("[{}]", iw.word_id);
                 view! { cx,
                     <div class="column">
                         <div class="box">
                             <div>
-                                <span class="has-text-weight-bold">"Word id"</span>
-                                ": "
-                                {iw.word_id}
+                                <span class="has-text-weight-bold">
+                                    {word_id}
+                                </span>
                             </div>
                             <div>
                                 <span class="has-text-weight-bold">"Translations"</span>

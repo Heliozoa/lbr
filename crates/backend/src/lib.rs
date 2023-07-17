@@ -13,6 +13,7 @@ use crate::handlers::{decks, sentences, sources, words};
 use authentication::{Expiration, SessionCache};
 use axum::{
     extract::FromRef,
+    response::IntoResponse,
     routing::{delete, get, post},
     Router,
 };
@@ -63,6 +64,7 @@ impl FromRef<LbrState> for LeptosOptions {
 
 pub async fn router(state: LbrState) -> Router<()> {
     let router = Router::new()
+        .route("/favicon.ico", get(favicon))
         .nest(
             "/api",
             Router::new()
@@ -224,4 +226,8 @@ pub async fn router_from_vars(
     }));
     let router = self::router(state).await;
     Ok(router)
+}
+
+pub async fn favicon() -> impl IntoResponse {
+    include_bytes!("../../../data/favicon.ico")
 }
