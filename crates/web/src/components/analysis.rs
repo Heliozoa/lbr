@@ -1,6 +1,6 @@
 //! Components related to sentence analysis.
 
-use crate::context::get_client;
+use crate::{context::get_client, error::WebResult};
 use lbr_api::{request as req, response as res};
 use leptos::*;
 use std::{
@@ -14,17 +14,86 @@ pub fn SegmentedParagraphView(
     source_id: i32,
     segmented: Vec<res::SegmentedSentence>,
 ) -> impl IntoView {
+    let active_sentence = leptos::create_rw_signal(cx, 0usize);
+    let completed_sentences = leptos::create_rw_signal(cx, HashSet::<usize>::new());
+    let is_active = move |idx: usize| active_sentence.get() == idx;
+    let is_complete = move |idx: usize| completed_sentences.get().contains(&idx);
+    let sentence_selection = segmented
+        .iter()
+        .enumerate()
+        .map(|(idx, segmented_sentence)| {
+            let text = move || {
+                if is_complete(idx) {
+                    "Complete"
+                } else if is_active(idx) {
+                    "Active"
+                } else {
+                    "Select"
+                }
+            };
+            let class = move || {
+                if is_complete(idx) {
+                    "box has-background-info-light"
+                } else if is_active(idx) {
+                    "box has-background-success-light"
+                } else {
+                    "box has-background-warning-light"
+                }
+            };
+            let button_class = move || {
+                if is_complete(idx) {
+                    "button mt-2"
+                } else if is_active(idx) {
+                    "button mt-2 is-light"
+                } else {
+                    "button mt-2 is-primary"
+                }
+            };
+            let is_disabled = move || {
+                is_complete(idx) || is_active(idx)
+            };
+            view! { cx,
+                <div class=class>
+                    <div>
+                        {segmented_sentence.sentence.clone()}
+                    </div>
+                    <button class=button_class disabled=is_disabled on:click=move |_ev| active_sentence.set(idx)>
+                        {text}
+                    </button>
+                </div>
+            }
+        })
+        .collect_view(cx);
     let segmented_sentences = segmented
         .into_iter()
-        .map(|segmented_sentence| {
+        .enumerate()
+        .map(|(idx, segmented_sentence)| {
+            let class = move || {
+                if is_active(idx) {
+                    ""
+                } else {
+                    "is-hidden"
+                }
+            };
             view! { cx,
-                <SegmentedSentenceView source_id sentence_id=None segmented_sentence />
+                <div class=class>
+                    <SegmentedSentenceView source_id sentence_id=None segmented_sentence on_successful_accept=Some(Arc::new(move || {
+                        completed_sentences.update(|cs| {
+                            cs.insert(idx);
+                        });
+                        active_sentence.update(|acs| {
+                            *acs += 1;
+                        });
+                        let _ = leptos::window().location().set_hash("paragraph-segmentation");
+                    })) />
+                </div>
             }
         })
         .collect_view(cx);
     view! { cx,
         <div class="block">
-            <div class="subtitle">"Paragraph segmentation"</div>
+            <div id="paragraph-segmentation" class="subtitle">"Paragraph segmentation"</div>
+            {sentence_selection}
             {segmented_sentences}
         </div>
     }
@@ -49,7 +118,7 @@ impl Component {
 #[derive(Debug, Clone)]
 pub enum Status {
     Accept,
-    Skip,
+    Decline,
     Ignore,
     Undecided,
 }
@@ -160,9 +229,9 @@ pub fn SegmentedSentenceView(
     source_id: i32,
     sentence_id: Option<i32>,
     segmented_sentence: res::SegmentedSentence,
+    on_successful_accept: Option<Arc<dyn Fn() -> ()>>,
 ) -> impl IntoView {
     let form = Form::init(cx, &segmented_sentence);
-    let sentence = segmented_sentence.sentence.clone();
 
     // accept is enabled if no word forms are left undecided
     let components = form
@@ -175,12 +244,17 @@ pub fn SegmentedSentenceView(
     let submit = leptos::create_action(cx, move |sentence: &req::SegmentedSentence| {
         let client = get_client(cx);
         let sentence = sentence.clone();
+        let on_successful_accept = on_successful_accept.clone();
         async move {
             if let Some(sentence_id) = sentence_id {
-                client.update_sentence(sentence_id, &sentence).await
+                client.update_sentence(sentence_id, &sentence).await?
             } else {
-                client.new_sentence(source_id, &sentence).await
+                client.new_sentence(source_id, &sentence).await?
             }
+            if let Some(on_successful_accept) = on_successful_accept {
+                on_successful_accept()
+            }
+            WebResult::Ok(())
         }
     });
 
@@ -196,7 +270,7 @@ pub fn SegmentedSentenceView(
         for component in components.iter().map(|read| read()) {
             match component.status {
                 Status::Accept => {
-                    let reading = if component.reading_override.is_empty() {
+                    let reading = if component.reading_override.trim().is_empty() {
                         component.reading
                     } else {
                         Some(component.reading_override)
@@ -211,8 +285,8 @@ pub fn SegmentedSentenceView(
                 Status::Ignore => {
                     ignore_words.insert(component.word_id);
                 }
-                Status::Skip => {}
-                Status::Undecided => {} // shouldn't happen...
+                Status::Decline => {}
+                Status::Undecided => panic!("Cannot accept sentence with undecided components"),
             }
         }
         let segmented_sentence = req::SegmentedSentence {
@@ -226,32 +300,40 @@ pub fn SegmentedSentenceView(
     // show each segment with interpretations
     let mut phrase_seq = 0;
     let ignored_words = Arc::new(segmented_sentence.ignored_words);
-    let sentence_segments = segmented_sentence
-        .segments
-        .into_iter()
-        .map(|s| {
-            let segment_view = match s {
-                res::Segment::Phrase {
-                    phrase,
-                    interpretations,
-                } => {
-                    let all_unknown_or_ignored = interpretations
-                        .iter()
-                        .flat_map(|i| &i.components)
-                        .all(|c| match c.word_id {
-                            Some(word_id) => ignored_words.contains(&word_id),
-                            None => true,
-                        });
-                    if all_unknown_or_ignored {
-                        // phrases with no word id components in any of their interpretations are unknown
-                        view! { cx,
+    let mut unknown_or_ignored_storage = String::new();
+    let sentence_segments = segmented_sentence.segments.into_iter().map(|s| {
+        let segment_view = match s {
+            res::Segment::Phrase {
+                phrase,
+                interpretations,
+            } => {
+                let all_unknown_or_ignored = interpretations
+                    .iter()
+                    .flat_map(|i| &i.components)
+                    .all(|c| match c.word_id {
+                        Some(word_id) => ignored_words.contains(&word_id),
+                        None => true,
+                    });
+                if all_unknown_or_ignored {
+                    unknown_or_ignored_storage += &phrase;
+                    None
+                } else {
+                    let preceding_unknown_or_ignored_words = if !unknown_or_ignored_storage
+                        .is_empty()
+                    {
+                        let ret = Some(view! { cx,
                             <div class="box has-background-info-light">
-                                <div class="has-text-weight-bold">{phrase}</div>
+                                <div class="has-text-weight-bold">{unknown_or_ignored_storage.clone()}</div>
                             </div>
-                        }
-                        .into_view(cx)
+                        });
+                        unknown_or_ignored_storage.clear();
+                        ret
                     } else {
+                        None
+                    };
+                    Some(
                         view! { cx,
+                            {preceding_unknown_or_ignored_words}
                             <PhraseView
                                 phrase
                                 interpretations
@@ -260,26 +342,33 @@ pub fn SegmentedSentenceView(
                                 ignored_words=ignored_words.clone()
                             />
                         }
-                        .into_view(cx)
-                    }
+                        .into_view(cx),
+                    )
                 }
-                res::Segment::Other(other) => view! { cx,
-                    <div class="box  has-background-info-light">
-                        <div class="has-text-weight-bold">{other}</div>
-                    </div>
-                }
-                .into_view(cx),
-            };
-            phrase_seq += 1;
-            segment_view
+            }
+            res::Segment::Other(other) => {
+                unknown_or_ignored_storage += &other;
+                None
+            },
+        };
+        phrase_seq += 1;
+        segment_view
+    }).flatten().collect_view(cx);
+    let tailing_unknown_or_ignored_words = if !unknown_or_ignored_storage.is_empty() {
+        Some(view! { cx,
+            <div class="box has-background-info-light">
+                <div class="has-text-weight-bold">{unknown_or_ignored_storage}</div>
+            </div>
         })
-        .collect_view(cx);
+    } else {
+        None
+    };
 
     view! { cx,
-        <div class="box">
-            <div>"Sentence segmentation"</div>
-            <div>{format!("'{sentence}'")}</div>
+        <div class="block">
+            <div class="subtitle">"Sentence segmentation"</div>
             {sentence_segments}
+            {tailing_unknown_or_ignored_words}
             <button class="button is-primary" disabled=accept_disabled on:click=accept_sentence>"Accept sentence"</button>
         </div>
     }
@@ -348,7 +437,7 @@ fn PhraseView(
             .get(&phrase_seq)
             .unwrap()
             .iter()
-            .any(|(_seq, (read, _write))| matches!(read().status, Status::Skip));
+            .any(|(_seq, (read, _write))| matches!(read().status, Status::Decline));
         any_skipped
     };
     let form_clone = form.clone();
@@ -358,7 +447,7 @@ fn PhraseView(
             .get(&phrase_seq)
             .unwrap()
             .iter()
-            .all(|(_seq, (read, _write))| matches!(read().status, Status::Skip));
+            .all(|(_seq, (read, _write))| matches!(read().status, Status::Decline));
         all_skipped
     };
 
@@ -383,7 +472,7 @@ fn PhraseView(
             .iter()
             .for_each(|(_seq, (_read, write))| {
                 write.update(|f| {
-                    f.status = Status::Skip;
+                    f.status = Status::Decline;
                 })
             });
     };
@@ -440,8 +529,8 @@ fn InterpretationView(
         .collect_view(cx);
     view! { cx,
         <div class="column is-flex is-flex-direction-column">
-            <div>{interpretation.reading_hiragana}</div>
-            <div>"Score: " {interpretation.score}</div>
+            <div>{format!("Score: {}", interpretation.score)}</div>
+            <div>{format!("Reading: {}", interpretation.reading_hiragana)}</div>
             {components}
         </div>
     }
@@ -481,15 +570,15 @@ fn ComponentView(
                 if *seq != interpretation_seq {
                     write.update(|c| {
                         if !matches!(c.status, Status::Ignore) {
-                            c.status = Status::Skip;
+                            c.status = Status::Decline;
                         }
                     });
                 }
             });
         write.update(|c| c.status = Status::Accept);
     };
-    let skip = move |_ev| {
-        write.update(|c| c.status = Status::Skip);
+    let decline = move |_ev| {
+        write.update(|c| c.status = Status::Decline);
     };
     let ignore = move |_ev| {
         // ignore all words with the same id
@@ -503,7 +592,7 @@ fn ComponentView(
         write.update(|c| c.status = Status::Ignore);
     };
     let accepted = move || matches!(read().status, Status::Accept { .. });
-    let skipped = move || matches!(read().status, Status::Skip);
+    let declined = move || matches!(read().status, Status::Decline);
     let ignored = move || matches!(read().status, Status::Ignore);
     let (reading_override, set_reading_override) = leptos::create_signal(cx, String::new());
     view! { cx,
@@ -528,9 +617,17 @@ fn ComponentView(
                 {meanings}
             </ul>
         </div>
-        <button class="button" disabled=accepted on:click=accept>"Accept"</button>
-        <button class="button" disabled=skipped on:click=skip>"Skip"</button>
-        <button class="button" disabled=ignored on:click=ignore>"Ignore"</button>
+        <div class="columns is-flex-wrap-wrap is-centered">
+            <div class="column">
+                <button class="button" style="width: 100%" disabled=accepted on:click=accept>"Accept"</button>
+            </div>
+            <div class="column">
+                <button class="button" style="width: 100%" disabled=declined on:click=decline>"Decline"</button>
+            </div>
+            <div class="column">
+                <button class="button" style="width: 100%" disabled=ignored on:click=ignore>"Ignore"</button>
+            </div>
+        </div>
     }
 }
 

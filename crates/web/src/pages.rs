@@ -13,7 +13,7 @@ use leptos::{
     *,
 };
 use leptos_router::*;
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 #[component]
 pub fn Home(cx: Scope) -> impl IntoView {
@@ -273,7 +273,9 @@ pub fn SourceAddSentences(cx: Scope) -> impl IntoView {
     let source_res = utils::logged_in_resource!(cx, get_source(source_id));
     let source_content = move |source: res::Source| {
         view! { cx,
-            <h2 class="subtitle">{source.name}</h2>
+            <h2 class="subtitle">
+                <A href=format!("/source/{source_id}")>{source.name}</A>
+            </h2>
             <label class="label">
                 "Paragraph"
                 <textarea class="textarea" node_ref=analyse_textarea_ref/>
@@ -362,7 +364,7 @@ pub fn SourceSentence(cx: Scope) -> impl IntoView {
     // analysis
     let analysis_content = move |segmented_sentence: res::SegmentedSentence| {
         view! { cx,
-            <SegmentedSentenceView source_id sentence_id=Some(sentence_id) segmented_sentence />
+            <SegmentedSentenceView source_id sentence_id=Some(sentence_id) segmented_sentence on_successful_accept=None />
         }
     };
     let analysis_view =

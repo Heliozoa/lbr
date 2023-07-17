@@ -15,7 +15,7 @@ license.workspace = true
 [dependencies]
 lbr_api.workspace = true
 
-chrono = "0.4.26"
+chrono = { version = "0.4.26", default-features = false, features = ["std", "clock"] }
 eyre = "0.6.8"
 leptos = { git = "https://github.com/leptos-rs/leptos.git", branch = "keys", features = ["nightly"] }
 leptos_router = { git = "https://github.com/leptos-rs/leptos.git", branch = "keys", features = ["nightly"] }
