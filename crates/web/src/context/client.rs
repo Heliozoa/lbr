@@ -439,7 +439,7 @@ impl Client {
         sentence_id: i32,
         sentence: &req::SegmentedSentence,
     ) -> WebResult<()> {
-        tracing::info!("Sending sentence '{}'", sentence.sentence);
+        tracing::info!("Updating sentence '{}'", sentence.sentence);
 
         let json = serde_json::to_string(&sentence).map_err(WebError::from)?;
         let res = Request::post(&format!("/api/sentences/{sentence_id}"))
@@ -451,7 +451,7 @@ impl Client {
             .map_err(WebError::from)?;
         self.assert_success(&res).await?;
 
-        tracing::info!("Sent sentence {}", sentence.sentence);
+        tracing::info!("Updated sentence {}", sentence.sentence);
         Ok(())
     }
 }

@@ -77,7 +77,7 @@ pub fn SegmentedParagraphView(
             };
             view! { cx,
                 <div class=class>
-                    <SegmentedSentenceView source_id sentence_id=None segmented_sentence on_successful_accept=Some(Arc::new(move || {
+                    <SegmentedSentenceView source_id sentence_id=None segmented_sentence on_successful_accept=Arc::new(move || {
                         completed_sentences.update(|cs| {
                             cs.insert(idx);
                         });
@@ -85,7 +85,7 @@ pub fn SegmentedParagraphView(
                             *acs += 1;
                         });
                         let _ = leptos::window().location().set_hash("paragraph-segmentation");
-                    })) />
+                    }) />
                 </div>
             }
         })
@@ -229,7 +229,7 @@ pub fn SegmentedSentenceView(
     source_id: i32,
     sentence_id: Option<i32>,
     segmented_sentence: res::SegmentedSentence,
-    on_successful_accept: Option<Arc<dyn Fn() -> ()>>,
+    on_successful_accept: Arc<dyn Fn() -> ()>,
 ) -> impl IntoView {
     let form = Form::init(cx, &segmented_sentence);
 
@@ -251,9 +251,7 @@ pub fn SegmentedSentenceView(
             } else {
                 client.new_sentence(source_id, &sentence).await?
             }
-            if let Some(on_successful_accept) = on_successful_accept {
-                on_successful_accept()
-            }
+            on_successful_accept();
             WebResult::Ok(())
         }
     });

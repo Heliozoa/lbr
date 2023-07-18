@@ -19,7 +19,7 @@ crate-type = ["cdylib", "rlib"]
 lbr_api.workspace = true
 lbr_web = { workspace = true, features = ["hydrate"] }
 
-chrono = { version = "0.4.26", default-features = false, features = ["std", "clock"] }
+chrono = { version = "0.4.26", default-features = false, features = ["std", "clock", "wasmbind"] }
 console_error_panic_hook = "0.1.7"
 eyre = "0.6.8"
 leptos = { git = "https://github.com/leptos-rs/leptos.git", branch = "keys", features = ["nightly", "hydrate"] }

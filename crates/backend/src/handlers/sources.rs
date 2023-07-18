@@ -2,7 +2,7 @@
 
 use crate::{
     authentication::Authentication,
-    domain::japanese,
+    domain::{japanese, sentences},
     eq,
     error::{EyreResult, LbrResult},
     query,
@@ -240,67 +240,16 @@ pub async fn add_sentence(
                 .returning(se::id)
                 .get_result::<i32>(conn)
                 .wrap_err("Failed to insert sentence")?;
-            let ichiran_seq_to_word_id = &state.clone().ichiran_seq_to_word_id;
-
-            let mut sentence_words = Vec::new();
-            for req::Word {
-                id: ichiran_id,
-                reading,
-                idx_start,
-                idx_end,
-            } in words
-            {
-                let word = sentence
-                    .get(idx_start as usize..idx_end as usize)
-                    .ok_or_else(|| eyre::eyre!("Request had invalid indexes for word"))?;
-                let furigana = reading
-                    .as_ref()
-                    .map(|reading| {
-                        japanese::map_to_db_furigana(word, reading, &state.kanji_to_readings)
-                            .wrap_err_with(|| {
-                                format!("Failed to map furigana to reading for {}", reading)
-                            })
-                    })
-                    .transpose()?
-                    .unwrap_or_default();
-                let word_id = ichiran_seq_to_word_id
-                    .get(&ichiran_id)
-                    .copied()
-                    .ok_or_else(|| eyre::eyre!("No word found for ichiran seq {ichiran_id}"))?;
-                sentence_words.push(eq!(
-                    sw,
-                    sentence_id,
-                    word_id,
-                    reading,
-                    idx_start,
-                    idx_end,
-                    furigana
-                ));
-            }
-            for chunk in sentence_words.pg_chunks() {
-                diesel::insert_into(sw::table)
-                    .values(chunk)
-                    .execute(conn)
-                    .wrap_err("Failed to insert sentece word")?;
-            }
-            let ignored_words = ignore_words
-                .into_iter()
-                .map(|ichiran_seq| {
-                    ichiran_seq_to_word_id
-                        .get(&ichiran_seq)
-                        .copied()
-                        .ok_or_else(|| eyre::eyre!("Failed to find word id for {ichiran_seq}"))
-                })
-                .map(|word_id| word_id.map(|word_id| eq!(iw, word_id, user_id)))
-                .collect::<Result<Vec<_>, _>>()?;
-            for chunk in ignored_words.pg_chunks() {
-                diesel::insert_into(iw::table)
-                    .values(chunk)
-                    .on_conflict((iw::word_id, iw::user_id))
-                    .do_nothing()
-                    .execute(conn)
-                    .wrap_err("Failed to insert ignored words")?;
-            }
+            sentences::insert_sentence_words(
+                conn,
+                &state.kanji_to_readings,
+                &state.ichiran_seq_to_word_id,
+                user.user_id,
+                sentence_id,
+                sentence,
+                words,
+                ignore_words,
+            )?;
             EyreResult::Ok(())
         })?;
         EyreResult::Ok(())

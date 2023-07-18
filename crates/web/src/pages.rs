@@ -120,7 +120,7 @@ pub fn SourceNew(cx: Scope) -> impl IntoView {
                         ev.prevent_default();
                         send.dispatch(());
                     }>
-                        "Save"
+                        "Create source"
                     </button>
                     <ActionView action=send/>
                 </div>
@@ -216,17 +216,17 @@ pub fn Source(cx: Scope) -> impl IntoView {
                 </div>
             </div>
             <div class="block">
-                <h3 class="subtitle">"Edit"</h3>
+                <h3 class="subtitle">"Edit source"</h3>
                 <form>
                     <label class="label">
-                        "Name"
+                        "Source name"
                         <input class="input" type="text" value=source.name node_ref=name_ref/>
                     </label>
                     <button class="button" type="submit" on:click=move |ev| {
                         ev.prevent_default();
                         update_act.dispatch(());
                     }>
-                        "Update"
+                        "Update source"
                     </button>
                     <ActionView action=update_act/>
                     {move || update_result_message.get().0}
@@ -363,8 +363,12 @@ pub fn SourceSentence(cx: Scope) -> impl IntoView {
 
     // analysis
     let analysis_content = move |segmented_sentence: res::SegmentedSentence| {
+        let on_successful_accept = Arc::new(move || {
+            sentence_res.refetch();
+            reanalyse_act.value().set(None);
+        });
         view! { cx,
-            <SegmentedSentenceView source_id sentence_id=Some(sentence_id) segmented_sentence on_successful_accept=None />
+            <SegmentedSentenceView source_id sentence_id=Some(sentence_id) segmented_sentence on_successful_accept=on_successful_accept />
         }
     };
     let analysis_view =
@@ -474,7 +478,7 @@ pub fn DeckNew(cx: Scope) -> impl IntoView {
 
     view! { cx,
         <LoginGuard require_login=true>
-            <h2 class="subtitle">"Adding new source"</h2>
+            <h2 class="subtitle">"Adding new deck"</h2>
             <form>
                 <label class="label">
                     "Deck name"
@@ -485,7 +489,7 @@ pub fn DeckNew(cx: Scope) -> impl IntoView {
                         ev.prevent_default();
                         save_act.dispatch(());
                     }>
-                        "Save"
+                        "Create deck"
                     </button>
                     <ActionView action=save_act/>
                 </div>
@@ -578,10 +582,9 @@ pub fn Deck(cx: Scope) -> impl IntoView {
                 refs.push((s.id, include_ref));
                 view! { cx,
                     <li>
-                        <div>{s.name}</div>
                         <label class="checkbox">
                             <input class="mr-1" type="checkbox" checked=checked node_ref=include_ref/>
-                            "Include"
+                            {s.name}
                         </label>
                     </li>
                 }
@@ -593,11 +596,11 @@ pub fn Deck(cx: Scope) -> impl IntoView {
             <h2 class="subtitle">{format!("Viewing deck {}", deck.name)}</h2>
             <div class="block">
                 <a href=generate_deck_url download=filename class="button is-primary">
-                    "Generate"
+                    "Generate deck"
                 </a>
             </div>
             <div class="block">
-                <h3 class="subtitle">"Edit"</h3>
+                <h3 class="subtitle">"Edit deck"</h3>
                 <form>
                     <label class="label">
                         "Name"
@@ -615,7 +618,7 @@ pub fn Deck(cx: Scope) -> impl IntoView {
                         ev.prevent_default();
                         update_act.dispatch(());
                     }>
-                        "Update"
+                        "Update deck"
                     </button>
                     <ActionView action=update_act/>
                     {move || update_result_message().0}
@@ -697,16 +700,13 @@ pub fn IgnoredWords(cx: Scope) -> impl IntoView {
                     .into_iter()
                     .map(|wf| {
                         let readings = wf.readings.join(", ");
-                        let contents = if readings.is_empty() {
+                        if readings.is_empty() {
                             wf.written_form
                         } else {
                             format!("{} ({})", wf.written_form, readings)
-                        };
-                        view! { cx,
-                            <li>{contents}</li>
                         }
                     })
-                    .collect_view(cx);
+                    .collect::<Vec<_>>().join(", ");
                 let word_id = format!("[{}]", iw.word_id);
                 view! { cx,
                     <div class="column">
@@ -717,18 +717,16 @@ pub fn IgnoredWords(cx: Scope) -> impl IntoView {
                                 </span>
                             </div>
                             <div>
-                                <span class="has-text-weight-bold">"Translations"</span>
-                                ": "
-                                {translations}
-                            </div>
-                            <div>
                                 <div>
                                     <span class="has-text-weight-bold">"Written forms"</span>
                                     ": "
-                                </div>
-                                <ul>
                                     {written_forms}
-                                </ul>
+                                </div>
+                            </div>
+                            <div>
+                                <span class="has-text-weight-bold">"Translations"</span>
+                                ": "
+                                {translations}
                             </div>
                             <button class="button is-danger mt-2" on:click=move |_ev| delete_act.dispatch(iw.word_id)>"Delete ignored word"</button>
                         </div>

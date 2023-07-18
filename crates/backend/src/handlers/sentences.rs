@@ -90,57 +90,41 @@ pub async fn update(
     State(state): State<LbrState>,
     Path(id): Path<i32>,
     user: Authentication,
-    update_sentence: Json<req::UpdateSentence<'static>>,
+    update_sentence: Json<req::SegmentedSentence>,
 ) -> LbrResult<()> {
-    use crate::schema::{sentence_words as sw, sentences as s};
+    use crate::schema::{sentence_words as sw, sentences as s, sources as so};
     tracing::info!("Updating sentence {id}");
 
-    let req::UpdateSentence {
+    let req::SegmentedSentence {
         sentence,
-        sentence_words,
+        words,
+        ignore_words,
     } = update_sentence.0;
     tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
+
+        let sentence = &sentence;
+        let sentence_id = s::table
+            .inner_join(so::table.on(so::id.eq(s::source_id)))
+            .filter(s::id.eq(id).and(so::user_id.eq(user.user_id)))
+            .select(s::id)
+            .get_result::<i32>(&mut conn)?;
+
         conn.transaction(|conn| {
             diesel::update(s::table.filter(eq!(s, id)))
                 .set(eq!(s, sentence))
                 .execute(conn)?;
-            let sentence_id = id;
             diesel::delete(sw::table.filter(eq!(sw, sentence_id))).execute(conn)?;
-            let sw_values = sentence_words
-                .iter()
-                .map(
-                    |req::UpdatedSentenceWord {
-                         word_id,
-                         reading,
-                         idx_start,
-                         idx_end,
-                         furigana,
-                     }| {
-                        let furigana = furigana
-                            .iter()
-                            .map(|f| database::Furigana {
-                                word_start_idx: f.word_start_idx,
-                                word_end_idx: f.word_end_idx,
-                                reading_start_idx: f.reading_start_idx,
-                                reading_end_idx: f.reading_end_idx,
-                            })
-                            .collect::<Vec<_>>();
-                        eq!(
-                            sw,
-                            sentence_id,
-                            word_id,
-                            reading,
-                            idx_start,
-                            idx_end,
-                            furigana
-                        )
-                    },
-                )
-                .collect::<Vec<_>>();
-            for chunk in sw_values.pg_chunks() {
-                diesel::insert_into(sw::table).values(chunk).execute(conn)?;
-            }
+            sentences::insert_sentence_words(
+                conn,
+                &state.kanji_to_readings,
+                &state.ichiran_seq_to_word_id,
+                user.user_id,
+                sentence_id,
+                sentence,
+                words,
+                ignore_words,
+            )?;
             EyreResult::Ok(())
         })?;
         EyreResult::Ok(())
