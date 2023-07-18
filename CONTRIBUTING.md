@@ -21,7 +21,7 @@ A thin wrapper around `lbr_web`.
 ### `lbr_web` (`./crates/web`)
 A web frontend that works with the backend.
 
-Uses the [Leptos](https://docs.rs/leptos) web framework.
+Uses the [Leptos](https://docs.rs/leptos) web framework and [Bulma](https://bulma.io/) for the styling.
 
 ### `jadata` (`./crates/jadata`)
 Generates files used by LBR related to the Japanese language.
@@ -73,7 +73,10 @@ LBR uses the nightly toolchain.
 Setting the logging level for the backend is done with the `RUST_LOG` environment variable. For the frontend, the `WASM_LOG` environment variable is used. The levels available are the usual `trace`, `debug`, `info`, `warn` and `error`.
 
 ### Formatting
-`cargo fmt`
+
+- Rust: `cargo fmt`
+
+- TOML with [Taplo](https://taplo.tamasfe.dev/): `taplo fmt`
 
 ### Linting
 `cargo clippy`
@@ -83,4 +86,4 @@ Install `cargo leptos` with `cargo install cargo-leptos`
 
 Run `cargo leptos watch`
 
-LBR will be available at `http://0.0.0.0:8080`.
+LBR will be available at `http://0.0.0.0:3000`.
