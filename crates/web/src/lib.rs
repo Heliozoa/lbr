@@ -39,7 +39,7 @@ pub fn Root(cx: Scope) -> impl IntoView {
                     <div class="container">
                         <a href="https://github.com/Heliozoa/lbr">"Source code"</a>
                         " / "
-                        <a href="/license.html">"Third party license information"</a>
+                        <a rel="external" href="license.html">"Third party license information"</a>
                     </div>
                 </footer>
             </div>
