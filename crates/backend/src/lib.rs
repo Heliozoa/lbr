@@ -13,7 +13,7 @@ use crate::handlers::{decks, sentences, sources, words};
 use authentication::{Expiration, SessionCache};
 use axum::{
     extract::FromRef,
-    response::IntoResponse,
+    response::{Html, IntoResponse},
     routing::{delete, get, post},
     Router,
 };
@@ -234,5 +234,5 @@ pub async fn favicon() -> impl IntoResponse {
 }
 
 pub async fn license() -> impl IntoResponse {
-    include_bytes!("../../../data/license.html")
+    Html(include_str!("../../../data/license.html"))
 }

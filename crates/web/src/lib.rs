@@ -38,17 +38,8 @@ pub fn Root(cx: Scope) -> impl IntoView {
                 <footer class="footer">
                     <div class="container">
                         <a href="https://github.com/Heliozoa/lbr">"Source code"</a>
-                        " - Powered by "
-                        <a href="https://github.com/tshatrov/ichiran">"ichiran"</a>
                         " / "
-                        <a href="https://github.com/tokio-rs/axum">"axum"</a>
-                        " / "
-                        <a href="https://github.com/diesel-rs/diesel">"diesel"</a>
-                        " / "
-                        <a href="https://github.com/leptos-rs/leptos/">"Leptos"</a>
-                        " / "
-                        <a href="https://bulma.io/">"Bulma"</a>
-                        " and more"
+                        <a href="/license.html">"Third party license information"</a>
                     </div>
                 </footer>
             </div>
