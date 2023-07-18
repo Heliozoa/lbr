@@ -165,14 +165,15 @@ impl Form {
                                 .unwrap();
                             let idx_end = interpretation_idx + component.word.len();
                             if let Some(word_id) = component.word_id {
-                                let status: Status = if interpretations.len() == 1 {
-                                    // pre-emptively accept "clear" cases
-                                    Status::Accept
-                                } else if segmented_sentence.ignored_words.contains(&word_id) {
-                                    Status::Ignore
-                                } else {
-                                    Status::Undecided
-                                };
+                                let status: Status =
+                                    if segmented_sentence.ignored_words.contains(&word_id) {
+                                        Status::Ignore
+                                    } else if interpretations.len() == 1 {
+                                        // pre-emptively accept "clear" unignored cases
+                                        Status::Accept
+                                    } else {
+                                        Status::Undecided
+                                    };
                                 let reading = if component.word == component.reading_hiragana {
                                     None
                                 } else {

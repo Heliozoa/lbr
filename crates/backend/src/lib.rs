@@ -65,6 +65,7 @@ impl FromRef<LbrState> for LeptosOptions {
 pub async fn router(state: LbrState) -> Router<()> {
     let router = Router::new()
         .route("/favicon.ico", get(favicon))
+        .route("/license.html", get(license))
         .nest(
             "/api",
             Router::new()
@@ -230,4 +231,8 @@ pub async fn router_from_vars(
 
 pub async fn favicon() -> impl IntoResponse {
     include_bytes!("../../../data/favicon.ico")
+}
+
+pub async fn license() -> impl IntoResponse {
+    include_bytes!("../../../data/license.html")
 }
