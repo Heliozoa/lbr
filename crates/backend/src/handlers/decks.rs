@@ -205,7 +205,7 @@ pub async fn generate(
             .as_os_str()
             .to_str()
             .ok_or_else(|| eyre::eyre!("Invalid temporary path"))?;
-        let deck = decks::gen_deck(&mut conn, &deck.name, deck.id, deck.anki_deck_id)?;
+        let mut deck = decks::gen_deck(&mut conn, &deck.name, deck.id, deck.anki_deck_id)?;
         deck.write_to_file(temp_path)?;
         let mut buf = Vec::new();
         temp.read_to_end(&mut buf)?;

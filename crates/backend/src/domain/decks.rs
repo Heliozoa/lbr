@@ -5,7 +5,7 @@ use diesel::prelude::*;
 use itertools::Itertools;
 use lbr::{
     anki,
-    anki::{Card, Deck, Kanji, Sentence, SentenceWord},
+    anki::{Card, Kanji, Package, Sentence, SentenceWord},
 };
 use rand::seq::SliceRandom;
 use std::collections::HashMap;
@@ -16,13 +16,13 @@ pub fn gen_deck(
     name: &str,
     deck_id: i32,
     anki_deck_id: i64,
-) -> eyre::Result<Deck> {
+) -> eyre::Result<Package> {
     tracing::info!("Fetching words");
     let cards = get_cards(conn, deck_id)?;
 
     tracing::info!("Creating deck");
-    let deck = lbr::anki::create_deck(name, anki_deck_id, cards);
-    Ok(deck)
+    let package = lbr::anki::create_deck(name, anki_deck_id, cards);
+    Ok(package)
 }
 
 crate::query! {
