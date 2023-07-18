@@ -4,7 +4,7 @@ use super::japanese;
 use crate::{eq, error::EyreResult, utils::diesel::PostgresChunks};
 use diesel::prelude::*;
 use eyre::WrapErr;
-use ichiran::IchiranCli;
+use ichiran::{IchiranCli, IchiranError};
 use lbr_api::{request as req, response as res};
 use lbr_core::ichiran_types;
 use std::collections::{HashMap, HashSet};
@@ -15,9 +15,15 @@ pub fn segment_sentence(
     sentence: &str,
 ) -> eyre::Result<Vec<ichiran_types::Segment>> {
     // get individual words from sentence with ichiran
-    let segments = ichiran
-        .segment(sentence)
-        .wrap_err_with(|| format!("Failed to segment sentence '{sentence}'"))?;
+    let segments = match ichiran.segment(sentence) {
+        Ok(segments) => segments,
+        Err(err) => {
+            if let IchiranError::IchiranError { stdout, stderr } = &err {
+                tracing::error!("Ichiran error:\n    stdout:\n{stdout}\n    stderr:\n{stderr}");
+            }
+            return Err(err).wrap_err_with(|| format!("Failed to segment sentence '{sentence}'"));
+        }
+    };
     let segmented_sentence = lbr::core::to_lbr_segments(sentence, segments);
     Ok(segmented_sentence)
 }

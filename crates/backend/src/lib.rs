@@ -28,7 +28,7 @@ use lbr_web::Root;
 use leptos::LeptosOptions;
 use leptos_axum::LeptosRoutes;
 use moka::future::Cache;
-use std::{collections::HashMap, ops::Deref, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, ops::Deref, path::PathBuf, sync::Arc, time::Duration};
 use tokio::io::AsyncReadExt;
 use tower_cookies::{CookieManagerLayer, Key};
 
@@ -157,7 +157,11 @@ pub async fn router_from_vars(
     ichiran_cli_path: PathBuf,
     private_cookie_password: &str,
 ) -> eyre::Result<Router<()>> {
-    let lbr_pool = Pool::new(ConnectionManager::new(lbr_database_url))
+    // conservative pool config aimed at not using the database too much
+    let lbr_pool = Pool::builder()
+        .min_idle(Some(0))
+        .idle_timeout(Some(Duration::from_secs(30)))
+        .build(ConnectionManager::new(lbr_database_url))
         .wrap_err_with(|| format!("Failed to connect to the LBR database at {lbr_database_url}"))?;
     let ichiran_pool =
         Pool::new(ConnectionManager::new(ichiran_database_url)).wrap_err_with(|| {

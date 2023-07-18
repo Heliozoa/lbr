@@ -62,8 +62,7 @@ pub async fn segment(
                 segmented_sentences.push(segmented_sentence)
             }
             EyreResult::Ok(segmented_sentences)
-        })
-        .expect("Failed to finish scope");
+        })?;
         EyreResult::Ok(segmented_sentences)
     })
     .await??;

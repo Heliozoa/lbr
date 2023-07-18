@@ -23,11 +23,17 @@ COPY ./rust-toolchain.toml /lbr/rust-toolchain.toml
 RUN rustup target add wasm32-unknown-unknown
 RUN cargo install cargo-leptos
 COPY --from=planner /lbr/recipe.json recipe.json
-ADD https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css /lbr/style/bulma.css
-ARG RELEASE=""
+ARG RELEASE="--release"
 
-# cook and build
+# cook
 RUN cargo chef cook $RELEASE --recipe-path recipe.json
+
+# add included files
+ADD https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css /lbr/style/bulma.css
+COPY ./data/favicon.ico /lbr/data/favicon.ico
+COPY ./data/license.html /lbr/data/license.html
+
+# build
 COPY ./Cargo.toml /lbr/Cargo.toml
 COPY ./crates /lbr/crates
 RUN cargo leptos build $RELEASE
