@@ -70,13 +70,20 @@ Setting the logging level for the backend is done with the `RUST_LOG` environmen
 `cargo clippy`
 
 ### Running the project
+#### Without Docker
 Install `cargo leptos` with `cargo install cargo-leptos`
 
 Run `cargo leptos watch`
 
 LBR will be available at `http://0.0.0.0:3000`.
 
+#### With Docker
+Build the image with `just docker-build`
+
+Run the image with `just docker-run`
+
+LBR will be available at `http://0.0.0.0:3000`. The container will use your localhost `lbr` and `ichiran` databases.
 
 ## Deployment
 ### Using Docker
-A Docker image is available at https://hub.docker.com/repository/docker/heliozoagh/lbr/general. The image requires a connection to both the `lbr` and `ichiran` databases, configured with the environment variables `DATABASE_URL`, `ICHIRAN_DATABASE_URL` and `ICHIRAN_CONNECTION`.
+A Docker image is available at https://hub.docker.com/repository/docker/heliozoagh/lbr/general. The image requires a connection to both the `lbr` and `ichiran` databases, configured with the environment variables `DATABASE_URL`, `ICHIRAN_DATABASE_URL`, `ICHIRAN_CONNECTION` and `PRIVATE_COOKIE_PASSWORD`.

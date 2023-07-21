@@ -11,9 +11,23 @@ watch:
     cargo leptos watch
 
 
-# Generates the license.html
-generate-license:
-    cargo about generate about.hbs > ./data/license.html
+# Generates the license information for the given target (targets: ["web", "dockerhub"])
+generate-license target="web":
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [ {{ target }} = "web" ]; then
+        cargo about generate ./about/web.hbs > ./data/license.html
+    elif [ {{ target }} = "dockerhub" ]; then
+        cargo about generate ./about/dockerhub.hbs > ./data/license.md
+    else
+        echo "Unexpected target"
+        exit 1
+    fi
+
+
+# Generates the license.md
+generate-license-md:
 
 
 # Sets up local databases and downloads and generates files required for local development
@@ -287,11 +301,12 @@ docker-build:
 
 
 # Runs the Docker image
-docker-run database-url="postgres://lbr:lbr@localhost/lbr" ichiran-database-url="postgres://lbr:lbr@localhost/ichiran" ichiran-connection="ichiran lbr lbr localhost":
+docker-run database-url="postgres://lbr:lbr@host.docker.internal/lbr" ichiran-database-url="postgres://lbr:lbr@host.docker.internal/ichiran" ichiran-connection="ichiran lbr lbr host.docker.internal" private-cookie-password="uvoo4rei1aiN0po4aitix9pie0eo7aaZei0aem6ix5oi5quooxaiQuooTohs2Pha":
     docker run \
         --env DATABASE_URL="{{ database-url }}" \
         --env ICHIRAN_DATABASE_URL="{{ ichiran-database-url }}" \
         --env ICHIRAN_CONNECTION="{{ ichiran-connection }}" \
+        --env PRIVATE_COOKIE_PASSWORD="{{ private-cookie-password }}" \
         --add-host=host.docker.internal:host-gateway \
         -p 3000:3000 \
         heliozoagh/lbr

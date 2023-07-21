@@ -59,7 +59,6 @@ ENV ICHIRAN_DATABASE_URL    postgres://lbr:lbr@host.docker.internal/ichiran
 ENV ICHIRAN_CONNECTION      ichiran lbr lbr localhost
 ENV ICHIRAN_SSL             full
 ENV ICHIRAN_CLI_PATH        /lbr/ichiran-cli
-ENV PRIVATE_COOKIE_PASSWORD uvoo4rei1aiN0po4aitix9pie0eo7aaZei0aem6ix5oi5quooxaiQuooTohs2Pha
 ENV LEPTOS_OUTPUT_NAME      lbr
 ENV LEPTOS_SITE_ROOT        site
 ENV LEPTOS_SITE_PKG_DIR     pkg
