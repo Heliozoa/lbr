@@ -33,10 +33,10 @@ The main library of the project that offers all the core functionality.
 ## Setting up LBR locally
 ### Prerequisites
 - Rust: https://www.rust-lang.org/tools/install
-- cargo-leptos: https://crates.io/crates/cargo-leptos
 - cargo-about: https://crates.io/crates/cargo-about
 - Postgres: https://www.postgresql.org/
 - Common Lisp (SBCL): http://www.sbcl.org/
+- cargo-leptos (optional): https://crates.io/crates/cargo-leptos
 - Docker (optional): https://www.docker.com/
 - just (optional): https://crates.io/crates/just
 
