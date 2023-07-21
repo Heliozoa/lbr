@@ -14,4 +14,4 @@ Derives the `kanjifile.json` and `wordfile.json` files used by lbr from
 
 jadata's code is licensed under AGPL-3.0.
 
-The files created by the program are licensed under CC BY-SA 4.0, matching the license of the files used in their generation.
+The files in `./included` as well as the files created by the program are licensed under CC BY-SA 4.0, matching the license the generated files are derived from.

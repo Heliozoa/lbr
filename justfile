@@ -26,12 +26,8 @@ generate-license target="web":
     fi
 
 
-# Generates the license.md
-generate-license-md:
-
-
 # Sets up local databases and downloads and generates files required for local development
-prepare-repository: && prepare-ichiran prepare-db-user prepare-lbr-db prepare-ichiran-db prepare-data generate-jadata generate-license build-cli
+prepare-repository: && generate-license prepare-ichiran prepare-db-user prepare-lbr-db prepare-ichiran-db prepare-data generate-jadata build-cli
     cp ./example.env ./.env
 
 
@@ -46,7 +42,6 @@ prepare-ichiran:
     git clone --branch lbr https://github.com/Heliozoa/ichiran ./data/ichiran/local-projects/ichiran
 
 
-
 # Builds ichiran-cli
 build-cli:
     sbcl \
@@ -55,6 +50,8 @@ build-cli:
         --eval "(ichiran/cli:build)" \
         --eval "(exit)"
     mv ./data/ichiran/local-projects/ichiran/ichiran-cli ./data/ichiran-cli
+
+
 
 
 # #### DATABASE COMMANDS ####
@@ -185,6 +182,7 @@ dump-ichiran-db url="postgres://lbr:lbr@localhost/ichiran" target="ichiran.dump"
 # #### DATA FILE COMMANDS ####
 DATA-FILE-COMMANDS:
 
+
 # Downloads data files required to run the project. Set `force` to overwrite existing files
 prepare-data: dl-jmdictdb dl-jmdict dl-kanjidic dl-kradfile dl-furigana
 
@@ -303,6 +301,8 @@ docker-build:
 # Runs the Docker image
 docker-run database-url="postgres://lbr:lbr@host.docker.internal/lbr" ichiran-database-url="postgres://lbr:lbr@host.docker.internal/ichiran" ichiran-connection="ichiran lbr lbr host.docker.internal" private-cookie-password="uvoo4rei1aiN0po4aitix9pie0eo7aaZei0aem6ix5oi5quooxaiQuooTohs2Pha":
     docker run \
+        --init \
+        --rm \
         --env DATABASE_URL="{{ database-url }}" \
         --env ICHIRAN_DATABASE_URL="{{ ichiran-database-url }}" \
         --env ICHIRAN_CONNECTION="{{ ichiran-connection }}" \
@@ -311,6 +311,7 @@ docker-run database-url="postgres://lbr:lbr@host.docker.internal/lbr" ichiran-da
         -p 3000:3000 \
         heliozoagh/lbr
 
+
 # Pushes the Docker image
-docker-push:
+docker-push: generate-license docker-build
     docker push helizoagh/lbr:latest

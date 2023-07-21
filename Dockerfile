@@ -30,7 +30,7 @@ RUN cargo chef cook $RELEASE --recipe-path recipe.json
 
 # add included files
 ADD https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css /lbr/style/bulma.css
-COPY ./data/favicon.ico /lbr/data/favicon.ico
+COPY ./favicon/favicon.ico /lbr/favicon/favicon.ico
 COPY ./data/license.html /lbr/data/license.html
 
 # build

@@ -254,7 +254,7 @@ pub async fn router_from_vars(
 }
 
 pub async fn favicon() -> impl IntoResponse {
-    include_bytes!("../../../data/favicon.ico")
+    include_bytes!("../../../favicon/favicon.ico")
 }
 
 pub async fn license() -> impl IntoResponse {
