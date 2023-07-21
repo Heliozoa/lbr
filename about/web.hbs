@@ -48,14 +48,14 @@
             <p>This page lists the licenses of the projects used in LBR.</p>
         </div>
 
-        <h2>Overview of licenses:</h2>
+        <h2>Automatically detected licenses:</h2>
         <ul class="licenses-overview">
             {{#each overview}}
             <li><a href="#{{id}}">{{name}}</a> ({{count}})</li>
             {{/each}}
         </ul>
 
-        <h2>All license text:</h2>
+        <h3>All license text:</h3>
         <ul class="licenses-list">
             {{#each licenses}}
             <li class="license">
@@ -71,6 +71,29 @@
                 <pre class="license-text">{{text}}</pre>
             </li>
             {{/each}}
+        </ul>
+
+        <h2>Other licenses:</h2>
+        <ul>
+            <li>
+                JMdict: Creative Commons Attribution-ShareAlike Licence V4.0
+                (https://www.edrdg.org/edrdg/licence.html)
+            </li>
+            <li>
+                KANJIDIC2: Creative Commons Attribution-ShareAlike Licence V4.0
+                (https://www.edrdg.org/edrdg/licence.html)
+            </li>
+            <li>
+                KRADFILE: Creative Commons Attribution-ShareAlike Licence V4.0
+                (https://www.edrdg.org/edrdg/licence.html)
+            </li>
+            <li>
+                jmdictdb: GPLv2 or later (https://gitlab.com/yamagoya/jmdictdb/-/blob/master/LICENSE.txt)
+            </li>
+            <li>
+                JmdictFurigana: Creative Commons Attribution-ShareAlike Licence V4.0
+                (https://github.com/Doublevil/JmdictFurigana#licence)
+            </li>
         </ul>
     </main>
 </body>

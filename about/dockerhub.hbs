@@ -1,16 +1,20 @@
-# LBR Third Party Licenses
+# License
+This image is based on the official Debian image. License information for the debian image can be found at
+https://hub.docker.com/_/debian.
+
+## LBR Third Party Licenses
 This section lists the licenses of the projects used in LBR.
 
-## Overview of licenses:
+### Overview of licenses:
 {{#each overview}}
 - [{{name}}](#{{id}}) ({{count}})
 {{/each}}
 
-## All license text:
+### All license text:
 
 {{#each licenses}}
-### [{{name}}]({{id}})
-#### Used by:
+#### [{{name}}]({{id}})
+Used by:
 
 {{#each used_by}}
 - [{{crate.name}}](
