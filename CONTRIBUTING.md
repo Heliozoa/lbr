@@ -44,6 +44,7 @@ The main library of the project that offers all the core functionality.
 The `justfile` in the repository root contains convenient commands for setting everything up that can be ran with `just`. You can also follow them along manually and run the commands in your shell.
 
 Running `just prepare-repository` will prepare the repository by
+- copying the `example.env` to `.env`
 - setting up quicklisp and ichiran in `./data`
 - creating a `lbr` postgres user
 - creating the `lbr` and `ichiran` databases
@@ -52,7 +53,7 @@ Running `just prepare-repository` will prepare the repository by
 - building the ichiran-cli
 If something goes wrong, rerunning the command is safe though it may do unnecessary extra work. You can also check the `justfile` and execute the individual steps.
 
-After setup is finished, you can start the dev server with `cargo leptos watch`.
+After setup is finished, you can start the dev server with `just watch` (or `cargo leptos watch`).
 
 ## Development
 LBR uses the nightly toolchain.
@@ -61,7 +62,6 @@ LBR uses the nightly toolchain.
 Setting the logging level for the backend is done with the `RUST_LOG` environment variable. For the frontend, the `WASM_LOG` environment variable is used. The levels available are the usual `trace`, `debug`, `info`, `warn` and `error`.
 
 ### Formatting
-
 - Rust: `cargo fmt`
 
 - TOML with [Taplo](https://taplo.tamasfe.dev/): `taplo fmt`
@@ -79,4 +79,4 @@ LBR will be available at `http://0.0.0.0:3000`.
 
 ## Deployment
 ### Using Docker
-todo
+A Docker image is available at https://hub.docker.com/repository/docker/heliozoagh/lbr/general. The image requires a connection to both the `lbr` and `ichiran` databases, configured with the environment variables `DATABASE_URL`, `ICHIRAN_DATABASE_URL` and `ICHIRAN_CONNECTION`.

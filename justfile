@@ -17,7 +17,8 @@ generate-license:
 
 
 # Sets up local databases and downloads and generates files required for local development
-prepare-repository: prepare-ichiran prepare-db-user prepare-lbr-db prepare-ichiran-db prepare-data generate-jadata generate-license build-cli
+prepare-repository: && prepare-ichiran prepare-db-user prepare-lbr-db prepare-ichiran-db prepare-data generate-jadata generate-license build-cli
+    cp ./example.env ./.env
 
 
 # Prepares the ichiran repo
@@ -39,7 +40,7 @@ build-cli:
         --eval "(ql:quickload :ichiran/cli)" \
         --eval "(ichiran/cli:build)" \
         --eval "(exit)"
-    cp ./data/ichiran/local-projects/ichiran/ichiran-cli ./data/ichiran-cli
+    mv ./data/ichiran/local-projects/ichiran/ichiran-cli ./data/ichiran-cli
 
 
 # #### DATABASE COMMANDS ####
