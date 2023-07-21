@@ -2,11 +2,11 @@
 
 use crate::{
     authentication::Authentication,
-    domain::sentences,
+    domain::sentences::{self, NewSentenceWords},
     eq,
     error::{EyreResult, LbrResult},
     query,
-    utils::{database, diesel::PostgresChunks},
+    utils::database,
     LbrState,
 };
 use axum::{
@@ -119,11 +119,13 @@ pub async fn update(
                 conn,
                 &state.kanji_to_readings,
                 &state.ichiran_seq_to_word_id,
-                user.user_id,
-                sentence_id,
-                sentence,
-                words,
-                ignore_words,
+                NewSentenceWords {
+                    user_id: user.user_id,
+                    sentence_id,
+                    sentence,
+                    words,
+                    ignore_words,
+                },
             )?;
             EyreResult::Ok(())
         })?;

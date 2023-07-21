@@ -87,3 +87,8 @@ Install `cargo leptos` with `cargo install cargo-leptos`
 Run `cargo leptos watch`
 
 LBR will be available at `http://0.0.0.0:3000`.
+
+
+## Deployment
+### Using Docker
+todo

@@ -135,7 +135,7 @@ pub async fn update(
                 .execute(conn)?;
             diesel::delete(ds::table.filter(ds::deck_id.eq(id))).execute(conn)?;
             let values = included_sources
-                .into_iter()
+                .iter()
                 .map(|source_id| (ds::deck_id.eq(id), ds::source_id.eq(source_id)))
                 .collect::<Vec<_>>();
             for chunk in values.pg_chunks() {

@@ -35,7 +35,7 @@ pub fn process_sentence(
     ignored_word_ids: &HashSet<i32>,
     ichiran_seq_to_word_id: &HashMap<i32, i32>,
 ) -> eyre::Result<res::SegmentedSentence> {
-    let segments = segment_sentence(&ichiran_cli, &sentence)?;
+    let segments = segment_sentence(ichiran_cli, &sentence)?;
     let segment_word_seqs = segments
         .iter()
         .filter_map(|s| {
@@ -71,17 +71,29 @@ pub fn process_sentence(
     })
 }
 
+pub struct NewSentenceWords<'a> {
+    pub user_id: i32,
+    pub sentence_id: i32,
+    pub sentence: &'a str,
+    pub words: Vec<req::Word>,
+    pub ignore_words: HashSet<i32>,
+}
+
 pub fn insert_sentence_words(
     conn: &mut PgConnection,
     kanji_to_readings: &HashMap<String, Vec<String>>,
     ichiran_seq_to_word_id: &HashMap<i32, i32>,
-    user_id: i32,
-    sentence_id: i32,
-    sentence: &str,
-    words: Vec<req::Word>,
-    ignore_words: HashSet<i32>,
+    new_sentence_words: NewSentenceWords<'_>,
 ) -> eyre::Result<()> {
     use crate::schema::{ignored_words as iw, sentence_words as sw};
+
+    let NewSentenceWords {
+        user_id,
+        sentence_id,
+        sentence,
+        words,
+        ignore_words,
+    } = new_sentence_words;
 
     conn.transaction(move |conn| {
         let mut sentence_words = Vec::new();

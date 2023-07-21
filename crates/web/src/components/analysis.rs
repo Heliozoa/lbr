@@ -5,7 +5,7 @@ use lbr_api::{request as req, response as res};
 use leptos::*;
 use std::{
     collections::{HashMap, HashSet},
-    sync::Arc,
+    rc::Rc,
 };
 
 #[component]
@@ -77,7 +77,7 @@ pub fn SegmentedParagraphView(
             };
             view! { cx,
                 <div class=class>
-                    <SegmentedSentenceView source_id sentence_id=None segmented_sentence on_successful_accept=Arc::new(move || {
+                    <SegmentedSentenceView source_id sentence_id=None segmented_sentence on_successful_accept=Rc::new(move || {
                         completed_sentences.update(|cs| {
                             cs.insert(idx);
                         });
@@ -131,9 +131,9 @@ type SeqsToComponent =
 
 #[derive(Debug, Clone)]
 struct Form {
-    word_id_to_components: Arc<WordIdToComponents>,
-    phrase_to_components: Arc<PhraseToComponents>,
-    seqs_to_component: Arc<SeqsToComponent>,
+    word_id_to_components: Rc<WordIdToComponents>,
+    phrase_to_components: Rc<PhraseToComponents>,
+    seqs_to_component: Rc<SeqsToComponent>,
 }
 
 impl Form {
@@ -142,9 +142,8 @@ impl Form {
         let mut phrase_to_components: PhraseToComponents = HashMap::new();
         let mut seqs_to_component: SeqsToComponent = HashMap::new();
 
-        let mut phrase_seq = 0;
         let mut phrase_idx = 0;
-        for segment in &segmented_sentence.segments {
+        for (phrase_seq, segment) in segmented_sentence.segments.iter().enumerate() {
             let mut phrase_components = Vec::new();
             match segment {
                 res::Segment::Phrase {
@@ -154,12 +153,12 @@ impl Form {
                     phrase_idx += segmented_sentence.sentence[phrase_idx..]
                         .find(phrase.as_str())
                         .unwrap();
-                    let mut interpretation_seq = 0;
-                    for interpretation in interpretations {
+                    for (interpretation_seq, interpretation) in interpretations.iter().enumerate() {
                         let mut interpretation_idx = phrase_idx;
                         let mut interpretation_components = Vec::new();
-                        let mut component_seq = 0;
-                        for component in &interpretation.components {
+                        for (component_seq, component) in
+                            interpretation.components.iter().enumerate()
+                        {
                             interpretation_idx += segmented_sentence.sentence[interpretation_idx..]
                                 .find(&component.word)
                                 .unwrap();
@@ -201,9 +200,7 @@ impl Form {
                                 interpretation_components.push(signal);
                                 phrase_components.push((interpretation_seq, signal));
                             }
-                            component_seq += 1;
                         }
-                        interpretation_seq += 1;
                     }
                 }
                 res::Segment::Other(other) => {
@@ -213,13 +210,12 @@ impl Form {
             if !phrase_components.is_empty() {
                 phrase_to_components.insert(phrase_seq, phrase_components);
             }
-            phrase_seq += 1;
         }
 
         Self {
-            word_id_to_components: Arc::new(word_id_to_components),
-            phrase_to_components: Arc::new(phrase_to_components),
-            seqs_to_component: Arc::new(seqs_to_component),
+            word_id_to_components: Rc::new(word_id_to_components),
+            phrase_to_components: Rc::new(phrase_to_components),
+            seqs_to_component: Rc::new(seqs_to_component),
         }
     }
 }
@@ -230,7 +226,7 @@ pub fn SegmentedSentenceView(
     source_id: i32,
     sentence_id: Option<i32>,
     segmented_sentence: res::SegmentedSentence,
-    on_successful_accept: Arc<dyn Fn() -> ()>,
+    on_successful_accept: Rc<dyn Fn()>,
 ) -> impl IntoView {
     let form = Form::init(cx, &segmented_sentence);
 
@@ -298,9 +294,9 @@ pub fn SegmentedSentenceView(
 
     // show each segment with interpretations
     let mut phrase_seq = 0;
-    let ignored_words = Arc::new(segmented_sentence.ignored_words);
+    let ignored_words = Rc::new(segmented_sentence.ignored_words);
     let mut unknown_or_ignored_storage = String::new();
-    let sentence_segments = segmented_sentence.segments.into_iter().map(|s| {
+    let sentence_segments = segmented_sentence.segments.into_iter().filter_map(|s| {
         let segment_view = match s {
             res::Segment::Phrase {
                 phrase,
@@ -352,7 +348,7 @@ pub fn SegmentedSentenceView(
         };
         phrase_seq += 1;
         segment_view
-    }).flatten().collect_view(cx);
+    }).collect_view(cx);
     let tailing_unknown_or_ignored_words = if !unknown_or_ignored_storage.is_empty() {
         Some(view! { cx,
             <div class="box has-background-info-light">
@@ -380,7 +376,7 @@ fn PhraseView(
     interpretations: Vec<res::Interpretation>,
     form: Form,
     phrase_seq: usize,
-    ignored_words: Arc<HashSet<i32>>,
+    ignored_words: Rc<HashSet<i32>>,
 ) -> impl IntoView {
     let mut interpretation_seq = 0;
     let interpretations = interpretations
@@ -494,7 +490,7 @@ fn InterpretationView(
     form: Form,
     phrase_seq: usize,
     interpretation_seq: usize,
-    ignored_words: Arc<HashSet<i32>>,
+    ignored_words: Rc<HashSet<i32>>,
 ) -> impl IntoView {
     let mut component_seq = 0;
     let components = interpretation
@@ -557,8 +553,8 @@ fn ComponentView(
     let (read, write) = form
         .seqs_to_component
         .get(&(phrase_seq, interpretation_seq, component_seq))
-        .unwrap()
-        .clone();
+        .copied()
+        .unwrap();
     let accept = move |_ev| {
         // unaccept components of other interpretations
         form.phrase_to_components

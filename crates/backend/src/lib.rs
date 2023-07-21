@@ -21,6 +21,7 @@ use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, Pool},
 };
+use error::EyreResult;
 use eyre::WrapErr;
 use handlers::{auth, segment};
 use ichiran::IchiranCli;
@@ -63,7 +64,7 @@ impl FromRef<LbrState> for LeptosOptions {
 }
 
 pub async fn router(state: LbrState) -> Router<()> {
-    let router = Router::new()
+    Router::new()
         .route("/favicon.ico", get(favicon))
         .route("/license.html", get(license))
         .nest(
@@ -147,8 +148,7 @@ pub async fn router(state: LbrState) -> Router<()> {
             },
         )
         .fallback(handlers::file_and_error_handler)
-        .with_state(state);
-    router
+        .with_state(state)
 }
 
 pub async fn router_from_vars(
@@ -172,13 +172,17 @@ pub async fn router_from_vars(
         Ok(mut file) => {
             let mut buf = Vec::new();
             file.read_to_end(&mut buf).await?;
-            let kanji_to_readings = serde_json::from_slice(&buf)?;
-            kanji_to_readings
+            serde_json::from_slice(&buf)?
         }
         Err(_) => {
-            let kanji_to_readings = domain::japanese::kanji_to_readings(lbr_pool.clone())
-                .await
-                .wrap_err("Failed to generate kanji to readings mapping")?;
+            let lbr_pool = lbr_pool.clone();
+            let kanji_to_readings = tokio::task::spawn_blocking(move || {
+                let mut conn = lbr_pool.get()?;
+                let ktr = domain::japanese::kanji_to_readings(&mut conn)?;
+                EyreResult::Ok(ktr)
+            })
+            .await
+            .wrap_err("Failed to generate kanji to readings mapping")??;
             let kanji_to_readings_json = serde_json::to_string_pretty(&kanji_to_readings)?;
             tokio::fs::create_dir_all("./data").await?;
             tokio::fs::write("./data/kanji_to_readings.json", kanji_to_readings_json).await?;
@@ -191,13 +195,19 @@ pub async fn router_from_vars(
         Ok(mut file) => {
             let mut buf = Vec::new();
             file.read_to_end(&mut buf).await?;
-            let ichiran_seq_to_word_id = serde_json::from_slice(&buf)?;
-            ichiran_seq_to_word_id
+            serde_json::from_slice(&buf)?
         }
         Err(_) => {
-            let ichiran_seq_to_word_id =
-                domain::ichiran::get_ichiran_seq_to_word_id(lbr_pool.clone(), ichiran_pool.clone())
-                    .await?;
+            let lbr_pool = lbr_pool.clone();
+            let ichiran_pool = ichiran_pool.clone();
+            let ichiran_seq_to_word_id = tokio::task::spawn_blocking(move || {
+                let mut lbr_conn = lbr_pool.get()?;
+                let mut ichiran_conn = ichiran_pool.get()?;
+                let istw =
+                    domain::ichiran::get_ichiran_seq_to_word_id(&mut lbr_conn, &mut ichiran_conn)?;
+                EyreResult::Ok(istw)
+            })
+            .await??;
             let ichiran_seq_to_word_id_json =
                 serde_json::to_string_pretty(&ichiran_seq_to_word_id)?;
             tokio::fs::create_dir_all("./data").await?;

@@ -101,13 +101,11 @@ pub fn LoginGuard(cx: Scope, children: Children, require_login: bool) -> impl In
     let pass = move || {
         if stored_passed.get() {
             Some(true)
+        } else if logged_in().map(|li| li == require_login)? {
+            stored_passed.set(true);
+            Some(true)
         } else {
-            if logged_in().map(|li| li == require_login)? {
-                stored_passed.set(true);
-                Some(true)
-            } else {
-                Some(false)
-            }
+            Some(false)
         }
     };
 

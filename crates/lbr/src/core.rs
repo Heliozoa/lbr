@@ -77,7 +77,7 @@ fn process_word(segments: &mut Vec<it::Segment>, text: &str, word: ichiran::Word
 }
 
 fn to_lbr_word_info(info: ichiran::WordInfo) -> it::WordInfo {
-    let info = it::WordInfo {
+    it::WordInfo {
         word: info.text,
         reading_hiragana: info.kana,
         word_id: info.seq,
@@ -98,6 +98,5 @@ fn to_lbr_word_info(info: ichiran::WordInfo) -> it::WordInfo {
                 meaning_info: None,
             }))
             .collect(),
-    };
-    info
+    }
 }

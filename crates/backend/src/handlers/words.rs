@@ -116,7 +116,6 @@ query! {
 query! {
     #[derive(Debug)]
     struct IgnoredWordReading {
-        word_id: i32 = ignored_words::word_id,
         written_form_id: i32 = written_forms::id,
         reading: String = word_readings::reading,
     }

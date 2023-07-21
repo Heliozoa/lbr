@@ -2,12 +2,10 @@
 
 use crate::{
     authentication::Authentication,
-    domain::{japanese, sentences},
+    domain::sentences::{self, NewSentenceWords},
     eq,
     error::{EyreResult, LbrResult},
-    query,
-    utils::diesel::PostgresChunks,
-    LbrState,
+    query, LbrState,
 };
 use axum::{
     extract::{Path, State},
@@ -212,9 +210,7 @@ pub async fn add_sentence(
     user: Authentication,
     sentence: Json<req::SegmentedSentence>,
 ) -> LbrResult<()> {
-    use crate::schema::{
-        ignored_words as iw, sentence_words as sw, sentences as se, sources as so,
-    };
+    use crate::schema::{sentences as se, sources as so};
     tracing::info!("Adding sentence to source {source_id}");
 
     let user_id = user.user_id;
@@ -244,11 +240,13 @@ pub async fn add_sentence(
                 conn,
                 &state.kanji_to_readings,
                 &state.ichiran_seq_to_word_id,
-                user.user_id,
-                sentence_id,
-                sentence,
-                words,
-                ignore_words,
+                NewSentenceWords {
+                    user_id: user.user_id,
+                    sentence_id,
+                    sentence,
+                    words,
+                    ignore_words,
+                },
             )?;
             EyreResult::Ok(())
         })?;

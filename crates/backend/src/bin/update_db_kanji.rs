@@ -1,17 +1,9 @@
 //! Updates the database kanji with the supplemental kanjifiles.
 
 use diesel::prelude::*;
-use eyre::{Context, ContextCompat};
-use jadata::kanjifile::{Kanji, Kanjifile, Reading};
-use lbr_server::{
-    eq,
-    schema::{kanji as k, kanji_readings as kr, kanji_similar as ks, word_kanji as wk},
-    utils::{
-        database::{Position, ReadingKind},
-        diesel::PostgresChunks,
-    },
-};
-use std::{collections::HashMap, fs::File, io::BufReader};
+use eyre::Context;
+use jadata::kanjifile::Kanjifile;
+use std::{fs::File, io::BufReader};
 
 fn main() -> eyre::Result<()> {
     tracing_subscriber::fmt::init();
@@ -32,6 +24,6 @@ fn main() -> eyre::Result<()> {
     Ok(())
 }
 
-fn update_kanji(conn: &mut PgConnection, kf: Kanjifile) -> eyre::Result<()> {
+fn update_kanji(_conn: &mut PgConnection, _kf: Kanjifile) -> eyre::Result<()> {
     todo!()
 }

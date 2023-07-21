@@ -13,7 +13,7 @@ use leptos::{
     *,
 };
 use leptos_router::*;
-use std::{sync::Arc, time::Duration};
+use std::{rc::Rc, time::Duration};
 
 #[component]
 pub fn Home(cx: Scope) -> impl IntoView {
@@ -363,7 +363,7 @@ pub fn SourceSentence(cx: Scope) -> impl IntoView {
 
     // analysis
     let analysis_content = move |segmented_sentence: res::SegmentedSentence| {
-        let on_successful_accept = Arc::new(move || {
+        let on_successful_accept = Rc::new(move || {
             sentence_res.refetch();
             reanalyse_act.value().set(None);
         });
@@ -635,12 +635,11 @@ pub fn Deck(cx: Scope) -> impl IntoView {
     };
     let deck_sources_view = move |deck: Option<res::DeckDetails>,
                                   sources: Option<Vec<res::Source>>| {
-        let view = match (deck, sources) {
+        match (deck, sources) {
             (Some(d), Some(s)) => deck_sources_content(d, s).into_view(cx),
             (None, _) => view! { cx, <div>"Loading deck..."</div> }.into_view(cx),
             (_, None) => view! { cx, <div>"Loading sources..."</div> }.into_view(cx),
-        };
-        view
+        }
     };
     let deck_sources = move || {
         let res = move || match (deck_res.read(cx), sources_res.read(cx)) {

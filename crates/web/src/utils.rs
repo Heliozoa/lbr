@@ -47,7 +47,7 @@ pub fn errors_fallback(cx: Scope, errors: RwSignal<Errors>) -> View {
 #[macro_export]
 macro_rules! logged_in_resource {
     ($cx:ident, $($f:tt)*) => {
-        crate::utils::logged_in_resource(
+        $crate::utils::logged_in_resource(
             $cx,
             move |client| async move { client.$($f)*.await }
         )

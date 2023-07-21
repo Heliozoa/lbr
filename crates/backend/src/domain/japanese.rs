@@ -1,31 +1,27 @@
 //! Functionality related to the Japanese language.
 
 use crate::{
-    error::EyreResult,
     query,
     schema::{kanji as k, kanji_readings as kr},
     utils::database::Furigana,
-    LbrPool,
 };
 use diesel::prelude::*;
 use std::collections::HashMap;
 
 /// Returns a mapping from kanji to its potential readings.
-pub async fn kanji_to_readings(pool: LbrPool) -> eyre::Result<HashMap<String, Vec<String>>> {
-    let ktr = tokio::task::spawn_blocking(move || {
-        let mut conn = pool.get()?;
-        let kanji_with_reading = k::table
-            .inner_join(kr::table.on(kr::kanji_id.eq(k::id)))
-            .select(KanjiWithReading::as_select())
-            .get_results(&mut conn)?;
-        let mut map: HashMap<String, Vec<String>> = HashMap::new();
-        for kwr in kanji_with_reading {
-            map.entry(kwr.kanji).or_default().push(kwr.reading);
-        }
-        EyreResult::Ok(map)
-    })
-    .await??;
-    Ok(ktr)
+pub fn kanji_to_readings(conn: &mut PgConnection) -> eyre::Result<HashMap<String, Vec<String>>> {
+    let kanji_with_reading = k::table
+        .inner_join(kr::table.on(kr::kanji_id.eq(k::id)))
+        .select(KanjiWithReading::as_select())
+        .get_results(conn)?;
+    let mut kanji_to_readings: HashMap<String, Vec<String>> = HashMap::new();
+    for kwr in kanji_with_reading {
+        kanji_to_readings
+            .entry(kwr.kanji)
+            .or_default()
+            .push(kwr.reading);
+    }
+    Ok(kanji_to_readings)
 }
 
 query! {
@@ -44,7 +40,7 @@ pub fn map_to_db_furigana(
     let furigana = furigana::map(word, reading, kanji_to_readings)
         .into_iter()
         .max_by_key(|f| f.accuracy)
-        .map(|f| furigana_to_db_furigana(f))
+        .map(furigana_to_db_furigana)
         .ok_or_else(|| eyre::eyre!("Failed to assign furigana to {word} with {reading}"))??;
     Ok(furigana)
 }
