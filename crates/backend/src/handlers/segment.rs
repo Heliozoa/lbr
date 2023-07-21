@@ -1,17 +1,7 @@
 //! /segment
 
-use crate::{
-    authentication::Authentication,
-    domain::sentences,
-    eq,
-    error::{EyreResult, LbrResult},
-    query, LbrState,
-};
-use axum::{extract::State, Json};
-use diesel::prelude::*;
+use crate::{domain::sentences, prelude::*, queries};
 use lbr::sentence_splitter::SentenceSplitter;
-use lbr_api::{request as req, response as res};
-use tracing::instrument;
 
 /// Splits the given paragraph into sentences and segments them with ichiran.
 #[instrument]
@@ -34,7 +24,7 @@ pub async fn segment(
             .select(so::id)
             .get_result::<i32>(&mut conn)?;
 
-        let ignored_word_ids = query::ignored_words(&mut conn, user_id)?;
+        let ignored_word_ids = queries::ignored_words(&mut conn, user_id)?;
 
         let segmented_sentences = std::thread::scope(|scope| {
             let mut segmented_sentences = Vec::new();

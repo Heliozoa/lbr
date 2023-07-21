@@ -1,20 +1,9 @@
 //! /sources
 
 use crate::{
-    authentication::Authentication,
     domain::sentences::{self, NewSentenceWords},
-    eq,
-    error::{EyreResult, LbrResult},
-    query, LbrState,
+    prelude::*,
 };
-use axum::{
-    extract::{Path, State},
-    Json,
-};
-use diesel::prelude::*;
-use eyre::Context;
-use lbr_api::{request as req, response as res};
-use tracing::instrument;
 
 // handlers
 

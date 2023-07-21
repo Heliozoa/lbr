@@ -1,5 +1,6 @@
 //! Generic utilities for working with diesel.
 
+pub use crate::{diesel_enum, diesel_struct, eq, query};
 use std::slice::Chunks;
 
 pub const PG_MAX_PARAMS: usize = 65535;

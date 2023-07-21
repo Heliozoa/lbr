@@ -1,17 +1,8 @@
 //! /auth
 //! Handlers related to authentication.
 
-use crate::{
-    authentication::{self, Authentication},
-    eq,
-    error::{EyreResult, LbrResult},
-    query, LbrState,
-};
-use axum::{extract::State, Json};
-use diesel::prelude::*;
-use lbr_api::request as req;
-use tower_cookies::Cookies;
-use tracing::instrument;
+use crate::{authentication, prelude::*};
+pub use tower_cookies::Cookies;
 
 // handlers
 

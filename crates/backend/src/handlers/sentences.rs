@@ -1,21 +1,11 @@
 //! /sentences
 
 use crate::{
-    authentication::Authentication,
     domain::sentences::{self, NewSentenceWords},
-    eq,
-    error::{EyreResult, LbrResult},
-    query,
+    prelude::*,
+    queries,
     utils::database,
-    LbrState,
 };
-use axum::{
-    extract::{Path, State},
-    Json,
-};
-use diesel::prelude::*;
-use lbr_api::{request as req, response as res};
-use tracing::instrument;
 
 // handlers
 
@@ -159,7 +149,7 @@ pub async fn segment(
 
     let segmented_sentence = tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
-        let ignored_words = query::ignored_words(&mut conn, user.user_id)?;
+        let ignored_words = queries::ignored_words(&mut conn, user.user_id)?;
         let sentence = s::table
             .filter(s::id.eq(id))
             .select(s::sentence)

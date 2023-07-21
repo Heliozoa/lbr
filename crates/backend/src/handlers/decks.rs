@@ -1,23 +1,8 @@
 //! /decks
 //! Handlers related to decks.
 
-use crate::{
-    authentication::Authentication,
-    domain::decks,
-    eq,
-    error::{EyreResult, LbrResult},
-    query,
-    utils::diesel::PostgresChunks,
-    LbrState,
-};
-use axum::{
-    extract::{Path, State},
-    Json,
-};
-use diesel::prelude::*;
-use lbr_api::{request as req, response as res};
+use crate::{domain::decks, prelude::*};
 use std::io::Read;
-use tracing::instrument;
 
 // handlers
 

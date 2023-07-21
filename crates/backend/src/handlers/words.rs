@@ -1,13 +1,8 @@
-use crate::{authentication::Authentication, error::LbrResult, query, LbrState};
-use axum::{
-    extract::{Path, State},
-    Json,
-};
-use diesel::prelude::*;
+//! /words
+
+use crate::prelude::*;
 use itertools::Itertools;
-use lbr_api::response as res;
 use std::collections::HashMap;
-use tracing::instrument;
 
 // handlers
 
