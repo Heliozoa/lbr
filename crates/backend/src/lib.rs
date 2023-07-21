@@ -4,7 +4,6 @@ pub mod authentication;
 pub mod domain;
 pub mod error;
 pub mod handlers;
-pub mod prelude;
 pub mod queries;
 pub mod schema;
 pub mod schema_ichiran;

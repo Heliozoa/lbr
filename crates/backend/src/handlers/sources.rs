@@ -1,9 +1,7 @@
 //! /sources
 
-use crate::{
-    domain::sentences::{self, NewSentenceWords},
-    prelude::*,
-};
+use super::prelude::*;
+use crate::domain::sentences::{self, NewSentenceWords};
 
 // handlers
 
@@ -13,7 +11,7 @@ pub async fn get_all(
     State(state): State<LbrState>,
     user: Authentication,
 ) -> LbrResult<Json<Vec<res::Source>>> {
-    use crate::schema::sources as s;
+    use schema::sources as s;
 
     let user_id = user.user_id;
     let sources = tokio::task::spawn_blocking(move || {
@@ -39,7 +37,7 @@ pub async fn get_one(
     Path(id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<Json<res::Source>> {
-    use crate::schema::sources as so;
+    use schema::sources as so;
 
     let user_id = user.user_id;
     let source = tokio::task::spawn_blocking(move || {
@@ -65,7 +63,7 @@ pub async fn get_details(
     Path(id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<Json<res::SourceDetails>> {
-    use crate::schema::{sentences as se, sources as so};
+    use schema::{sentences as se, sources as so};
 
     let user_id = user.user_id;
     let (source, sentences) = tokio::task::spawn_blocking(move || {
@@ -103,7 +101,7 @@ pub async fn insert(
     user: Authentication,
     new_source: Json<req::NewSource<'static>>,
 ) -> LbrResult<String> {
-    use crate::schema::sources as s;
+    use schema::sources as s;
 
     let user_id = user.user_id;
     let req::NewSource { name } = new_source.0;
@@ -127,7 +125,7 @@ pub async fn update(
     user: Authentication,
     update_source: Json<req::UpdateSource<'static>>,
 ) -> LbrResult<()> {
-    use crate::schema::sources as s;
+    use schema::sources as s;
 
     let user_id = user.user_id;
     let req::UpdateSource { name } = update_source.0;
@@ -149,7 +147,7 @@ pub async fn delete(
     Path(id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<()> {
-    use crate::schema::{deck_sources as ds, sentence_words as sw, sentences as se, sources as so};
+    use schema::{deck_sources as ds, sentence_words as sw, sentences as se, sources as so};
 
     let user_id = user.user_id;
     tokio::task::spawn_blocking(move || {
@@ -180,7 +178,7 @@ pub async fn add_sentence(
     user: Authentication,
     sentence: Json<req::SegmentedSentence>,
 ) -> LbrResult<()> {
-    use crate::schema::{sentences as se, sources as so};
+    use schema::{sentences as se, sources as so};
 
     let user_id = user.user_id;
     let req::SegmentedSentence {

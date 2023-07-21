@@ -1,8 +1,8 @@
 //! /sentences
 
+use super::prelude::*;
 use crate::{
     domain::sentences::{self, NewSentenceWords},
-    prelude::*,
     queries,
     utils::database,
 };
@@ -15,7 +15,7 @@ pub async fn get_one(
     Path(id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<Json<res::SentenceDetails>> {
-    use crate::schema::{sentence_words as sw, sentences as s, sources as so, words as w};
+    use schema::{sentence_words as sw, sentences as s, sources as so, words as w};
 
     let sentence = tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
@@ -69,7 +69,7 @@ pub async fn update(
     user: Authentication,
     update_sentence: Json<req::SegmentedSentence>,
 ) -> LbrResult<()> {
-    use crate::schema::{sentence_words as sw, sentences as s, sources as so};
+    use schema::{sentence_words as sw, sentences as s, sources as so};
 
     let req::SegmentedSentence {
         sentence,
@@ -118,7 +118,7 @@ pub async fn delete(
     Path(id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<()> {
-    use crate::schema::{sentence_words as sw, sentences as s, sources as so};
+    use schema::{sentence_words as sw, sentences as s, sources as so};
 
     tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
@@ -145,7 +145,7 @@ pub async fn segment(
     Path(id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<Json<res::SegmentedSentence>> {
-    use crate::schema::sentences as s;
+    use schema::sentences as s;
 
     let segmented_sentence = tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;

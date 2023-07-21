@@ -1,6 +1,7 @@
 //! /segment
 
-use crate::{domain::sentences, prelude::*, queries};
+use super::prelude::*;
+use crate::{domain::sentences, queries};
 use lbr::sentence_splitter::SentenceSplitter;
 
 /// Splits the given paragraph into sentences and segments them with ichiran.
@@ -10,7 +11,7 @@ pub async fn segment(
     user: Authentication,
     paragraph: Json<req::Paragraph<'static>>,
 ) -> LbrResult<Json<Vec<res::SegmentedSentence>>> {
-    use crate::schema::{sentences as se, sources as so};
+    use schema::{sentences as se, sources as so};
     let user_id = user.user_id;
     let req::Paragraph {
         source_id,

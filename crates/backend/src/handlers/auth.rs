@@ -1,7 +1,8 @@
 //! /auth
 //! Handlers related to authentication.
 
-use crate::{authentication, prelude::*};
+use super::prelude::*;
+use crate::authentication;
 pub use tower_cookies::Cookies;
 
 // handlers
@@ -12,7 +13,7 @@ pub async fn register(
     State(state): State<LbrState>,
     Json(register): Json<req::Register<'static>>,
 ) -> LbrResult<()> {
-    use crate::schema::users as u;
+    use schema::users as u;
 
     let req::Register { email, password } = register;
     tokio::task::spawn_blocking(move || {
@@ -37,7 +38,7 @@ pub async fn login(
     cookies: Cookies,
     Json(login): Json<req::Login<'static>>,
 ) -> LbrResult<()> {
-    use crate::schema::users as u;
+    use schema::users as u;
 
     let task_state = state.clone();
     let req::Login { email, password } = login;

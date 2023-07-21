@@ -1,7 +1,8 @@
 //! /decks
 //! Handlers related to decks.
 
-use crate::{domain::decks, prelude::*};
+use super::prelude::*;
+use crate::domain::decks;
 use std::io::Read;
 
 // handlers
@@ -12,7 +13,7 @@ pub async fn get_all(
     State(state): State<LbrState>,
     user: Authentication,
 ) -> LbrResult<Json<Vec<res::Deck>>> {
-    use crate::schema::decks as d;
+    use schema::decks as d;
 
     let user_id = user.user_id;
     let decks = tokio::task::spawn_blocking(move || {
@@ -40,7 +41,7 @@ pub async fn get_one(
     Path(id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<Json<res::DeckDetails>> {
-    use crate::schema::{deck_sources as ds, decks as d};
+    use schema::{deck_sources as ds, decks as d};
 
     let user_id = user.user_id;
     let (deck, sources) = tokio::task::spawn_blocking(move || {
@@ -72,7 +73,7 @@ pub async fn insert(
     user: Authentication,
     Json(new_deck): Json<req::NewDeck<'static>>,
 ) -> LbrResult<String> {
-    use crate::schema::decks as d;
+    use schema::decks as d;
 
     let user_id = user.user_id;
     let req::NewDeck { name } = new_deck;
@@ -98,7 +99,7 @@ pub async fn update(
     user: Authentication,
     Json(update_deck): Json<req::UpdateDeck<'static>>,
 ) -> LbrResult<()> {
-    use crate::schema::{deck_sources as ds, decks as d};
+    use schema::{deck_sources as ds, decks as d};
 
     let user_id = user.user_id;
     let req::UpdateDeck {
@@ -144,7 +145,7 @@ pub async fn delete(
     Path(deck_id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<()> {
-    use crate::schema::{deck_sources as ds, decks as d};
+    use schema::{deck_sources as ds, decks as d};
 
     let user_id = user.user_id;
     tokio::task::spawn_blocking(move || {
@@ -174,7 +175,7 @@ pub async fn generate(
     Path((id, _filename)): Path<(i32, String)>,
     user: Authentication,
 ) -> LbrResult<Vec<u8>> {
-    use crate::schema::decks as d;
+    use schema::decks as d;
 
     let user_id = user.user_id;
     let deck_data = tokio::task::spawn_blocking(move || {

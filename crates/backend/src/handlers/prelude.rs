@@ -1,8 +1,9 @@
-//! Frequently used imports.
+//! Frequently used imports for handlers.
 
 pub use crate::{
     authentication::Authentication,
     error::{EyreResult, LbrError, LbrResult},
+    schema,
     utils::diesel::{diesel_enum, diesel_struct, eq, query, PostgresChunks},
     LbrState,
 };

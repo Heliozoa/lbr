@@ -1,10 +1,11 @@
 //! Functionality related to the Japanese language.
 
 use crate::{
-    prelude::*,
+    query,
     schema::{kanji as k, kanji_readings as kr},
     utils::database::Furigana,
 };
+use diesel::prelude::*;
 use std::collections::HashMap;
 
 /// Returns a mapping from kanji to its potential readings.

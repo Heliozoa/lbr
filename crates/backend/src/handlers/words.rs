@@ -1,6 +1,6 @@
 //! /words
 
-use crate::prelude::*;
+use super::prelude::*;
 use itertools::Itertools;
 use std::collections::HashMap;
 
@@ -11,9 +11,7 @@ pub async fn ignored_words(
     State(state): State<LbrState>,
     user: Authentication,
 ) -> LbrResult<Json<Vec<res::IgnoredWord>>> {
-    use crate::schema::{
-        ignored_words as iw, word_readings as wr, words as w, written_forms as wf,
-    };
+    use schema::{ignored_words as iw, word_readings as wr, words as w, written_forms as wf};
 
     let ignored_words = tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
@@ -76,7 +74,7 @@ pub async fn delete_ignored_word(
     Path(word_id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<()> {
-    use crate::schema::ignored_words as iw;
+    use schema::ignored_words as iw;
 
     tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
