@@ -31,40 +31,28 @@ The main library of the project that offers all the core functionality.
 
 
 ## Setting up LBR locally
-### Prepare data files
-1. Download the files listed in `./jadata/README.md` to `./jadata/external`
-2. Run `bash ./scripts/jadata.bash`
+### Prerequisites
+- Rust: https://www.rust-lang.org/tools/install
+- cargo-leptos: https://crates.io/crates/cargo-leptos
+- cargo-about: https://crates.io/crates/cargo-about
+- Postgres: https://www.postgresql.org/
+- Common Lisp (SBCL): http://www.sbcl.org/
+- Docker (optional): https://www.docker.com/
+- just (optional): https://crates.io/crates/just
 
-### Database setup
-1. In psql, run `CREATE ROLE lbr WITH CREATEDB PASSWORD 'lbr';`
-2. Download a database dump from https://github.com/tshatrov/ichiran/releases and rename it to `./data/ichiran.pgdump`
-3. Run `bash ./scripts/init-lbr-db.bash`
-4. Run `bash ./scripts/init-ichiran-db.bash`
-5. Run `bash ./scripts/generate-ichiran-schema.bash`
+### justfile
+The `justfile` in the repository root contains convenient commands for setting everything up that can be ran with `just`. You can also follow them along manually and run the commands in your shell.
 
-### Setting up ichiran
-#### With Docker
-https://github.com/tshatrov/ichiran#dockerized-version
+Running `just prepare-repository` will prepare the repository by
+- setting up quicklisp and ichiran in `./data`
+- creating a `lbr` postgres user
+- creating the `lbr` and `ichiran` databases
+- downloading and generating various files related to Japanese words/kanji
+- generating the license.html
+- building the ichiran-cli
+If something goes wrong, rerunning the command is safe though it may do unnecessary extra work. You can also check the `justfile` and execute the individual steps.
 
-#### Without Docker
-See https://readevalprint.tumblr.com/post/639359547843215360/ichiranhome-2021-the-ultimate-guide
-
-0. Make sure the ichiran database has been set up in the previous step
-1. Install [SBCL](http://sbcl.org/)
-2. Download [quicklisp](https://www.quicklisp.org/beta/)
-3. Execute `sbcl --load ./quicklisp.lisp`
-4. Run `sbcl --eval "(quicklisp-quickstart:install)" --eval "(ql:add-to-init-file)" --eval "(sb-ext:quit)"`
-5. Run `git clone https://github.com/tshatrov/ichiran ~/quicklisp/local-projects/ichiran`
-6. Run `git clone https://gitlab.com/yamagoya/jmdictdb.git ~/jmdictdb`
-7. Inside `~/quicklisp/local-projects/ichiran`, rename `settings.lisp.template` to `settings.lisp`
-8. Inside `settings.lisp`, change `(defparameter *connection* '("jmdict" "postgres" "password" "localhost"))` to `(defparameter *connection* '("ichiran" "lbr" "lbr" "localhost"))`
-9. Inside `settings.lisp`, change `(defparameter *jmdict-data* #p"/home/you/dump/jmdict-data/")` to `(defparameter *jmdict-data* #p"/home/YOUR_USERNAME_HERE/jmdictdb/data/")`
-10. Run `sbcl --eval "(ql:quickload :ichiran)" --eval "(ichiran/mnt:add-errata)" --eval "(ichiran/test:run-all-tests)" --eval "(sb-ext:quit)"`. All the tests should pass.
-11. Run `sbcl --eval "(ql:quickload :ichiran/cli)" --eval "(ichiran/cli:build)" --eval "(sb-ext:quit)"`, execute.
-12. Give the CLI a go with `./ichiran-cli -f "こんばんは。"`.
-13. Run `mv ~/quicklisp/local-projects/ichiran/ichiran-cli ./data/ichiran-cli`.
-14. You can remove `~/quicklisp` and `~/jmdictdb` if you'd like.
-
+After setup is finished, you can start the dev server with `cargo leptos watch`.
 
 ## Development
 LBR uses the nightly toolchain.

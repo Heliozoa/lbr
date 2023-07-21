@@ -4,7 +4,6 @@ use super::prelude::*;
 use crate::{domain::sentences, queries};
 use lbr::sentence_splitter::SentenceSplitter;
 
-/// Splits the given paragraph into sentences and segments them with ichiran.
 #[instrument]
 pub async fn segment(
     State(state): State<LbrState>,

@@ -1,5 +1,4 @@
 //! /decks
-//! Handlers related to decks.
 
 use super::prelude::*;
 use crate::domain::decks;
@@ -7,7 +6,6 @@ use std::io::Read;
 
 // handlers
 
-/// Returns all decks owned by the user.
 #[instrument]
 pub async fn get_all(
     State(state): State<LbrState>,
@@ -34,7 +32,6 @@ pub async fn get_all(
     Ok(Json(decks))
 }
 
-/// Returns the deck with the given id and owner.
 #[instrument]
 pub async fn get_one(
     State(state): State<LbrState>,
@@ -66,7 +63,6 @@ pub async fn get_one(
     Ok(Json(deck))
 }
 
-/// Inserts a new deck for the user.
 #[instrument]
 pub async fn insert(
     State(state): State<LbrState>,
@@ -91,7 +87,6 @@ pub async fn insert(
     Ok(id.to_string())
 }
 
-/// Updates the deck with the given id and owner.
 #[instrument]
 pub async fn update(
     State(state): State<LbrState>,
@@ -138,7 +133,6 @@ pub async fn update(
     Ok(())
 }
 
-/// Deletes the deck with the given id and owner.
 #[instrument]
 pub async fn delete(
     State(state): State<LbrState>,
@@ -168,7 +162,6 @@ pub async fn delete(
     Ok(())
 }
 
-/// Generates an Anki deck out of the given deck owned by the user.
 #[instrument]
 pub async fn generate(
     State(state): State<LbrState>,

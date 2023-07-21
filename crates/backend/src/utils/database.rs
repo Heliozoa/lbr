@@ -1,6 +1,6 @@
 //! Rust types for custom database types.
 
-use crate::{diesel_enum, diesel_struct};
+use crate::utils::diesel::{diesel_enum, diesel_struct};
 
 diesel_struct!(
     #[derive(Clone, Copy, PartialEq, Eq)]

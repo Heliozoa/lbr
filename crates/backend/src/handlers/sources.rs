@@ -5,7 +5,6 @@ use crate::domain::sentences::{self, NewSentenceWords};
 
 // handlers
 
-/// Gets the user's sources
 #[instrument]
 pub async fn get_all(
     State(state): State<LbrState>,
@@ -30,7 +29,6 @@ pub async fn get_all(
     Ok(Json(sources))
 }
 
-/// Gets the given source for the user
 #[instrument]
 pub async fn get_one(
     State(state): State<LbrState>,
@@ -56,7 +54,6 @@ pub async fn get_one(
     }))
 }
 
-/// Gets the given source for the user
 #[instrument]
 pub async fn get_details(
     State(state): State<LbrState>,
@@ -94,7 +91,6 @@ pub async fn get_details(
     }))
 }
 
-/// Inserts a new source for the user
 #[instrument]
 pub async fn insert(
     State(state): State<LbrState>,

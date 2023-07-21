@@ -1,5 +1,4 @@
 //! /auth
-//! Handlers related to authentication.
 
 use super::prelude::*;
 use crate::authentication;
@@ -7,7 +6,6 @@ pub use tower_cookies::Cookies;
 
 // handlers
 
-/// Registers the user.
 #[instrument]
 pub async fn register(
     State(state): State<LbrState>,
@@ -31,7 +29,6 @@ pub async fn register(
     Ok(())
 }
 
-/// Logs the user in.
 #[instrument]
 pub async fn login(
     State(state): State<LbrState>,
@@ -61,13 +58,11 @@ pub async fn login(
     Ok(())
 }
 
-/// Fetches the currently logged in user, if any.
 #[instrument]
 pub async fn current(user: Option<Authentication>) -> LbrResult<Json<Option<i32>>> {
     Ok(Json(user.map(|u| u.user_id)))
 }
 
-/// Logs the currently logged in user out.
 #[instrument]
 pub async fn logout(
     State(state): State<LbrState>,

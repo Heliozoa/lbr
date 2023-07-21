@@ -1,4 +1,5 @@
 .env
 target
 data
+ichiran
 crates/frontend/dist
