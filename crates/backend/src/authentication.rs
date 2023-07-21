@@ -13,7 +13,7 @@ use axum::{
 };
 use moka::{future::Cache, Expiry};
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, time::Duration};
+use std::{borrow::Cow, fmt::Debug, time::Duration};
 use tower_cookies::{cookie::SameSite, Cookie, Cookies, SignedCookies};
 
 pub type SessionCache = Cache<i32, Session>;
@@ -111,6 +111,12 @@ impl SessionCookie {
 pub struct Authentication {
     pub session_id: i32,
     pub user_id: i32,
+}
+
+impl Debug for Authentication {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.user_id)
+    }
 }
 
 #[async_trait]

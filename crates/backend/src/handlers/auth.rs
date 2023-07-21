@@ -11,16 +11,17 @@ use axum::{extract::State, Json};
 use diesel::prelude::*;
 use lbr_api::request as req;
 use tower_cookies::Cookies;
+use tracing::instrument;
 
 // handlers
 
 /// Registers the user.
+#[instrument]
 pub async fn register(
     State(state): State<LbrState>,
     Json(register): Json<req::Register<'static>>,
 ) -> LbrResult<()> {
     use crate::schema::users as u;
-    tracing::info!("Registering user");
 
     let req::Register { email, password } = register;
     tokio::task::spawn_blocking(move || {
@@ -39,13 +40,13 @@ pub async fn register(
 }
 
 /// Logs the user in.
+#[instrument]
 pub async fn login(
     State(state): State<LbrState>,
     cookies: Cookies,
     Json(login): Json<req::Login<'static>>,
 ) -> LbrResult<()> {
     use crate::schema::users as u;
-    tracing::info!("Logging in");
 
     let task_state = state.clone();
     let req::Login { email, password } = login;
@@ -69,18 +70,18 @@ pub async fn login(
 }
 
 /// Fetches the currently logged in user, if any.
+#[instrument]
 pub async fn current(user: Option<Authentication>) -> LbrResult<Json<Option<i32>>> {
     Ok(Json(user.map(|u| u.user_id)))
 }
 
 /// Logs the currently logged in user out.
+#[instrument]
 pub async fn logout(
     State(state): State<LbrState>,
     cookies: Cookies,
     user: Authentication,
 ) -> LbrResult<()> {
-    tracing::info!("Logging out");
-
     let signed_cookies = cookies.signed(&state.private_cookie_key);
     authentication::forget_session(user.session_id, &signed_cookies, &state.sessions).await?;
 

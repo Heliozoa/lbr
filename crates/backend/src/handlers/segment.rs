@@ -11,7 +11,10 @@ use axum::{extract::State, Json};
 use diesel::prelude::*;
 use lbr::sentence_splitter::SentenceSplitter;
 use lbr_api::{request as req, response as res};
+use tracing::instrument;
 
+/// Splits the given paragraph into sentences and segments them with ichiran.
+#[instrument]
 pub async fn segment(
     State(state): State<LbrState>,
     user: Authentication,
@@ -23,8 +26,6 @@ pub async fn segment(
         source_id,
         paragraph,
     } = paragraph.0;
-
-    tracing::info!("Segmenting paragraph for source {source_id} and user {user_id}");
 
     let segmented_sentences = tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;

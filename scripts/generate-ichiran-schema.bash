@@ -1,6 +1,8 @@
 #!/bin/bash
 # Updates the ichiran schema source file.
 
+set -eu
+
 url=${ICHIRAN_DATABASE_URL:-postgres://lbr:lbr@localhost/ichiran}
 echo "Generating diesel schema from database '$url'"
 if schema=$(diesel print-schema --database-url "$url"); then

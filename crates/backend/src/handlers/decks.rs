@@ -17,16 +17,17 @@ use axum::{
 use diesel::prelude::*;
 use lbr_api::{request as req, response as res};
 use std::io::Read;
+use tracing::instrument;
 
 // handlers
 
 /// Returns all decks owned by the user.
+#[instrument]
 pub async fn get_all(
     State(state): State<LbrState>,
     user: Authentication,
 ) -> LbrResult<Json<Vec<res::Deck>>> {
     use crate::schema::decks as d;
-    tracing::info!("Fetching decks");
 
     let user_id = user.user_id;
     let decks = tokio::task::spawn_blocking(move || {
@@ -48,13 +49,13 @@ pub async fn get_all(
 }
 
 /// Returns the deck with the given id and owner.
+#[instrument]
 pub async fn get_one(
     State(state): State<LbrState>,
     Path(id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<Json<res::DeckDetails>> {
     use crate::schema::{deck_sources as ds, decks as d};
-    tracing::info!("Fetching decks");
 
     let user_id = user.user_id;
     let (deck, sources) = tokio::task::spawn_blocking(move || {
@@ -80,13 +81,13 @@ pub async fn get_one(
 }
 
 /// Inserts a new deck for the user.
+#[instrument]
 pub async fn insert(
     State(state): State<LbrState>,
     user: Authentication,
     Json(new_deck): Json<req::NewDeck<'static>>,
 ) -> LbrResult<String> {
     use crate::schema::decks as d;
-    tracing::info!("Inserting deck");
 
     let user_id = user.user_id;
     let req::NewDeck { name } = new_deck;
@@ -105,6 +106,7 @@ pub async fn insert(
 }
 
 /// Updates the deck with the given id and owner.
+#[instrument]
 pub async fn update(
     State(state): State<LbrState>,
     Path(id): Path<i32>,
@@ -112,7 +114,6 @@ pub async fn update(
     Json(update_deck): Json<req::UpdateDeck<'static>>,
 ) -> LbrResult<()> {
     use crate::schema::{deck_sources as ds, decks as d};
-    tracing::info!("Updating deck {id}");
 
     let user_id = user.user_id;
     let req::UpdateDeck {
@@ -152,13 +153,13 @@ pub async fn update(
 }
 
 /// Deletes the deck with the given id and owner.
+#[instrument]
 pub async fn delete(
     State(state): State<LbrState>,
     Path(deck_id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<()> {
     use crate::schema::{deck_sources as ds, decks as d};
-    tracing::info!("Deleting deck {deck_id}");
 
     let user_id = user.user_id;
     tokio::task::spawn_blocking(move || {
@@ -182,13 +183,13 @@ pub async fn delete(
 }
 
 /// Generates an Anki deck out of the given deck owned by the user.
+#[instrument]
 pub async fn generate(
     State(state): State<LbrState>,
     Path((id, _filename)): Path<(i32, String)>,
     user: Authentication,
 ) -> LbrResult<Vec<u8>> {
     use crate::schema::decks as d;
-    tracing::info!("Generating deck {id}");
 
     let user_id = user.user_id;
     let deck_data = tokio::task::spawn_blocking(move || {

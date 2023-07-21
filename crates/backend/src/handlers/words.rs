@@ -7,7 +7,11 @@ use diesel::prelude::*;
 use itertools::Itertools;
 use lbr_api::response as res;
 use std::collections::HashMap;
+use tracing::instrument;
 
+// handlers
+
+#[instrument]
 pub async fn ignored_words(
     State(state): State<LbrState>,
     user: Authentication,
@@ -15,7 +19,6 @@ pub async fn ignored_words(
     use crate::schema::{
         ignored_words as iw, word_readings as wr, words as w, written_forms as wf,
     };
-    tracing::info!("Fetching ignored words");
 
     let ignored_words = tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
@@ -72,13 +75,13 @@ pub async fn ignored_words(
     Ok(Json(ignored_words))
 }
 
+#[instrument]
 pub async fn delete_ignored_word(
     State(state): State<LbrState>,
     Path(word_id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<()> {
     use crate::schema::ignored_words as iw;
-    tracing::info!("Fetching ignored words");
 
     tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
@@ -95,6 +98,8 @@ pub async fn delete_ignored_word(
 
     Ok(())
 }
+
+// queries
 
 query! {
     #[derive(Debug)]

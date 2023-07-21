@@ -15,31 +15,17 @@ use axum::{
 };
 use diesel::prelude::*;
 use lbr_api::{request as req, response as res};
+use tracing::instrument;
 
-query! {
-    struct Sentence {
-        id: i32 = sentences::id,
-        sentence: String = sentences::sentence,
-    }
-}
+// handlers
 
-query! {
-    struct SentenceWord {
-        reading: Option<String> = sentence_words::reading,
-        idx_start: i32 = sentence_words::idx_start,
-        idx_end: i32 = sentence_words::idx_end,
-        furigana: Vec<Option<database::Furigana>> = sentence_words::furigana,
-        translations: Vec<Option<String>> = words::translations,
-    }
-}
-
+#[instrument]
 pub async fn get_one(
     State(state): State<LbrState>,
     Path(id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<Json<res::SentenceDetails>> {
     use crate::schema::{sentence_words as sw, sentences as s, sources as so, words as w};
-    tracing::info!("Fetching sentence {id}");
 
     let sentence = tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
@@ -86,6 +72,7 @@ pub async fn get_one(
     Ok(Json(sentence))
 }
 
+#[instrument]
 pub async fn update(
     State(state): State<LbrState>,
     Path(id): Path<i32>,
@@ -93,7 +80,6 @@ pub async fn update(
     update_sentence: Json<req::SegmentedSentence>,
 ) -> LbrResult<()> {
     use crate::schema::{sentence_words as sw, sentences as s, sources as so};
-    tracing::info!("Updating sentence {id}");
 
     let req::SegmentedSentence {
         sentence,
@@ -136,13 +122,13 @@ pub async fn update(
     Ok(())
 }
 
+#[instrument]
 pub async fn delete(
     State(state): State<LbrState>,
     Path(id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<()> {
     use crate::schema::{sentence_words as sw, sentences as s, sources as so};
-    tracing::info!("Deleting sentence {id}");
 
     tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
@@ -163,13 +149,13 @@ pub async fn delete(
     Ok(())
 }
 
+#[instrument]
 pub async fn segment(
     State(state): State<LbrState>,
     Path(id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<Json<res::SegmentedSentence>> {
     use crate::schema::sentences as s;
-    tracing::info!("Segmenting sentence {id}");
 
     let segmented_sentence = tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
@@ -189,4 +175,23 @@ pub async fn segment(
     .await??;
 
     Ok(Json(segmented_sentence))
+}
+
+// queries
+
+query! {
+    struct Sentence {
+        id: i32 = sentences::id,
+        sentence: String = sentences::sentence,
+    }
+}
+
+query! {
+    struct SentenceWord {
+        reading: Option<String> = sentence_words::reading,
+        idx_start: i32 = sentence_words::idx_start,
+        idx_end: i32 = sentence_words::idx_end,
+        furigana: Vec<Option<database::Furigana>> = sentence_words::furigana,
+        translations: Vec<Option<String>> = words::translations,
+    }
 }

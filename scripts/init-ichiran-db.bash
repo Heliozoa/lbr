@@ -1,6 +1,8 @@
 #!/bin/bash
 # Initialises the ichiran database from the dump.
 
+set -eu
+
 DBNAME=ichiran
 DUMP="./data/ichiran.pgdump"
 

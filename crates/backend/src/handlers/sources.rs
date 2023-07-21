@@ -14,30 +14,17 @@ use axum::{
 use diesel::prelude::*;
 use eyre::Context;
 use lbr_api::{request as req, response as res};
+use tracing::instrument;
 
-query! {
-    struct Source {
-        id: i32 = sources::id,
-        name: String = sources::name,
-    }
-}
-
-impl From<Source> for res::Source {
-    fn from(value: Source) -> Self {
-        res::Source {
-            id: value.id,
-            name: value.name,
-        }
-    }
-}
+// handlers
 
 /// Gets the user's sources
+#[instrument]
 pub async fn get_all(
     State(state): State<LbrState>,
     user: Authentication,
 ) -> LbrResult<Json<Vec<res::Source>>> {
     use crate::schema::sources as s;
-    tracing::info!("Fetching sources");
 
     let user_id = user.user_id;
     let sources = tokio::task::spawn_blocking(move || {
@@ -56,21 +43,14 @@ pub async fn get_all(
     Ok(Json(sources))
 }
 
-query! {
-    struct Sentence {
-        id: i32 = sentences::id,
-        sentence: String = sentences::sentence,
-    }
-}
-
 /// Gets the given source for the user
+#[instrument]
 pub async fn get_one(
     State(state): State<LbrState>,
     Path(id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<Json<res::Source>> {
     use crate::schema::sources as so;
-    tracing::info!("Fetching source");
 
     let user_id = user.user_id;
     let source = tokio::task::spawn_blocking(move || {
@@ -90,13 +70,13 @@ pub async fn get_one(
 }
 
 /// Gets the given source for the user
+#[instrument]
 pub async fn get_details(
     State(state): State<LbrState>,
     Path(id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<Json<res::SourceDetails>> {
     use crate::schema::{sentences as se, sources as so};
-    tracing::info!("Fetching source");
 
     let user_id = user.user_id;
     let (source, sentences) = tokio::task::spawn_blocking(move || {
@@ -128,13 +108,13 @@ pub async fn get_details(
 }
 
 /// Inserts a new source for the user
+#[instrument]
 pub async fn insert(
     State(state): State<LbrState>,
     user: Authentication,
     new_source: Json<req::NewSource<'static>>,
 ) -> LbrResult<String> {
     use crate::schema::sources as s;
-    tracing::info!("Inserting source");
 
     let user_id = user.user_id;
     let req::NewSource { name } = new_source.0;
@@ -151,6 +131,7 @@ pub async fn insert(
     Ok(id.to_string())
 }
 
+#[instrument]
 pub async fn update(
     State(state): State<LbrState>,
     Path(id): Path<i32>,
@@ -158,7 +139,6 @@ pub async fn update(
     update_source: Json<req::UpdateSource<'static>>,
 ) -> LbrResult<()> {
     use crate::schema::sources as s;
-    tracing::info!("Updating source {id}");
 
     let user_id = user.user_id;
     let req::UpdateSource { name } = update_source.0;
@@ -174,13 +154,13 @@ pub async fn update(
     Ok(())
 }
 
+#[instrument]
 pub async fn delete(
     State(state): State<LbrState>,
     Path(id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<()> {
     use crate::schema::{deck_sources as ds, sentence_words as sw, sentences as se, sources as so};
-    tracing::info!("Deleting source {id}");
 
     let user_id = user.user_id;
     tokio::task::spawn_blocking(move || {
@@ -204,6 +184,7 @@ pub async fn delete(
     Ok(())
 }
 
+#[instrument]
 pub async fn add_sentence(
     State(state): State<LbrState>,
     Path(source_id): Path<i32>,
@@ -211,7 +192,6 @@ pub async fn add_sentence(
     sentence: Json<req::SegmentedSentence>,
 ) -> LbrResult<()> {
     use crate::schema::{sentences as se, sources as so};
-    tracing::info!("Adding sentence to source {source_id}");
 
     let user_id = user.user_id;
     let req::SegmentedSentence {
@@ -255,4 +235,29 @@ pub async fn add_sentence(
     .await??;
 
     Ok(())
+}
+
+// queries
+
+query! {
+    struct Sentence {
+        id: i32 = sentences::id,
+        sentence: String = sentences::sentence,
+    }
+}
+
+query! {
+    struct Source {
+        id: i32 = sources::id,
+        name: String = sources::name,
+    }
+}
+
+impl From<Source> for res::Source {
+    fn from(value: Source) -> Self {
+        res::Source {
+            id: value.id,
+            name: value.name,
+        }
+    }
 }
