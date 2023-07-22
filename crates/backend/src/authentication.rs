@@ -138,16 +138,9 @@ impl FromRequestParts<LbrState> for Authentication {
                 user_id: session.user_id,
             }),
             None => {
-                // todo
-                /*
                 // has cookie but no session, delete cookie
                 remove_session_cookie(&signed_cookies);
                 Err((StatusCode::UNAUTHORIZED, "Not logged in"))
-                */
-                Ok(Authentication {
-                    session_id: session_cookie.session_id,
-                    user_id: 1,
-                })
             }
         }
     }
