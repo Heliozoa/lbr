@@ -313,5 +313,5 @@ docker-run database-url="postgres://lbr:lbr@host.docker.internal/lbr" ichiran-da
 
 
 # Pushes the Docker image
-docker-push: generate-license docker-build
-    docker push helizoagh/lbr:latest
+docker-push: docker-build
+    docker push docker.io/heliozoagh/lbr:latest

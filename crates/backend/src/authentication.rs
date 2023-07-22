@@ -157,8 +157,8 @@ fn build_cookie(value: impl Into<Cow<'static, str>>) -> Cookie<'static> {
     Cookie::build(SessionCookie::NAME, value)
         .path("/")
         .secure(false)
-        .http_only(false)
-        .same_site(SameSite::None)
+        .http_only(true)
+        .same_site(SameSite::Strict)
         .finish()
 }
 
