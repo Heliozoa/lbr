@@ -187,7 +187,7 @@ pub async fn add_sentence(
         let mut conn = state.lbr_pool.get().wrap_err("Failed to get pool")?;
         let sources = so::table
             .select(so::id)
-            .filter(eq!(so, user_id))
+            .filter(so::id.eq(source_id).and(so::user_id.eq(user_id)))
             .execute(&mut conn)
             .wrap_err("Failed to execute query to fetch source for user")?;
         if sources != 1 {
