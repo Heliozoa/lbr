@@ -49,7 +49,7 @@ prepare-ichiran:
 # Builds ichiran-cli
 build-cli:
     sbcl \
-        --eval "(load ./data/ichiran/setup.lisp)" \
+        --eval '(load "./data/ichiran/setup.lisp")' \
         --eval "(ql:quickload :ichiran/cli)" \
         --eval "(ichiran/cli:build)" \
         --eval "(exit)"
@@ -197,7 +197,7 @@ dl-jmdictdb force="false":
 
     path=./data/jmdictdb
     echo "Checking ${path}"
-    if [ -f ${path} ] || [ ! {{force}} = "false" ]; then
+    if [ ! -f ${path} ] || [ ! {{force}} = "false" ]; then
         rm -rf ${path}
         mkdir -p ${path}
         echo "Downloading jmdictdb"
