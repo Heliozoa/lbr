@@ -39,6 +39,9 @@ The main library of the project that offers all the core functionality.
 - cargo-leptos (optional): https://crates.io/crates/cargo-leptos
 - Docker (optional): https://www.docker.com/
 - just (optional): https://crates.io/crates/just
+- diesel_cli (optional): https://crates.io/crates/diesel_cli (`cargo install diesel_cli --no-default-features --features postgres`)
+- jq (optional): https://jqlang.github.io/jq/
+- Locale `ja_JP.utf8` (optional)
 
 ### justfile
 The `justfile` in the repository root contains convenient commands for setting everything up that can be ran with `just`. You can also follow them along manually and run the commands in your shell.

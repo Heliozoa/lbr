@@ -12,22 +12,26 @@ watch:
 
 
 # Generates the license information for the given target (targets: ["web", "dockerhub"])
-generate-license target="web":
+generate-license target="web" overwrite="true":
     #!/usr/bin/env bash
     set -euo pipefail
 
     if [ {{ target }} = "web" ]; then
-        cargo about generate ./about/web.hbs > ./data/license.html
+        if [ ! -f ./data/license.html ] || [ {{overwrite}} = "true" ]; then
+            cargo about generate ./about/web.hbs > ./data/license.html
+        fi
     elif [ {{ target }} = "dockerhub" ]; then
-        cargo about generate ./about/dockerhub.hbs > ./data/license.md
+        if [ ! -f ./data/license.md ] || [ {{overwrite}} = "true" ]; then
+            cargo about generate ./about/dockerhub.hbs > ./data/license.md
+        fi
     else
-        echo "Unexpected target"
+        echo "Unexpected target '{{target}}'"
         exit 1
     fi
 
 
 # Sets up local databases and downloads and generates files required for local development
-prepare-repository: && generate-license prepare-ichiran prepare-db-user prepare-lbr-db prepare-ichiran-db prepare-data generate-jadata build-cli
+prepare-repository: && (generate-license "web" "false") prepare-data generate-jadata prepare-ichiran prepare-db-user prepare-ichiran-db prepare-lbr-db build-cli
     cp ./example.env ./.env
 
 
@@ -61,7 +65,7 @@ DATABASE-COMMANDS:
 # Creates the postgres user 'lbr' with the password 'lbr'
 prepare-db-user:
     echo "Creating database user, ignoring errors"
-    -psql --user postgres --command "CREATE ROLE lbr WITH CREATEDB PASSWORD 'lbr';"
+    -psql --user postgres --command "CREATE ROLE lbr WITH LOGIN CREATEDB PASSWORD 'lbr';"
 
 
 # Sets up the local lbr database
@@ -130,7 +134,6 @@ prepare-ichiran-db database-name="ichiran" dump="./data/ichiran.pgdump": dl-ichi
     echo "Restoring database"
     if ! pg_restore --clean --if-exists --no-owner --role=lbr --username=postgres --dbname="{{database-name}}" "{{dump}}"; then
         echo "Errors restoring database, but these are probably fine to ignore"
-        exit 1
     fi
     sbcl \
         --eval "(load ./data/ichiran/setup.lisp)"
@@ -210,7 +213,7 @@ dl-jmdict force="false":
 
     path=./crates/jadata/external/JMdict_e_examp.xml
     echo "Checking ${path}"
-    if [ ! -f  ] || [ ! {{force}} = "false" ]; then
+    if [ ! -f  ${path} ] || [ ! {{force}} = "false" ]; then
         echo "Downloading JMdict_e_examp"
         wget --output-document=- http://ftp.edrdg.org/pub/Nihongo/JMdict_e_examp.gz \
             | gunzip -c - > ${path}
@@ -224,7 +227,7 @@ dl-kanjidic force="false":
 
     path=./crates/jadata/external/kanjidic2.xml
     echo "Checking ${path}"
-    if [ ! -f ./crates/jadata/external/kanjidic2.xml ] || [ ! {{force}} = "false" ]; then
+    if [ ! -f ${path} ] || [ ! {{force}} = "false" ]; then
         echo "Downloading kanjidic"
         wget --output-document=- http://www.edrdg.org/kanjidic/kanjidic2.xml.gz \
             | gunzip -c - > ${path}
@@ -250,14 +253,17 @@ dl-furigana force="false":
     #!/usr/bin/env bash
     set -euo pipefail
 
-    path=./data/JmdictFurigana.json
-    echo "Checking ${path}"
-    if [ ! -f ${path} ] || [ ! {{force}} = "false" ]; then
-        echo "Downloading JmdictFurigana"
-        curl https://api.github.com/repos/Doublevil/JmdictFurigana/releases/latest \
-            | jq '.assets[] | select(.name == "JmdictFurigana.json").browser_download_url' \
-            | xargs wget --output-document=${path}
-    fi
+    for path in ./data/JmdictFurigana.json ./crates/jadata/external/JmdictFurigana.json
+    do
+        echo "Checking ${path}"
+        if [ ! -f ${path} ] || [ ! {{force}} = "false" ]; then
+            echo "Downloading JmdictFurigana"
+            curl https://api.github.com/repos/Doublevil/JmdictFurigana/releases/latest \
+                | jq '.assets[] | select(.name == "JmdictFurigana.json").browser_download_url' \
+                | xargs wget --output-document=- \
+                | jq . > ${path}
+        fi
+    done
 
 
 # Generates the kanjifile and wordfile
