@@ -303,7 +303,12 @@ impl Client {
         Ok(deck)
     }
 
-    pub async fn update_deck(&self, id: i32, name: &str, sources: &[i32]) -> WebResult<()> {
+    pub async fn update_deck(
+        &self,
+        id: i32,
+        name: &str,
+        sources: &[req::IncludedSource],
+    ) -> WebResult<()> {
         tracing::info!("Updating sources for deck {id}");
 
         let json = serde_json::to_string(&req::UpdateDeck {

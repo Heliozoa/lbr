@@ -31,7 +31,20 @@ pub struct NewDeck<'a> {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct UpdateDeck<'a> {
     pub name: Cow<'a, str>,
-    pub included_sources: Cow<'a, [i32]>,
+    pub included_sources: Cow<'a, [IncludedSource]>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+pub struct IncludedSource {
+    pub source_id: i32,
+    pub threshold: i32,
+    pub kind: IncludedSourceKind,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+pub enum IncludedSourceKind {
+    Word,
+    Kanji,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

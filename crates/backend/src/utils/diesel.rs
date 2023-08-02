@@ -74,7 +74,7 @@ macro_rules! diesel_enum {
         }
     ) => {
         $(#[ $attr ])*
-        #[derive(Debug, ::diesel::AsExpression)]
+        #[derive(Debug, ::diesel::AsExpression, ::diesel::FromSqlRow)]
         #[diesel(sql_type = $crate::schema::sql_types::$dt)]
         pub enum $t {
             $($variant),*
@@ -94,6 +94,20 @@ macro_rules! diesel_enum {
             type QueryId = $t;
 
             const HAS_STATIC_QUERY_ID: bool = true;
+        }
+
+        impl ::diesel::deserialize::FromSql<$crate::schema::sql_types::$dt, ::diesel::pg::Pg> for $t {
+            fn from_sql(
+                bytes: <::diesel::pg::Pg as ::diesel::backend::Backend>::RawValue<'_>
+            ) -> ::diesel::deserialize::Result<Self> {
+                let variant_name =
+                    <String as ::diesel::deserialize::FromSql<_, _>>::from_sql(bytes)?;
+                let res = match variant_name.as_str() {
+                    $($l => Self::$variant,)*
+                    other => panic!("Invalid data from database: {other}"),
+                };
+                Ok(res)
+            }
         }
     };
 }

@@ -2,6 +2,10 @@
 
 pub mod sql_types {
     #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "deck_source_kind"))]
+    pub struct DeckSourceKind;
+
+    #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "furigana"))]
     pub struct Furigana;
 
@@ -15,9 +19,14 @@ pub mod sql_types {
 }
 
 diesel::table! {
-    deck_sources (deck_id, source_id) {
+    use diesel::sql_types::*;
+    use super::sql_types::DeckSourceKind;
+
+    deck_sources (deck_id, source_id, kind) {
         deck_id -> Int4,
         source_id -> Int4,
+        kind -> DeckSourceKind,
+        threshold -> Int4,
     }
 }
 

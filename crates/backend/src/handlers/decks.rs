@@ -1,7 +1,7 @@
 //! /decks
 
 use super::prelude::*;
-use crate::domain::decks;
+use crate::{domain::decks, utils::database::DeckSourceKind};
 use std::io::Read;
 
 // handlers
@@ -49,12 +49,23 @@ pub async fn get_one(
             .get_result(&mut conn)?;
         let sources = ds::table
             .filter(ds::deck_id.eq(id))
-            .select(ds::source_id)
-            .get_results::<i32>(&mut conn)?;
+            .select(DeckSource::as_select())
+            .load(&mut conn)?;
         EyreResult::Ok((deck, sources))
     })
     .await??;
 
+    let sources = sources
+        .into_iter()
+        .map(|s| res::DeckSource {
+            id: s.id,
+            threshold: s.threshold,
+            kind: match s.kind {
+                DeckSourceKind::Word => res::DeckSourceKind::Word,
+                DeckSourceKind::Kanji => res::DeckSourceKind::Kanji,
+            },
+        })
+        .collect();
     let deck = res::DeckDetails {
         id: deck.id,
         name: deck.name,
@@ -118,7 +129,18 @@ pub async fn update(
             diesel::delete(ds::table.filter(ds::deck_id.eq(id))).execute(conn)?;
             let values = included_sources
                 .iter()
-                .map(|source_id| (ds::deck_id.eq(id), ds::source_id.eq(source_id)))
+                .map(|is| {
+                    let kind = match is.kind {
+                        req::IncludedSourceKind::Kanji => DeckSourceKind::Kanji,
+                        req::IncludedSourceKind::Word => DeckSourceKind::Word,
+                    };
+                    (
+                        ds::deck_id.eq(id),
+                        ds::source_id.eq(is.source_id),
+                        ds::threshold.eq(is.threshold),
+                        ds::kind.eq(kind),
+                    )
+                })
                 .collect::<Vec<_>>();
             for chunk in values.pg_chunks() {
                 diesel::insert_into(ds::table).values(chunk).execute(conn)?;
@@ -219,5 +241,13 @@ query! {
         id: i32 = decks::id,
         name: String = decks::name,
         anki_deck_id: i64 = decks::anki_deck_id,
+    }
+}
+
+query! {
+    struct DeckSource {
+        id: i32 = deck_sources::source_id,
+        threshold: i32 = deck_sources::threshold,
+        kind: DeckSourceKind = deck_sources::kind,
     }
 }

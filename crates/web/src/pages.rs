@@ -6,7 +6,7 @@ use crate::{
     error::{WebError, WebResult},
     utils,
 };
-use lbr_api::response as res;
+use lbr_api::{request as req, response as res};
 use leptos::{
     html::{Input, Textarea},
     leptos_dom::helpers::TimeoutHandle,
@@ -21,7 +21,8 @@ pub fn Home(cx: Scope) -> impl IntoView {
 
     // sources
     let sources_res = utils::logged_in_resource!(cx, get_sources());
-    let sources_content = move |sources| {
+    let sources_content = move |mut sources: Vec<res::Source>| {
+        sources.sort_unstable_by(|l, r| l.name.cmp(&r.name));
         view! { cx,
             <div class="block">
                 <SourceList sources/>
@@ -41,7 +42,8 @@ pub fn Home(cx: Scope) -> impl IntoView {
 
     // decks
     let decks_res = utils::logged_in_resource!(cx, get_decks());
-    let decks_content = move |decks| {
+    let decks_content = move |mut decks: Vec<res::Deck>| {
+        decks.sort_unstable_by(|l, r| l.name.cmp(&r.name));
         view! { cx,
             <div class="block">
                 <DeckList decks/>
@@ -185,35 +187,43 @@ pub fn Source(cx: Scope) -> impl IntoView {
     // source
     let source_content = move |source: res::SourceDetails| {
         let href = format!("/source/{source_id}/add-sentences");
-        let sentence_list = source
-            .sentences
-            .into_iter()
-            .map(|sentence| {
-                let sentence_id = format!("[{}] ", sentence.id);
-                view! { cx,
-                    <li>
-                        <span>
-                            {sentence_id}
-                        </span>
-                        <A href=format!("/source/{source_id}/sentence/{}", sentence.id)>
-                            {sentence.sentence}
-                        </A>
-                    </li>
-                }
-            })
-            .collect_view(cx);
+        let sentences_view = if !source.sentences.is_empty() {
+            let sentence_list = source
+                .sentences
+                .into_iter()
+                .map(|sentence| {
+                    let sentence_id = format!("[{}] ", sentence.id);
+                    view! { cx,
+                        <li>
+                            <span>
+                                {sentence_id}
+                            </span>
+                            <A href=format!("/source/{source_id}/sentence/{}", sentence.id)>
+                                {sentence.sentence}
+                            </A>
+                        </li>
+                    }
+                })
+                .collect_view(cx);
+            view! { cx, <h3 class="subtitle">"Sentences"</h3>
+                <div class="content">
+                    <ul>
+                        {sentence_list}
+                    </ul>
+                </div>
+            }
+            .into_view(cx)
+        } else {
+            view! { cx, <div>"No sentences"</div> }.into_view(cx)
+        };
         view! { cx,
             <h2 class="subtitle">{format!("Viewing source {}", source.name)}</h2>
             <div class="block">
                 <A href>"Add sentences"</A>
             </div>
             <div class="block">
-                <h3 class="subtitle">"Sentences"</h3>
-                <div class="content">
-                    <ul>
-                        {sentence_list}
-                    </ul>
-                </div>
+            "asd"
+                {sentences_view}
             </div>
             <div class="block">
                 <h3 class="subtitle">"Edit source"</h3>
@@ -511,23 +521,63 @@ pub fn Deck(cx: Scope) -> impl IntoView {
     let deck_res = utils::logged_in_resource!(cx, get_deck(deck_id));
     let sources_res = utils::logged_in_resource!(cx, get_sources());
 
+    #[derive(Clone, Copy)]
+    struct SourceRefs {
+        source_id: i32,
+        include_words: NodeRef<Input>,
+        include_kanji: NodeRef<Input>,
+        word_threshold: NodeRef<Input>,
+        kanji_threshold: NodeRef<Input>,
+    }
+
     // actions
     let name_ref = leptos::create_node_ref::<Input>(cx);
-    let (source_checkbox_refs, set_source_checkbox_refs) =
-        leptos::create_signal(cx, Vec::<(i32, NodeRef<Input>)>::new());
+    let (source_refs, set_source_checkbox_refs) =
+        leptos::create_signal(cx, Vec::<SourceRefs>::new());
     let (update_result_message, set_update_result_message) =
         leptos::create_signal(cx, (None::<View>, None::<TimeoutHandle>));
     let update_act = leptos::create_action(cx, move |&()| {
         let client = get_client(cx);
         let name = name_ref().unwrap().value();
         let mut included_sources = Vec::new();
-        for (id, node_ref) in source_checkbox_refs() {
-            let include = node_ref().map(|r| r.checked()).unwrap_or_default();
-            if include {
-                included_sources.push(id);
-            }
-        }
+
         async move {
+            for SourceRefs {
+                source_id,
+                include_words,
+                include_kanji,
+                word_threshold,
+                kanji_threshold,
+            } in source_refs()
+            {
+                if include_words().unwrap().checked() {
+                    let threshold = word_threshold().unwrap().value().parse().map_err(|e| {
+                        WebError::new(format!("Failed to parse threshold as number: {e}"))
+                    })?;
+                    if threshold < 1 {
+                        return Err(WebError::new("Threshold cannot be lower than 1"));
+                    }
+                    included_sources.push(req::IncludedSource {
+                        source_id,
+                        threshold,
+                        kind: req::IncludedSourceKind::Word,
+                    });
+                }
+                if include_kanji().unwrap().checked() {
+                    let threshold = kanji_threshold().unwrap().value().parse().map_err(|e| {
+                        WebError::new(format!("Failed to parse threshold as number: {e}"))
+                    })?;
+                    if threshold < 1 {
+                        return Err(WebError::new("Threshold cannot be lower than 1"));
+                    }
+                    included_sources.push(req::IncludedSource {
+                        source_id,
+                        threshold,
+                        kind: req::IncludedSourceKind::Kanji,
+                    });
+                }
+            }
+
             client
                 .update_deck(deck_id, &name, &included_sources)
                 .await?;
@@ -577,14 +627,43 @@ pub fn Deck(cx: Scope) -> impl IntoView {
         let sources_list = sources
             .into_iter()
             .map(|s| {
-                let checked = deck.sources.contains(&s.id);
-                let include_ref = leptos::create_node_ref::<Input>(cx);
-                refs.push((s.id, include_ref));
+                let include_words = leptos::create_node_ref::<Input>(cx);
+                let word_threshold = leptos::create_node_ref::<Input>(cx);
+                let (words_checked, word_threshold_val) = deck.sources.iter().find(|ds| ds.id == s.id).filter(|ds| matches!(ds.kind, res::DeckSourceKind::Word)).map(|ds| (true, ds.threshold)).unwrap_or((false, 1));
+
+                let (kanji_checked, kanji_threshold_val) = deck.sources.iter().find(|ds| ds.id == s.id).filter(|ds| matches!(ds.kind, res::DeckSourceKind::Kanji)).map(|ds| (true, ds.threshold)).unwrap_or((false, 1));
+                let include_kanji = leptos::create_node_ref::<Input>(cx);
+                let kanji_threshold = leptos::create_node_ref::<Input>(cx);
+
+                refs.push(SourceRefs {
+                    source_id: s.id,
+                    include_words,
+                    include_kanji,
+                    word_threshold,
+                    kanji_threshold
+                });
                 view! { cx,
                     <li>
+                        {s.name}
+                        <br/>
                         <label class="checkbox">
-                            <input class="mr-1" type="checkbox" checked=checked node_ref=include_ref/>
-                            {s.name}
+                            <input class="checkbox mr-1" type="checkbox" checked=words_checked node_ref=include_words/>
+                            "Words"
+                        </label>
+                        <br/>
+                        <label>
+                            "Include words that are in at least this many sentences:"
+                            <input class="input ml-1" style="max-width: 16rem;" type="number" min=1 max=i32::MAX value=word_threshold_val node_ref=word_threshold/>
+                        </label>
+                        <br/>
+                        <label class="checkbox">
+                            <input class="checkbox mr-1" type="checkbox" checked=kanji_checked node_ref=include_kanji/>
+                            "Kanji"
+                        </label>
+                        <br/>
+                        <label>
+                            "Include kanji that are in at least this many words:"
+                            <input class="input ml-1" style="max-width: 16rem;" type="number" min=1 max=i32::MAX value=kanji_threshold_val node_ref=kanji_threshold/>
                         </label>
                     </li>
                 }
@@ -689,7 +768,7 @@ pub fn IgnoredWords(cx: Scope) -> impl IntoView {
         if ignored_words.is_empty() {
             return view! { cx, <div>"No ignored words"</div> }.into_view(cx);
         }
-        ignored_words.sort_by_key(|iw| iw.word_id);
+        ignored_words.sort_unstable_by_key(|iw| iw.word_id);
         let ignored_words = ignored_words
             .into_iter()
             .map(|iw| {
@@ -767,8 +846,6 @@ pub fn Login(cx: Scope) -> impl IntoView {
             .unwrap_or_else(|| "/".to_string())
     };
 
-    let logged_in = move || get_session(cx).logged_in();
-
     // form
     let email_ref = leptos::create_node_ref::<Input>(cx);
     let password_ref = leptos::create_node_ref::<Input>(cx);
@@ -789,41 +866,44 @@ pub fn Login(cx: Scope) -> impl IntoView {
         }
     });
 
-    move || {
-        if logged_in()? {
-            Some(
-                view! { cx,
-                    <Redirect path=redirect() />
-                }
-                .into_view(cx),
-            )
+    let password_visible = leptos::create_rw_signal(cx, false);
+    let password_visibility_toggle = move || {
+        if password_visible() {
+            view! { cx, <button class="button" on:click=move |_ev| password_visible.set(false)>"Hide passwords"</button> }
         } else {
-            Some(
-                view! { cx,
-                    <h2 class="subtitle">"Login"</h2>
-                    <form>
-                        <label class="label">
-                            "Email"
-                            <input class="input" node_ref=email_ref/>
-                        </label>
-                        <label class="label">
-                            "Password"
-                            <input class="input" node_ref=password_ref/>
-                        </label>
-                        <button class="button" type="submit" on:click={move |ev| {
-                            ev.prevent_default();
-                            submission_act.dispatch(());
-                        }}>
-                            "Submit"
-                        </button>
-                        <ErrorBoundary fallback={utils::errors_fallback}>
-                            {move || submission_act.value()}
-                        </ErrorBoundary>
-                    </form>
-                }
-                .into_view(cx),
-            )
+            view! { cx, <button class="button" on:click=move |_ev| password_visible.set(true)>"Show passwords"</button> }
         }
+    };
+    let password_input_type = move || {
+        if password_visible() {
+            "text"
+        } else {
+            "password"
+        }
+    };
+
+    view! { cx,
+        <LoginGuard require_login=false>
+            <h2 class="subtitle">"Login"</h2>
+            <form>
+                <label class="label">
+                    "Email"
+                    <input class="input" node_ref=email_ref/>
+                </label>
+                <label class="label">
+                    "Password"
+                    <input class="input" type=password_input_type node_ref=password_ref/>
+                </label>
+                <button class="button mr-2" type="submit" on:click={move |ev| {
+                    ev.prevent_default();
+                    submission_act.dispatch(());
+                }}>
+                    "Login"
+                </button>
+                {password_visibility_toggle}
+            </form>
+            <ActionView action=submission_act/>
+        </LoginGuard>
     }
 }
 
@@ -834,9 +914,11 @@ pub fn Register(cx: Scope) -> impl IntoView {
     // form
     let email_ref = leptos::create_node_ref::<Input>(cx);
     let password_ref = leptos::create_node_ref::<Input>(cx);
+    let repeat_password_ref = leptos::create_node_ref::<Input>(cx);
     let submission_act = leptos::create_action(cx, move |&()| {
         let email = email_ref().unwrap().value();
         let password = password_ref().unwrap().value();
+        let repeat_password = repeat_password_ref().unwrap().value();
         let client = get_client(cx);
         async move {
             if email.is_empty() {
@@ -845,10 +927,29 @@ pub fn Register(cx: Scope) -> impl IntoView {
             if password.is_empty() {
                 return Err(WebError::new("Password cannot be empty"));
             }
+            if password != repeat_password {
+                return Err(WebError::new("Passwords don't match"));
+            }
             client.register(&email, &password).await?;
             WebResult::Ok(move || view! { cx, <Redirect path="/login" /> })
         }
     });
+
+    let password_visible = leptos::create_rw_signal(cx, false);
+    let password_visibility_toggle = move || {
+        if password_visible() {
+            view! { cx, <button class="button" on:click=move |_ev| password_visible.set(false)>"Hide passwords"</button> }
+        } else {
+            view! { cx, <button class="button" on:click=move |_ev| password_visible.set(true)>"Show passwords"</button> }
+        }
+    };
+    let password_input_type = move || {
+        if password_visible() {
+            "text"
+        } else {
+            "password"
+        }
+    };
 
     view! { cx,
         <LoginGuard require_login=false>
@@ -860,16 +961,21 @@ pub fn Register(cx: Scope) -> impl IntoView {
                 </label>
                 <label class="label">
                     "Password"
-                    <input class="input" node_ref=password_ref/>
+                    <input class="input" type=password_input_type node_ref=password_ref/>
                 </label>
-                <button class="button" type="submit" on:click={move |ev| {
+                <label class="label">
+                    "Repeat password"
+                    <input class="input" type=password_input_type node_ref=repeat_password_ref/>
+                </label>
+                <button class="button mr-2" type="submit" on:click={move |ev| {
                     ev.prevent_default();
                     submission_act.dispatch(())
                 }}>
-                    "Submit"
+                    "Register"
                 </button>
-                <ActionView action=submission_act/>
+                {password_visibility_toggle}
             </form>
+            <ActionView action=submission_act/>
         </LoginGuard>
     }
 }

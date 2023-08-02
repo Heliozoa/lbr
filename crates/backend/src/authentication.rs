@@ -74,8 +74,8 @@ impl<K, V> Expiry<K, V> for Expiration {
 
 /// The cookie that is stored signed on the user's browser for authentication.
 #[derive(Deserialize, Serialize)]
-#[serde(transparent)]
 struct SessionCookie {
+    user_id: i32,
     /// Session's id in the cache
     session_id: i32,
 }
@@ -85,8 +85,9 @@ impl SessionCookie {
     const NAME: &'static str = lbr_api::SESSION_COOKIE_NAME;
 
     /// Creates a new session cookie with a random session id.
-    fn new() -> Self {
+    fn new(user_id: i32) -> Self {
         Self {
+            user_id,
             session_id: rand::random(),
         }
     }
@@ -138,9 +139,17 @@ impl FromRequestParts<LbrState> for Authentication {
                 user_id: session.user_id,
             }),
             None => {
-                // has cookie but no session, delete cookie
+                // has cookie but no session
+                // todo: reject
                 remove_session_cookie(&signed_cookies);
-                Err((StatusCode::UNAUTHORIZED, "Not logged in"))
+                let session_id =
+                    save_session(session_cookie.user_id, signed_cookies, &state.sessions)
+                        .await
+                        .map_err(|_| (StatusCode::UNAUTHORIZED, "Failed to save session"))?;
+                Ok(Authentication {
+                    session_id: session_id,
+                    user_id: session_cookie.user_id,
+                })
             }
         }
     }
@@ -160,15 +169,15 @@ pub async fn save_session(
     user_id: i32,
     signed_cookies: SignedCookies<'_>,
     sessions: &SessionCache,
-) -> eyre::Result<()> {
-    let session_cookie = SessionCookie::new();
+) -> eyre::Result<i32> {
+    let session_cookie = SessionCookie::new(user_id);
     let cookie_value = serde_json::to_string(&session_cookie)?;
     let cookie = build_cookie(cookie_value);
     signed_cookies.add(cookie);
     sessions
         .insert(session_cookie.session_id, Session { user_id })
         .await;
-    Ok(())
+    Ok(session_cookie.session_id)
 }
 
 fn remove_session_cookie(signed_cookies: &SignedCookies<'_>) {

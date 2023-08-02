@@ -46,18 +46,17 @@ WORKDIR /lbr
 # install deps
 RUN apt update -y
 RUN apt install -y libpq5 libssl3 ca-certificates
-COPY ./data/ichiran-cli /lbr/ichiran-cli
+COPY ./data/ichiran-cli-docker /lbr/ichiran-cli
 COPY ./data/ichiran_seq_to_word_id.json /lbr/data/ichiran_seq_to_word_id.json
 COPY ./data/kanji_to_readings.json /lbr/data/kanji_to_readings.json
 COPY ./data/jmdictdb /lbr/data/jmdictdb
 
 # set up default env
-ENV RUST_LOG                debug
+ENV RUST_LOG                debug,hyper=warn
 ENV SERVER_URL              0.0.0.0:3000
 ENV DATABASE_URL            postgres://lbr:lbr@host.docker.internal/lbr
 ENV ICHIRAN_DATABASE_URL    postgres://lbr:lbr@host.docker.internal/ichiran
-ENV ICHIRAN_CONNECTION      ichiran lbr lbr localhost
-ENV ICHIRAN_SSL             full
+ENV ICHIRAN_CONNECTION      '("ichiran" "lbr" "lbr" "localhost")'
 ENV ICHIRAN_CLI_PATH        /lbr/ichiran-cli
 ENV LEPTOS_OUTPUT_NAME      lbr
 ENV LEPTOS_SITE_ROOT        site

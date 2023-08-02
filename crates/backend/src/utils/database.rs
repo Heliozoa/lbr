@@ -45,3 +45,11 @@ impl From<jadata::kanjifile::ReadingKind> for ReadingKind {
         }
     }
 }
+
+diesel_enum!(
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    DeckSourceKind {
+        Word: "word",
+        Kanji: "kanji"
+    }
+);

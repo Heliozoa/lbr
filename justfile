@@ -31,7 +31,7 @@ generate-license target="web" overwrite="true":
 
 
 # Sets up local databases and downloads and generates files required for local development
-prepare-repository: && (generate-license "web" "false") prepare-data generate-jadata prepare-ichiran prepare-db-user prepare-ichiran-db prepare-lbr-db build-cli
+prepare-repository: && (generate-license "web" "false") prepare-data generate-jadata prepare-ichiran prepare-db-user prepare-ichiran-db prepare-lbr-db build-cli build-cli-docker
     cp ./example.env ./.env
 
 
@@ -42,24 +42,45 @@ prepare-ichiran:
     sbcl \
         --eval '(load "./data/quicklisp.lisp")' \
         --eval '(quicklisp-quickstart:install :path "./data/ichiran")' \
-        --eval "(exit)"
+        --eval '(exit)'
     git clone --branch lbr https://github.com/Heliozoa/ichiran ./data/ichiran/local-projects/ichiran
 
 
-# Builds ichiran-cli
-build-cli:
+# Builds ichiran-cli for local use
+build-cli ichiran-connection='(\"ichiran\" \"lbr\" \"lbr\" \"localhost\")':
+    cp ./data/ichiran/local-projects/ichiran/settings.lisp.template  ./data/ichiran/local-projects/ichiran/settings.lisp
+    sed -i 's#REPLACEME_CONNECTION#{{ichiran-connection}}#g' ./data/ichiran/local-projects/ichiran/settings.lisp
+    sed -i "s#REPLACEME_DATA#$(pwd)/data/jmdictdb/#g" ./data/ichiran/local-projects/ichiran/settings.lisp
     sbcl \
         --eval '(load "./data/ichiran/setup.lisp")' \
-        --eval "(ql:quickload :ichiran/cli)" \
-        --eval "(ichiran/cli:build)" \
-        --eval "(exit)"
+        --eval '(ql:quickload :ichiran/cli)' \
+        --eval '(ichiran/cli:build)' \
+        --eval '(exit)'
     mv ./data/ichiran/local-projects/ichiran/ichiran-cli ./data/ichiran-cli
+
+
+# Builds ichiran-cli for Docker
+build-cli-docker ichiran-connection='(\"ichiran\" \"lbr\" \"lbr\" \"localhost\")':
+    cp ./data/ichiran/local-projects/ichiran/settings.lisp.template  ./data/ichiran/local-projects/ichiran/settings.lisp
+    sed -i 's#REPLACEME_CONNECTION#{{ichiran-connection}}#g' ./data/ichiran/local-projects/ichiran/settings.lisp
+    sed -i 's#REPLACEME_DATA#/lbr/data/jmdictdb/#g' ./data/ichiran/local-projects/ichiran/settings.lisp
+    sbcl \
+        --eval '(load "./data/ichiran/setup.lisp")' \
+        --eval '(ql:quickload :ichiran/cli)' \
+        --eval '(ichiran/cli:build)' \
+        --eval '(exit)'
+    mv ./data/ichiran/local-projects/ichiran/ichiran-cli ./data/ichiran-cli-docker
 
 
 
 
 # #### DATABASE COMMANDS ####
 DATABASE-COMMANDS:
+
+
+# Connects to the database with psql
+psql database-url="postgres://lbr:lbr@localhost/lbr":
+    psql {{database-url}}
 
 
 # Creates the postgres user 'lbr' with the password 'lbr'
@@ -136,10 +157,10 @@ prepare-ichiran-db database-name="ichiran" dump="./data/ichiran.pgdump": dl-ichi
         echo "Errors restoring database, but these are probably fine to ignore"
     fi
     sbcl \
-        --eval "(load ./data/ichiran/setup.lisp)"
-        --eval "(ql:quickload :ichiran)" \
-        --eval "(ichiran/maintenance:add-errata)" \
-        --eval "(exit)"
+        --eval '(load "./data/ichiran/setup.lisp")'
+        --eval '(ql:quickload :ichiran)' \
+        --eval '(ichiran/maintenance:add-errata)' \
+        --eval '(exit)'
 
     echo "Finished"
 
@@ -300,12 +321,12 @@ DOCKER-COMMANDS:
 
 
 # Builds the Docker image
-docker-build:
-    docker build -t heliozoagh/lbr .
+docker-build release="--release":
+    docker build --build-arg="RELEASE={{ release }}" --tag heliozoagh/lbr .
 
 
 # Runs the Docker image
-docker-run database-url="postgres://lbr:lbr@host.docker.internal/lbr" ichiran-database-url="postgres://lbr:lbr@host.docker.internal/ichiran" ichiran-connection="ichiran lbr lbr host.docker.internal" private-cookie-password="uvoo4rei1aiN0po4aitix9pie0eo7aaZei0aem6ix5oi5quooxaiQuooTohs2Pha":
+docker-run database-url="postgres://lbr:lbr@host.docker.internal/lbr" ichiran-database-url="postgres://lbr:lbr@host.docker.internal/ichiran" ichiran-connection='(\"ichiran\" \"lbr\" \"lbr\" \"host.docker.internal\")' private-cookie-password="uvoo4rei1aiN0po4aitix9pie0eo7aaZei0aem6ix5oi5quooxaiQuooTohs2Pha":
     docker run \
         --init \
         --rm \

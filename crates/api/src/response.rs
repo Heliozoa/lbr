@@ -31,7 +31,20 @@ pub struct Deck {
 pub struct DeckDetails {
     pub id: i32,
     pub name: String,
-    pub sources: Vec<i32>,
+    pub sources: Vec<DeckSource>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeckSource {
+    pub id: i32,
+    pub threshold: i32,
+    pub kind: DeckSourceKind,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum DeckSourceKind {
+    Kanji,
+    Word,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
