@@ -6,7 +6,7 @@ CREATE TABLE sentences (
 CREATE TABLE sentence_words (
     id SERIAL PRIMARY KEY,
     sentence_id INTEGER NOT NULL REFERENCES sentences,
-    word_id INTEGER NOT NULL REFERENCES words,
+    word_id INTEGER REFERENCES words,
     reading TEXT,
     idx_start INTEGER NOT NULL,
     idx_end INTEGER NOT NULL,

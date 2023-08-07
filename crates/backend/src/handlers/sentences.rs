@@ -26,10 +26,10 @@ pub async fn get_one(
             .select(Sentence::as_select())
             .get_result(&mut conn)?;
         let words = sw::table
-            .inner_join(w::table.on(sw::word_id.eq(w::id)))
+            .inner_join(w::table.on(sw::word_id.eq(w::id.nullable())))
             .filter(sw::sentence_id.eq(id))
             .select(SentenceWord::as_select())
-            .get_results(&mut conn)?;
+            .load(&mut conn)?;
         let words = words
             .into_iter()
             .map(|sw| res::SentenceWord {

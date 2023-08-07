@@ -109,18 +109,12 @@ pub struct Component {
     reading_override: String,
 }
 
-impl Component {
-    fn ready(&self) -> bool {
-        !matches!(self.status, Status::Undecided)
-    }
-}
-
 #[derive(Debug, Clone)]
 pub enum Status {
     Accept,
+    AcceptReading,
     Decline,
     Ignore,
-    Undecided,
 }
 
 type WordIdToComponents = HashMap<i32, Vec<(ReadSignal<Component>, WriteSignal<Component>)>>;
@@ -153,6 +147,7 @@ impl Form {
                     phrase_idx += segmented_sentence.sentence[phrase_idx..]
                         .find(phrase.as_str())
                         .unwrap();
+                    let mut pre_emptively_accept_next = true;
                     for (interpretation_seq, interpretation) in interpretations.iter().enumerate() {
                         let mut interpretation_idx = phrase_idx;
                         let mut interpretation_components = Vec::new();
@@ -167,11 +162,12 @@ impl Form {
                                 let status: Status =
                                     if segmented_sentence.ignored_words.contains(&word_id) {
                                         Status::Ignore
-                                    } else if interpretations.len() == 1 {
-                                        // pre-emptively accept "clear" unignored cases
+                                    } else if pre_emptively_accept_next {
+                                        // pre-emptively accept the first interpretation (should have the highest score)
                                         Status::Accept
                                     } else {
-                                        Status::Undecided
+                                        // pre-emptively decline the rest
+                                        Status::Decline
                                     };
                                 let reading = if component.word == component.reading_hiragana {
                                     None
@@ -201,6 +197,7 @@ impl Form {
                                 phrase_components.push((interpretation_seq, signal));
                             }
                         }
+                        pre_emptively_accept_next = false;
                     }
                 }
                 res::Segment::Other(other) => {
@@ -230,14 +227,6 @@ pub fn SegmentedSentenceView(
 ) -> impl IntoView {
     let form = Form::init(cx, &segmented_sentence);
 
-    // accept is enabled if no word forms are left undecided
-    let components = form
-        .clone()
-        .seqs_to_component
-        .values()
-        .map(|v| v.0)
-        .collect::<Vec<_>>();
-    let accept_disabled = move || components.iter().any(|read| !read().ready());
     let submit = leptos::create_action(cx, move |sentence: &req::SegmentedSentence| {
         let client = get_client(cx);
         let sentence = sentence.clone();
@@ -271,7 +260,20 @@ pub fn SegmentedSentenceView(
                         Some(component.reading_override)
                     };
                     words.push(req::Word {
-                        id: component.word_id,
+                        id: Some(component.word_id),
+                        reading,
+                        idx_start: i32::try_from(component.idx_start).unwrap_or_default(),
+                        idx_end: i32::try_from(component.idx_end).unwrap_or_default(),
+                    })
+                }
+                Status::AcceptReading => {
+                    let reading = if component.reading_override.trim().is_empty() {
+                        component.reading
+                    } else {
+                        Some(component.reading_override)
+                    };
+                    words.push(req::Word {
+                        id: None,
                         reading,
                         idx_start: i32::try_from(component.idx_start).unwrap_or_default(),
                         idx_end: i32::try_from(component.idx_end).unwrap_or_default(),
@@ -281,7 +283,6 @@ pub fn SegmentedSentenceView(
                     ignore_words.insert(component.word_id);
                 }
                 Status::Decline => {}
-                Status::Undecided => panic!("Cannot accept sentence with undecided components"),
             }
         }
         let segmented_sentence = req::SegmentedSentence {
@@ -364,7 +365,7 @@ pub fn SegmentedSentenceView(
             <div class="subtitle">"Sentence segmentation"</div>
             {sentence_segments}
             {tailing_unknown_or_ignored_words}
-            <button class="button is-primary" disabled=accept_disabled on:click=accept_sentence>"Accept sentence"</button>
+            <button class="button is-primary" on:click=accept_sentence>"Accept sentence"</button>
         </div>
     }
 }
@@ -405,16 +406,7 @@ fn PhraseView(
             }
         })
         .collect_view(cx);
-    let form_clone = form.clone();
-    let any_undecided = move || {
-        let any_undecided = form_clone
-            .phrase_to_components
-            .get(&phrase_seq)
-            .unwrap()
-            .iter()
-            .any(|(_seq, (read, _write))| matches!(read().status, Status::Undecided));
-        any_undecided
-    };
+
     let form_clone = form.clone();
     let any_accepted = move || {
         let any_accepted = form_clone
@@ -448,9 +440,7 @@ fn PhraseView(
 
     let skipped_clone = any_skipped.clone();
     let box_class = move || {
-        if any_undecided() {
-            "box has-background-danger-light"
-        } else if any_accepted() {
+        if any_accepted() {
             "box has-background-success-light"
         } else if skipped_clone() {
             "box has-background-warning-light"
@@ -478,7 +468,7 @@ fn PhraseView(
             <div class="columns is-flex is-flex-direction-row is-flex-wrap-wrap">
                 {interpretations}
             </div>
-            <button class="button" disabled=all_skipped on:click=skip_phrase>"Skip phrase"</button>
+            <button class="button" disabled=all_skipped on:click=skip_phrase>"Decline phrase"</button>
         </div>
     }
 }
@@ -555,9 +545,10 @@ fn ComponentView(
         .get(&(phrase_seq, interpretation_seq, component_seq))
         .copied()
         .unwrap();
+    let phrase_to_components = form.phrase_to_components.clone();
     let accept = move |_ev| {
         // unaccept components of other interpretations
-        form.phrase_to_components
+        phrase_to_components
             .get(&phrase_seq)
             .unwrap()
             .iter()
@@ -571,6 +562,24 @@ fn ComponentView(
                 }
             });
         write.update(|c| c.status = Status::Accept);
+    };
+    let phrase_to_components = form.phrase_to_components.clone();
+    let accept_reading = move |_ev| {
+        // unaccept components of other interpretations
+        phrase_to_components
+            .get(&phrase_seq)
+            .unwrap()
+            .iter()
+            .for_each(|(seq, (_read, write))| {
+                if *seq != interpretation_seq {
+                    write.update(|c| {
+                        if !matches!(c.status, Status::Ignore) {
+                            c.status = Status::Decline;
+                        }
+                    });
+                }
+            });
+        write.update(|c| c.status = Status::AcceptReading);
     };
     let decline = move |_ev| {
         write.update(|c| c.status = Status::Decline);
@@ -614,13 +623,16 @@ fn ComponentView(
         </div>
         <div class="columns is-flex-wrap-wrap is-centered">
             <div class="column">
-                <button class="button" style="width: 100%" disabled=accepted on:click=accept>"Accept"</button>
+                <button class="button" style="width: 100%" disabled=accepted on:click=accept>"Accept word"</button>
             </div>
             <div class="column">
-                <button class="button" style="width: 100%" disabled=declined on:click=decline>"Decline"</button>
+                <button class="button" style="width: 100%" disabled=accepted on:click=accept_reading>"Accept reading"</button>
             </div>
             <div class="column">
-                <button class="button" style="width: 100%" disabled=ignored on:click=ignore>"Ignore"</button>
+                <button class="button" style="width: 100%" disabled=declined on:click=decline>"Decline word"</button>
+            </div>
+            <div class="column">
+                <button class="button" style="width: 100%" disabled=ignored on:click=ignore>"Ignore word"</button>
             </div>
         </div>
     }

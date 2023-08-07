@@ -110,7 +110,7 @@ pub struct SegmentedSentence {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Word {
-    pub id: i32,
+    pub id: Option<i32>,
     pub reading: Option<String>,
     pub idx_start: i32,
     pub idx_end: i32,

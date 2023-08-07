@@ -116,10 +116,9 @@ pub fn insert_sentence_words(
                 })
                 .transpose()?
                 .unwrap_or_default();
-            let word_id = ichiran_seq_to_word_id
-                .get(&ichiran_id)
-                .copied()
-                .ok_or_else(|| eyre::eyre!("No word found for ichiran seq {ichiran_id}"))?;
+            let word_id = ichiran_id
+                .and_then(|id| ichiran_seq_to_word_id.get(&id))
+                .copied();
             sentence_words.push(eq!(
                 sw,
                 sentence_id,

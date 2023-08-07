@@ -50,7 +50,7 @@ fn get_word_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Wor
         .inner_join(s::table.on(s::source_id.eq(ds::source_id)))
         // get all words related to the sentences
         .inner_join(sw::table.on(sw::sentence_id.eq(s::id)))
-        .inner_join(w::table.on(w::id.eq(sw::word_id)))
+        .inner_join(w::table.on(w::id.nullable().eq(sw::word_id)))
         .select(SentenceWordQuery::as_select())
         .load(conn)?;
 
@@ -113,7 +113,7 @@ fn get_kanji_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Ka
         .inner_join(s::table.on(s::source_id.eq(ds::source_id)))
         // get all words related to the sentences
         .inner_join(sw::table.on(sw::sentence_id.eq(s::id)))
-        .inner_join(w::table.on(w::id.eq(sw::word_id)))
+        .inner_join(w::table.on(w::id.nullable().eq(sw::word_id)))
         // get all kanji related to the words
         .inner_join(wf::table.on(wf::word_id.eq(w::id)))
         .inner_join(wk::table.on(wk::written_form_id.eq(wf::id)))

@@ -85,7 +85,7 @@ diesel::table! {
     sentence_words (id) {
         id -> Int4,
         sentence_id -> Int4,
-        word_id -> Int4,
+        word_id -> Nullable<Int4>,
         reading -> Nullable<Text>,
         idx_start -> Int4,
         idx_end -> Int4,

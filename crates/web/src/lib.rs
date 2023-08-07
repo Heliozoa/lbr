@@ -72,6 +72,10 @@ pub fn Content(cx: Scope) -> impl IntoView {
                         view=|cx| view! { cx, <SourceAddSentences/> }
                     />
                     <Route
+                        path="source/:source_id/sentences"
+                        view=|cx| view! { cx, <SourceSentences/> }
+                    />
+                    <Route
                         path="source/:source_id/sentence/:sentence_id"
                         view=|cx| view! { cx, <SourceSentence/> }
                     />

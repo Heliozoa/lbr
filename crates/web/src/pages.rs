@@ -141,7 +141,7 @@ pub fn Source(cx: Scope) -> impl IntoView {
     tracing::info!("Rendering Source {source_id}");
 
     // resources
-    let source_res = utils::logged_in_resource!(cx, get_source_details(source_id));
+    let source_res = utils::logged_in_resource!(cx, get_source(source_id));
 
     // actions
     let name_ref = leptos::create_node_ref::<Input>(cx);
@@ -185,45 +185,16 @@ pub fn Source(cx: Scope) -> impl IntoView {
     });
 
     // source
-    let source_content = move |source: res::SourceDetails| {
-        let href = format!("/source/{source_id}/add-sentences");
-        let sentences_view = if !source.sentences.is_empty() {
-            let sentence_list = source
-                .sentences
-                .into_iter()
-                .map(|sentence| {
-                    let sentence_id = format!("[{}] ", sentence.id);
-                    view! { cx,
-                        <li>
-                            <span>
-                                {sentence_id}
-                            </span>
-                            <A href=format!("/source/{source_id}/sentence/{}", sentence.id)>
-                                {sentence.sentence}
-                            </A>
-                        </li>
-                    }
-                })
-                .collect_view(cx);
-            view! { cx, <h3 class="subtitle">"Sentences"</h3>
-                <div class="content">
-                    <ul>
-                        {sentence_list}
-                    </ul>
-                </div>
-            }
-            .into_view(cx)
-        } else {
-            view! { cx, <div>"No sentences"</div> }.into_view(cx)
-        };
+    let source_content = move |source: res::Source| {
+        let add_sentences_href = format!("/source/{source_id}/add-sentences");
+        let sentences_href = format!("/source/{source_id}/sentences");
         view! { cx,
             <h2 class="subtitle">{format!("Viewing source {}", source.name)}</h2>
             <div class="block">
-                <A href>"Add sentences"</A>
+                <A href=add_sentences_href>"Add sentences"</A>
             </div>
             <div class="block">
-            "asd"
-                {sentences_view}
+                <A href=sentences_href>"View sentences"</A>
             </div>
             <div class="block">
                 <h3 class="subtitle">"Edit source"</h3>
@@ -247,6 +218,59 @@ pub fn Source(cx: Scope) -> impl IntoView {
                     "Delete source"
                 </button>
                 <ActionView action=delete_act/>
+            </div>
+        }
+    };
+    let source_view = move |source: Option<_>| match source {
+        Some(source) => source_content(source).into_view(cx),
+        None => utils::loading_fallback(cx, "Loading source..."),
+    };
+
+    let view = view! { cx,
+        <LoginGuard require_login=true>
+            <ResourceView resource=source_res view=source_view />
+        </LoginGuard>
+    };
+    WebResult::Ok(view)
+}
+
+#[derive(Debug, Clone, PartialEq, Params)]
+pub struct SentencesParams {
+    source_id: i32,
+}
+#[component]
+pub fn SourceSentences(cx: Scope) -> impl IntoView {
+    let SentencesParams { source_id } = utils::params(cx)?;
+    tracing::info!("Rendering SourceSentences {source_id}");
+
+    // resources
+    let source_res = utils::logged_in_resource!(cx, get_source_details(source_id));
+
+    // source
+    let sentences = move |sentences: Vec<res::Sentence>| {
+        let sentences_list = sentences
+            .into_iter()
+            .map(|s| {
+                view! { cx,
+                    <li>{s.sentence}</li>
+                }
+            })
+            .collect_view(cx);
+        view! { cx,
+            <div class="content">
+                <ul>
+                    {sentences_list}
+                </ul>
+            </div>
+        }
+    };
+    let source_content = move |source: res::SourceDetails| {
+        let sentences_view = sentences(source.sentences);
+        view! { cx,
+            <h2 class="subtitle">{format!("Viewing sentences for source {}", source.name)}</h2>
+            <div class="block">
+                <h3 class="subtitle">"Sentences"</h3>
+                {sentences_view}
             </div>
         }
     };
@@ -317,10 +341,12 @@ pub fn SourceAddSentences(cx: Scope) -> impl IntoView {
         };
         WebResult::Ok(view)
     };
-    let analysis = view! { cx,
-        <ErrorBoundary fallback={utils::errors_fallback}>
-            {analysis}
-        </ErrorBoundary>
+    let analysis = move || {
+        view! { cx,
+            <ErrorBoundary fallback={utils::errors_fallback}>
+                {analysis}
+            </ErrorBoundary>
+        }
     };
 
     let view = view! { cx,
@@ -347,7 +373,7 @@ pub fn SourceSentence(cx: Scope) -> impl IntoView {
         source_id,
         sentence_id,
     } = utils::params(cx)?;
-    tracing::info!("Rendering Sentence {source_id}");
+    tracing::info!("Rendering Sentence {source_id} {sentence_id}");
 
     let sentence_res = utils::logged_in_resource!(cx, get_sentence(sentence_id));
 
@@ -652,7 +678,7 @@ pub fn Deck(cx: Scope) -> impl IntoView {
                         </label>
                         <br/>
                         <label>
-                            "Include words that are in at least this many sentences:"
+                            "Minimum sentence count:"
                             <input class="input ml-1" style="max-width: 16rem;" type="number" min=1 max=i32::MAX value=word_threshold_val node_ref=word_threshold/>
                         </label>
                         <br/>
@@ -662,7 +688,7 @@ pub fn Deck(cx: Scope) -> impl IntoView {
                         </label>
                         <br/>
                         <label>
-                            "Include kanji that are in at least this many words:"
+                            "Minimum word count:"
                             <input class="input ml-1" style="max-width: 16rem;" type="number" min=1 max=i32::MAX value=kanji_threshold_val node_ref=kanji_threshold/>
                         </label>
                     </li>
