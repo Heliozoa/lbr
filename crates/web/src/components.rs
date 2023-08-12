@@ -10,37 +10,36 @@ use crate::{
 use lbr_api::response::*;
 use leptos::*;
 use leptos_router::*;
-use std::cell::RefCell;
 
 #[component]
-pub fn Navbar(cx: Scope) -> impl IntoView {
-    let logout_action = leptos::create_action(cx, move |()| {
-        let client = get_client(cx);
+pub fn Navbar() -> impl IntoView {
+    let logout_action = leptos::create_action(move |()| {
+        let client = get_client();
         async move {
             client.logout().await?;
-            WebResult::Ok(view! { cx, <Redirect path="/" /> }.into_view(cx))
+            WebResult::Ok(view! { <Redirect path="/" /> }.into_view())
         }
     });
 
     let navbar_links = move || {
-        let view = if get_session(cx).logged_in()? {
-            view! { cx,
+        let view = if get_session().logged_in()? {
+            view! {
                 <span class="is-flex is-flex-grow-1"></span>
                 <button class="button is-link p-3" on:click=move |_ev| logout_action.dispatch(())>"Logout"</button>
             }
-            .into_view(cx)
+            .into_view()
         } else {
-            view! { cx,
+            view! {
                 <span class="is-flex is-flex-grow-1"></span>
                 <A class="p-3" exact=true href="/register">"Register"</A>
                 <A class="p-3" exact=true href="/login">"Login"</A>
             }
-            .into_view(cx)
+            .into_view()
         };
         Some(view)
     };
 
-    view! { cx,
+    view! {
         <nav class="navbar is-flex is-vcentered">
             <A class="p-3" exact=true href="/">"Home"</A>
             {navbar_links}
@@ -52,19 +51,19 @@ pub fn Navbar(cx: Scope) -> impl IntoView {
 }
 
 #[component]
-pub fn SourceList(cx: Scope, sources: Vec<Source>) -> impl IntoView {
+pub fn SourceList(sources: Vec<Source>) -> impl IntoView {
     let sources = sources
         .into_iter()
         .map(|source| {
             let href = format!("source/{}", source.id);
-            view! { cx,
+            view! {
                 <li>
                     <A href>{source.name}</A>
                 </li>
             }
         })
-        .collect_view(cx);
-    view! { cx,
+        .collect_view();
+    view! {
         <div class="content">
             <ul>
                 {sources}
@@ -74,19 +73,19 @@ pub fn SourceList(cx: Scope, sources: Vec<Source>) -> impl IntoView {
 }
 
 #[component]
-pub fn DeckList(cx: Scope, decks: Vec<Deck>) -> impl IntoView {
+pub fn DeckList(decks: Vec<Deck>) -> impl IntoView {
     let decks = decks
         .into_iter()
         .map(|deck| {
             let href = format!("deck/{}", deck.id);
-            view! { cx,
+            view! {
                 <li>
                     <A href>{deck.name}</A>
                 </li>
             }
         })
-        .collect_view(cx);
-    view! { cx,
+        .collect_view();
+    view! {
     <div class="content">
         <ul>
             {decks}
@@ -95,32 +94,29 @@ pub fn DeckList(cx: Scope, decks: Vec<Deck>) -> impl IntoView {
 }
 
 #[component]
-pub fn LoginGuard(cx: Scope, children: Children, require_login: bool) -> impl IntoView {
-    let logged_in = move || get_session(cx).logged_in();
-    let stored_passed = leptos::create_rw_signal(cx, false);
-    let pass = move || {
-        if stored_passed.get() {
+pub fn LoginGuard(children: ChildrenFn, require_login: bool) -> impl IntoView {
+    let logged_in = move || get_session().logged_in();
+    let pass = leptos::create_memo(move |passed| {
+        if passed.copied().flatten().unwrap_or_default() {
             Some(true)
         } else if logged_in().map(|li| li == require_login)? {
-            stored_passed.set(true);
             Some(true)
         } else {
             Some(false)
         }
-    };
+    });
 
-    let children = RefCell::new(Some(children));
     move || {
         let view = if pass()? {
-            children.borrow_mut().take().unwrap()(cx).into_view(cx)
+            children().into_view()
         } else {
             let redirect = if require_login {
-                let redirect = leptos_router::use_route(cx).path();
+                let redirect = leptos_router::use_route().path();
                 format!("/login?redirect={redirect}")
             } else {
                 "/".to_string()
             };
-            view! { cx, <Redirect path=redirect /> }.into_view(cx)
+            view! { <Redirect path=redirect /> }.into_view()
         };
         Some(view)
     }
@@ -128,7 +124,6 @@ pub fn LoginGuard(cx: Scope, children: Children, require_login: bool) -> impl In
 
 #[component]
 pub fn ResourceView<T, F, V>(
-    cx: Scope,
     resource: Resource<Option<bool>, WebResult<Option<T>>>,
     view: F,
 ) -> impl IntoView
@@ -137,14 +132,14 @@ where
     F: Fn(Option<T>) -> V + Copy + 'static,
     V: IntoView,
 {
-    let resource_view = move || match resource.read(cx) {
-        Some(Ok(Some(res))) => Ok(Some(view(Some(res)).into_view(cx))),
+    let resource_view = move || match resource.read() {
+        Some(Ok(Some(res))) => Ok(Some(view(Some(res)).into_view())),
         Some(Ok(None)) => Ok(None),
         Some(Err(err)) => Err(err),
-        None => Ok(Some(view(None).into_view(cx))),
+        None => Ok(Some(view(None).into_view())),
     };
-    let resource_view = leptos::store_value(cx, resource_view);
-    let wrapped_view = view! { cx,
+    let resource_view = leptos::store_value(resource_view);
+    let wrapped_view = view! {
         <Suspense fallback={move || view(None)}>
             <ErrorBoundary fallback={utils::errors_fallback}>
                 {resource_view}
@@ -155,12 +150,12 @@ where
 }
 
 #[component]
-pub fn ActionView<T, V>(cx: Scope, action: Action<T, WebResult<V>>) -> impl IntoView
+pub fn ActionView<T, V>(action: Action<T, WebResult<V>>) -> impl IntoView
 where
     T: 'static,
     V: IntoView + Clone + 'static,
 {
-    view! { cx,
+    view! {
         <ErrorBoundary fallback={utils::errors_fallback}>
             <div>{move || action.value()}</div>
         </ErrorBoundary>

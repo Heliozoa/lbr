@@ -145,12 +145,12 @@ pub async fn router(state: LbrState) -> Router<()> {
         )
         .leptos_routes(
             &state,
-            leptos_axum::generate_route_list(|cx| {
-                leptos::view! { cx, <Root/> }
+            leptos_axum::generate_route_list(|| {
+                leptos::view! { <Root/> }
             })
             .await,
-            |cx| {
-                leptos::view! { cx, <Root/> }
+            || {
+                leptos::view! { <Root/> }
             },
         )
         .fallback(handlers::file_and_error_handler)

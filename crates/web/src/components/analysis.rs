@@ -10,12 +10,11 @@ use std::{
 
 #[component]
 pub fn SegmentedParagraphView(
-    cx: Scope,
     source_id: i32,
     segmented: Vec<res::SegmentedSentence>,
 ) -> impl IntoView {
-    let active_sentence = leptos::create_rw_signal(cx, 0usize);
-    let completed_sentences = leptos::create_rw_signal(cx, HashSet::<usize>::new());
+    let active_sentence = leptos::create_rw_signal(0usize);
+    let completed_sentences = leptos::create_rw_signal(HashSet::<usize>::new());
     let is_active = move |idx: usize| active_sentence.get() == idx;
     let is_complete = move |idx: usize| completed_sentences.get().contains(&idx);
     let sentence_selection = segmented
@@ -52,7 +51,7 @@ pub fn SegmentedParagraphView(
             let is_disabled = move || {
                 is_complete(idx) || is_active(idx)
             };
-            view! { cx,
+            view! {
                 <div class=class>
                     <div>
                         {segmented_sentence.sentence.clone()}
@@ -63,7 +62,7 @@ pub fn SegmentedParagraphView(
                 </div>
             }
         })
-        .collect_view(cx);
+        .collect_view();
     let segmented_sentences = segmented
         .into_iter()
         .enumerate()
@@ -75,7 +74,7 @@ pub fn SegmentedParagraphView(
                     "is-hidden"
                 }
             };
-            view! { cx,
+            view! {
                 <div class=class>
                     <SegmentedSentenceView source_id sentence_id=None segmented_sentence on_successful_accept=Rc::new(move || {
                         completed_sentences.update(|cs| {
@@ -89,8 +88,8 @@ pub fn SegmentedParagraphView(
                 </div>
             }
         })
-        .collect_view(cx);
-    view! { cx,
+        .collect_view();
+    view! {
         <div class="block">
             <div id="paragraph-segmentation" class="subtitle">"Paragraph segmentation"</div>
             {sentence_selection}
@@ -131,7 +130,7 @@ struct Form {
 }
 
 impl Form {
-    fn init(cx: Scope, segmented_sentence: &res::SegmentedSentence) -> Self {
+    fn init(segmented_sentence: &res::SegmentedSentence) -> Self {
         let mut word_id_to_components: WordIdToComponents = HashMap::new();
         let mut phrase_to_components: PhraseToComponents = HashMap::new();
         let mut seqs_to_component: SeqsToComponent = HashMap::new();
@@ -174,17 +173,14 @@ impl Form {
                                 } else {
                                     Some(component.reading_hiragana.clone())
                                 };
-                                let signal = leptos::create_signal(
-                                    cx,
-                                    Component {
-                                        idx_start: interpretation_idx,
-                                        idx_end,
-                                        word_id,
-                                        status,
-                                        reading,
-                                        reading_override: String::new(),
-                                    },
-                                );
+                                let signal = leptos::create_signal(Component {
+                                    idx_start: interpretation_idx,
+                                    idx_end,
+                                    word_id,
+                                    status,
+                                    reading,
+                                    reading_override: String::new(),
+                                });
                                 word_id_to_components
                                     .entry(word_id)
                                     .or_default()
@@ -219,16 +215,15 @@ impl Form {
 
 #[component]
 pub fn SegmentedSentenceView(
-    cx: Scope,
     source_id: i32,
     sentence_id: Option<i32>,
     segmented_sentence: res::SegmentedSentence,
     on_successful_accept: Rc<dyn Fn()>,
 ) -> impl IntoView {
-    let form = Form::init(cx, &segmented_sentence);
+    let form = Form::init(&segmented_sentence);
 
-    let submit = leptos::create_action(cx, move |sentence: &req::SegmentedSentence| {
-        let client = get_client(cx);
+    let submit = leptos::create_action(move |sentence: &req::SegmentedSentence| {
+        let client = get_client();
         let sentence = sentence.clone();
         let on_successful_accept = on_successful_accept.clone();
         async move {
@@ -317,7 +312,7 @@ pub fn SegmentedSentenceView(
                     let preceding_unknown_or_ignored_words = if !unknown_or_ignored_storage
                         .is_empty()
                     {
-                        let ret = Some(view! { cx,
+                        let ret = Some(view! {
                             <div class="box has-background-info-light">
                                 <div class="has-text-weight-bold">{unknown_or_ignored_storage.clone()}</div>
                             </div>
@@ -328,7 +323,7 @@ pub fn SegmentedSentenceView(
                         None
                     };
                     Some(
-                        view! { cx,
+                        view! {
                             {preceding_unknown_or_ignored_words}
                             <PhraseView
                                 phrase
@@ -338,7 +333,7 @@ pub fn SegmentedSentenceView(
                                 ignored_words=ignored_words.clone()
                             />
                         }
-                        .into_view(cx),
+                        .into_view(),
                     )
                 }
             }
@@ -349,9 +344,9 @@ pub fn SegmentedSentenceView(
         };
         phrase_seq += 1;
         segment_view
-    }).collect_view(cx);
+    }).collect_view();
     let tailing_unknown_or_ignored_words = if !unknown_or_ignored_storage.is_empty() {
-        Some(view! { cx,
+        Some(view! {
             <div class="box has-background-info-light">
                 <div class="has-text-weight-bold">{unknown_or_ignored_storage}</div>
             </div>
@@ -360,7 +355,7 @@ pub fn SegmentedSentenceView(
         None
     };
 
-    view! { cx,
+    view! {
         <div class="block">
             <div class="subtitle">"Sentence segmentation"</div>
             {sentence_segments}
@@ -372,7 +367,6 @@ pub fn SegmentedSentenceView(
 
 #[component]
 fn PhraseView(
-    cx: Scope,
     phrase: String,
     interpretations: Vec<res::Interpretation>,
     form: Form,
@@ -392,7 +386,7 @@ fn PhraseView(
             if all_unknown_or_ignored {
                 None
             } else {
-                let view = view! { cx,
+                let view = view! {
                     <InterpretationView
                         interpretation
                         form=form.clone()
@@ -405,7 +399,7 @@ fn PhraseView(
                 Some(view)
             }
         })
-        .collect_view(cx);
+        .collect_view();
 
     let form_clone = form.clone();
     let any_accepted = move || {
@@ -461,7 +455,7 @@ fn PhraseView(
                 })
             });
     };
-    view! { cx,
+    view! {
         <div class=box_class>
             <div class="has-text-weight-bold">{phrase}</div>
             <hr/>
@@ -475,7 +469,6 @@ fn PhraseView(
 
 #[component]
 fn InterpretationView(
-    cx: Scope,
     interpretation: res::Interpretation,
     form: Form,
     phrase_seq: usize,
@@ -492,12 +485,12 @@ fn InterpretationView(
                 None => true,
             };
             if unknown_or_ignored {
-                view! { cx,
+                view! {
                     <div>{format!("{} (ignored)", component.word)}</div>
                 }
-                .into_view(cx)
+                .into_view()
             } else {
-                let view = view! { cx,
+                let view = view! {
                     <ComponentView
                         show_reading={interpretation.reading_hiragana != component.reading_hiragana}
                         component
@@ -508,11 +501,11 @@ fn InterpretationView(
                     />
                 };
                 component_seq += 1;
-                view.into_view(cx)
+                view.into_view()
             }
         })
-        .collect_view(cx);
-    view! { cx,
+        .collect_view();
+    view! {
         <div class="column is-flex is-flex-direction-column">
             <div>{format!("Score: {}", interpretation.score)}</div>
             <div>{format!("Reading: {}", interpretation.reading_hiragana)}</div>
@@ -523,7 +516,6 @@ fn InterpretationView(
 
 #[component]
 fn ComponentView(
-    cx: Scope,
     show_reading: bool,
     component: res::WordInfo,
     form: Form,
@@ -534,10 +526,10 @@ fn ComponentView(
     let meanings = component
         .meanings
         .into_iter()
-        .map(|meaning| view! { cx, <MeaningView meaning/> })
-        .collect_view(cx);
+        .map(|meaning| view! { <MeaningView meaning/> })
+        .collect_view();
     let reading_view = show_reading.then(|| {
-        view! { cx, <span>{&component.reading_hiragana}</span>
+        view! { <span>{&component.reading_hiragana}</span>
         <br/> }
     });
     let (read, write) = form
@@ -598,8 +590,8 @@ fn ComponentView(
     let accepted = move || matches!(read().status, Status::Accept { .. });
     let declined = move || matches!(read().status, Status::Decline);
     let ignored = move || matches!(read().status, Status::Ignore);
-    let (reading_override, set_reading_override) = leptos::create_signal(cx, String::new());
-    view! { cx,
+    let (reading_override, set_reading_override) = leptos::create_signal(String::new());
+    view! {
         <div>
             {reading_view}
             <label class="label">"Override reading"
@@ -639,10 +631,10 @@ fn ComponentView(
 }
 
 #[component]
-pub fn MeaningView(cx: Scope, meaning: res::Meaning) -> impl IntoView {
+pub fn MeaningView(meaning: res::Meaning) -> impl IntoView {
     let contents = match meaning.meaning_info {
         Some(info) => format!("{} ({})", meaning.meaning, info),
         None => meaning.meaning,
     };
-    view! { cx, <li>{contents}</li> }
+    view! { <li>{contents}</li> }
 }

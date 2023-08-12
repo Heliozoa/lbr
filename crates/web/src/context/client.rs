@@ -7,22 +7,7 @@ use reqwasm::http::{Request, Response};
 use web_sys::RequestCredentials;
 
 #[derive(Clone, Copy)]
-pub(super) struct ClientBuilder {}
-
-impl ClientBuilder {
-    pub(super) fn new() -> Self {
-        Self {}
-    }
-
-    pub(super) fn build(self, cx: Scope) -> Client {
-        Client { cx }
-    }
-}
-
-#[derive(Clone, Copy)]
-pub struct Client {
-    cx: Scope,
-}
+pub struct Client;
 
 /// Non-API methods
 impl Client {
@@ -47,7 +32,7 @@ impl Client {
     }
 
     fn refresh_session(&self) {
-        let session = super::get_session(self.cx);
+        let session = super::get_session();
         if !session.user_id.pending().get_untracked() {
             session.user_id.dispatch(());
         }

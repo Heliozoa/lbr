@@ -12,19 +12,19 @@ use pages::*;
 
 /// Wraps the content in a basic layout and a final fallback error boundary which should never actually trigger
 #[component]
-pub fn Root(cx: Scope) -> impl IntoView {
-    let fallback = move |cx: Scope, errors: RwSignal<Errors>| {
+pub fn Root() -> impl IntoView {
+    let fallback = move |errors: RwSignal<Errors>| {
         errors
             .get_untracked()
             .into_iter()
             .map(|(_key, err)| {
-                view! {cx, <div>{format!("Unhandled error: {err}")}</div>}
+                view! { <div>{format!("Unhandled error: {err}")}</div>}
             })
-            .collect_view(cx)
+            .collect_view()
     };
-    provide_meta_context(cx);
+    provide_meta_context();
 
-    view! { cx,
+    view! {
             <Stylesheet id="lbr" href="/pkg/lbr.css"/>
             <Title text="LBR"/>
             <div class="is-flex is-flex-direction-column" style="min-height: 100vh">
@@ -48,8 +48,8 @@ pub fn Root(cx: Scope) -> impl IntoView {
 
 /// Contains the navbar and router
 #[component]
-pub fn Content(cx: Scope) -> impl IntoView {
-    view! { cx,
+pub fn Content() -> impl IntoView {
+    view! {
         <Router>
             <Navbar/>
             <main>
@@ -57,47 +57,47 @@ pub fn Content(cx: Scope) -> impl IntoView {
                 <AnimatedRoutes>
                     <Route
                         path=""
-                        view=|cx| view! { cx, <Home/> }
+                        view=|| view! { <Home/> }
                     />
                     <Route
                         path="source/new"
-                        view=|cx| view! { cx, <SourceNew/>}
+                        view=|| view! { <SourceNew/>}
                     />
                     <Route
                         path="source/:source_id"
-                        view=|cx| view! { cx, <Source/> }
+                        view=|| view! { <Source/> }
                     />
                     <Route
                         path="source/:source_id/add-sentences"
-                        view=|cx| view! { cx, <SourceAddSentences/> }
+                        view=|| view! { <SourceAddSentences/> }
                     />
                     <Route
                         path="source/:source_id/sentences"
-                        view=|cx| view! { cx, <SourceSentences/> }
+                        view=|| view! { <SourceSentences/> }
                     />
                     <Route
                         path="source/:source_id/sentence/:sentence_id"
-                        view=|cx| view! { cx, <SourceSentence/> }
+                        view=|| view! { <SourceSentence/> }
                     />
                     <Route
                         path="deck/new"
-                        view=|cx| view! { cx, <DeckNew/> }
+                        view=|| view! { <DeckNew/> }
                     />
                     <Route
                         path="deck/:deck_id"
-                        view=|cx| view! { cx, <Deck/> }
+                        view=|| view! { <Deck/> }
                     />
                     <Route
                         path="ignored-words"
-                        view=|cx| view! { cx, <IgnoredWords/> }
+                        view=|| view! { <IgnoredWords/> }
                     />
                     <Route
                         path="login"
-                        view=|cx| view! { cx, <Login/> }
+                        view=|| view! { <Login/> }
                     />
                     <Route
                         path="register"
-                        view=|cx| view! { cx, <Register/> }
+                        view=|| view! { <Register/> }
                     />
                 </AnimatedRoutes>
             </main>

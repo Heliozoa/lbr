@@ -11,28 +11,28 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::future::Future;
 
 /// Generic loading fallback view.
-pub fn loading_fallback(cx: Scope, text: &'static str) -> View {
-    view! { cx, <div>{text}</div> }.into_view(cx)
+pub fn loading_fallback(text: &'static str) -> View {
+    view! { <div>{text}</div> }.into_view()
 }
 
 /// Generic error fallback view.
-pub fn errors_fallback(cx: Scope, errors: RwSignal<Errors>) -> View {
+pub fn errors_fallback(errors: RwSignal<Errors>) -> View {
     let errors = errors.get_untracked().into_iter().collect::<Vec<_>>();
     if errors.len() == 1 {
         let (_, error) = &errors[0];
-        view! { cx,
+        view! {
             <div>{format!("{error}")}</div>
         }
-        .into_view(cx)
+        .into_view()
     } else {
         let errors = errors
             .into_iter()
             .map(|(_, err)| {
-                view! { cx, <li>{format!("Error: {err}")}</li> }
+                view! { <li>{format!("Error: {err}")}</li> }
             })
-            .collect_view(cx);
+            .collect_view();
 
-        view! { cx,
+        view! {
             <div class="content">
                 <div>"Errors"</div>
                 <ul>
@@ -40,34 +40,29 @@ pub fn errors_fallback(cx: Scope, errors: RwSignal<Errors>) -> View {
                 </ul>
             </div>
         }
-        .into_view(cx)
+        .into_view()
     }
 }
 
 #[macro_export]
 macro_rules! logged_in_resource {
-    ($cx:ident, $($f:tt)*) => {
+    ($($f:tt)*) => {
         $crate::utils::logged_in_resource(
-            $cx,
             move |client| async move { client.$($f)*.await }
         )
     };
 }
 
-pub fn logged_in_resource<T, A, F>(
-    cx: Scope,
-    f: A,
-) -> Resource<Option<bool>, Result<Option<T>, WebError>>
+pub fn logged_in_resource<T, A, F>(f: A) -> Resource<Option<bool>, Result<Option<T>, WebError>>
 where
     T: Clone + Serialize + DeserializeOwned + 'static,
     A: Fn(Client) -> F + Copy + 'static,
     F: Future<Output = Result<T, WebError>> + 'static,
 {
     leptos::create_resource(
-        cx,
-        move || context::get_session(cx).logged_in(),
+        move || context::get_session().logged_in(),
         move |logged_in| {
-            let client = context::get_client(cx);
+            let client = context::get_client();
             async move {
                 let data = match logged_in {
                     Some(true) => {
@@ -82,19 +77,19 @@ where
     )
 }
 
-pub fn params<T>(cx: Scope) -> WebResult<T>
+pub fn params<T>() -> WebResult<T>
 where
     T: Params + Clone + PartialEq + 'static,
 {
-    leptos_router::use_params(cx)
+    leptos_router::use_params()
         .get_untracked()
         .map_err(WebError::from)
 }
 
 #[macro_export]
 macro_rules! untangle {
-    ($cx:ident, $resource:ident) => {
-        match $resource.read($cx) {
+    ($resource:ident) => {
+        match $resource.read() {
             Some(Ok(Some(res))) => Some(res),
             Some(Ok(None)) => return Ok(None),
             Some(Err(err)) => return Err(err.into()),

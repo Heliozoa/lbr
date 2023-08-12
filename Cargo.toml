@@ -19,6 +19,11 @@ lbr_frontend = { path = "./crates/frontend" }
 lbr_server = { path = "./crates/backend" }
 lbr_web = { path = "./crates/web" }
 
+leptos = "0.5.0-beta"
+leptos_axum = "0.5.0-beta"
+leptos_meta = "0.5.0-beta"
+leptos_router = "0.5.0-beta"
+
 [profile.dev.package]
 serde-xml-rs.opt-level = 3
 serde.opt-level = 3

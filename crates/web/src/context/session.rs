@@ -9,9 +9,9 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(cx: Scope) -> Self {
-        let user_id = leptos::create_action(cx, move |()| async move {
-            let client = get_client(cx);
+    pub fn new() -> Self {
+        let user_id = leptos::create_action(move |()| async move {
+            let client = get_client();
             match client.current_user().await {
                 Ok(Some(user)) => {
                     tracing::info!("Current user: {user:#?}");
@@ -31,9 +31,12 @@ impl Session {
 
     pub fn logged_in(&self) -> Option<bool> {
         if self.user_id.pending().get() {
+            tracing::info!("pending");
             None
         } else {
-            match self.user_id.value().get() {
+            let val = self.user_id.value().get();
+            tracing::info!("val {val:?}");
+            match val {
                 Some(Some(_user_id)) => Some(true),
                 Some(None) => Some(false),
                 None => None,

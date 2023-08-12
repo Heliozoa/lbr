@@ -19,8 +19,8 @@ pub fn hydrate() {
 
     tracing::info!("hydrating (logging level {wasm_log})");
 
-    leptos::mount_to_body(move |cx| {
-        lbr_web::context::initialise_context(cx);
-        view! { cx, <Root/> }
+    leptos::mount_to_body(move || {
+        lbr_web::context::initialise_context();
+        view! { <Root/> }
     });
 }

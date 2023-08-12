@@ -2,31 +2,31 @@ pub mod client;
 pub mod session;
 
 use self::{client::Client, session::Session};
-use crate::context::client::ClientBuilder;
 use leptos::*;
 
-pub fn initialise_context(cx: Scope) {
+pub fn initialise_context() {
     tracing::trace!("Initialising context");
 
-    let client_builder = ClientBuilder::new();
-    leptos::provide_context(cx, client_builder);
-
-    let session = Session::new(cx);
-    leptos::provide_context(cx, session);
+    leptos::provide_context(Session::new());
 }
 
-pub fn get_client(cx: Scope) -> Client {
+pub fn get_client() -> Client {
+    Client
+}
+
+pub fn get_session() -> Session {
     if cfg!(feature = "ssr") {
-        ClientBuilder::new().build(cx)
+        Session::new()
     } else {
-        leptos::expect_context::<ClientBuilder>(cx).build(cx)
+        let cx = Owner::current().unwrap();
+        leptos::with_owner(cx, move || leptos::expect_context::<Session>())
     }
 }
 
-pub fn get_session(cx: Scope) -> Session {
+pub fn get_session_cx(cx: Owner) -> Session {
     if cfg!(feature = "ssr") {
-        Session::new(cx)
+        Session::new()
     } else {
-        leptos::expect_context::<Session>(cx)
+        leptos::with_owner(cx, move || leptos::expect_context::<Session>())
     }
 }

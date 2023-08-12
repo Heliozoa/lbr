@@ -16,55 +16,55 @@ use leptos_router::*;
 use std::{rc::Rc, time::Duration};
 
 #[component]
-pub fn Home(cx: Scope) -> impl IntoView {
+pub fn Home() -> impl IntoView {
     tracing::info!("Rendering Home");
 
     // sources
-    let sources_res = utils::logged_in_resource!(cx, get_sources());
+    let sources_res = utils::logged_in_resource!(get_sources());
     let sources_content = move |mut sources: Vec<res::Source>| {
         sources.sort_unstable_by(|l, r| l.name.cmp(&r.name));
-        view! { cx,
+        view! {
             <div class="block">
                 <SourceList sources/>
             </div>
         }
     };
     let sources_view = move |sources: Option<_>| {
-        view! { cx,
+        view! {
             <h2 class="subtitle is-6 has-text-weight-bold">"Sources"</h2>
             <A href="/source/new">"New source"</A>
             {match sources {
-                Some(sources) => sources_content(sources).into_view(cx),
-                None => utils::loading_fallback(cx, "Loading sources..."),
+                Some(sources) => sources_content(sources).into_view(),
+                None => utils::loading_fallback("Loading sources..."),
             }}
         }
     };
 
     // decks
-    let decks_res = utils::logged_in_resource!(cx, get_decks());
+    let decks_res = utils::logged_in_resource!(get_decks());
     let decks_content = move |mut decks: Vec<res::Deck>| {
         decks.sort_unstable_by(|l, r| l.name.cmp(&r.name));
-        view! { cx,
+        view! {
             <div class="block">
                 <DeckList decks/>
             </div>
         }
     };
     let decks_view = move |decks: Option<_>| {
-        view! { cx,
+        view! {
             <h2 class="subtitle is-6 has-text-weight-bold">"Decks"</h2>
             <A href="/deck/new">"New deck"</A>
             {match decks {
-                Some(decks) => decks_content(decks).into_view(cx),
-                None => utils::loading_fallback(cx, "Loading decks..."),
+                Some(decks) => decks_content(decks).into_view(),
+                None => utils::loading_fallback("Loading decks..."),
             }}
         }
     };
 
     let other_view = move || {
-        if get_session(cx).logged_in().unwrap_or_default() {
+        if get_session().logged_in().unwrap_or_default() {
             Some({
-                view! { cx,
+                view! {
                     <h2 class="subtitle is-6 has-text-weight-bold">"Other"</h2>
                     <A href=format!("/ignored-words")>"Ignored words"</A>
                 }
@@ -74,7 +74,7 @@ pub fn Home(cx: Scope) -> impl IntoView {
         }
     };
 
-    view! { cx,
+    view! {
         <h2 class="subtitle">"Welcome to LBR!"</h2>
         <div class="columns">
             <div class="column">
@@ -91,13 +91,13 @@ pub fn Home(cx: Scope) -> impl IntoView {
 }
 
 #[component]
-pub fn SourceNew(cx: Scope) -> impl IntoView {
+pub fn SourceNew() -> impl IntoView {
     tracing::info!("Rendering SourceNew");
 
-    let name_ref = leptos::create_node_ref::<Input>(cx);
-    let send = leptos::create_action(cx, move |()| {
+    let name_ref = leptos::create_node_ref::<Input>();
+    let send = leptos::create_action(move |()| {
         let name = name_ref().unwrap().value();
-        let client = get_client(cx);
+        let client = get_client();
         async move {
             if name.is_empty() {
                 return Err(WebError {
@@ -105,11 +105,11 @@ pub fn SourceNew(cx: Scope) -> impl IntoView {
                 });
             }
             let id = client.new_source(&name).await?;
-            WebResult::Ok(view! { cx, <Redirect path=format!("/source/{id}") /> })
+            WebResult::Ok(view! { <Redirect path=format!("/source/{id}") /> })
         }
     });
 
-    view! { cx,
+    view! {
         <LoginGuard require_login=true>
             <h2 class="subtitle">"Adding new source"</h2>
             <form>
@@ -136,20 +136,20 @@ pub struct SourceParams {
     source_id: i32,
 }
 #[component]
-pub fn Source(cx: Scope) -> impl IntoView {
-    let SourceParams { source_id } = utils::params(cx)?;
+pub fn Source() -> impl IntoView {
+    let SourceParams { source_id } = utils::params()?;
     tracing::info!("Rendering Source {source_id}");
 
     // resources
-    let source_res = utils::logged_in_resource!(cx, get_source(source_id));
+    let source_res = utils::logged_in_resource!(get_source(source_id));
 
     // actions
-    let name_ref = leptos::create_node_ref::<Input>(cx);
+    let name_ref = leptos::create_node_ref::<Input>();
     let (update_result_message, set_update_result_message) =
-        leptos::create_signal(cx, (None::<View>, None::<TimeoutHandle>));
-    let update_act = leptos::create_action(cx, move |&()| {
+        leptos::create_signal((None::<View>, None::<TimeoutHandle>));
+    let update_act = leptos::create_action(move |&()| {
         let name = name_ref().unwrap().value();
-        let client = get_client(cx);
+        let client = get_client();
         async move {
             client.update_source(source_id, &name).await?;
             source_res.refetch();
@@ -161,24 +161,24 @@ pub fn Source(cx: Scope) -> impl IntoView {
             )
             .ok();
             set_update_result_message((
-                Some(view! { cx, <div>"Updated source!"</div> }.into_view(cx)),
+                Some(view! { <div>"Updated source!"</div> }.into_view()),
                 handle,
             ));
             WebResult::Ok(())
         }
     });
-    let delete_act = leptos::create_action(cx, move |&()| {
+    let delete_act = leptos::create_action(move |&()| {
         // TODO: make the user type the name of the source
         let confirmed =
             leptos::window().confirm_with_message("Are you sure you want to delete this source? Doing so will delete all the sentences associated with this source");
-        let client = get_client(cx);
+        let client = get_client();
         async move {
             let confirmed = confirmed?;
             let view = if confirmed {
                 client.delete_source(source_id).await?;
-                view! { cx, <Redirect path="/" /> }.into_view(cx)
+                view! { <Redirect path="/" /> }.into_view()
             } else {
-                ().into_view(cx)
+                ().into_view()
             };
             WebResult::Ok(view)
         }
@@ -188,7 +188,7 @@ pub fn Source(cx: Scope) -> impl IntoView {
     let source_content = move |source: res::Source| {
         let add_sentences_href = format!("/source/{source_id}/add-sentences");
         let sentences_href = format!("/source/{source_id}/sentences");
-        view! { cx,
+        view! {
             <h2 class="subtitle">{format!("Viewing source {}", source.name)}</h2>
             <div class="block">
                 <A href=add_sentences_href>"Add sentences"</A>
@@ -222,11 +222,11 @@ pub fn Source(cx: Scope) -> impl IntoView {
         }
     };
     let source_view = move |source: Option<_>| match source {
-        Some(source) => source_content(source).into_view(cx),
-        None => utils::loading_fallback(cx, "Loading source..."),
+        Some(source) => source_content(source).into_view(),
+        None => utils::loading_fallback("Loading source..."),
     };
 
-    let view = view! { cx,
+    let view = view! {
         <LoginGuard require_login=true>
             <ResourceView resource=source_res view=source_view />
         </LoginGuard>
@@ -239,24 +239,24 @@ pub struct SentencesParams {
     source_id: i32,
 }
 #[component]
-pub fn SourceSentences(cx: Scope) -> impl IntoView {
-    let SentencesParams { source_id } = utils::params(cx)?;
+pub fn SourceSentences() -> impl IntoView {
+    let SentencesParams { source_id } = utils::params()?;
     tracing::info!("Rendering SourceSentences {source_id}");
 
     // resources
-    let source_res = utils::logged_in_resource!(cx, get_source_details(source_id));
+    let source_res = utils::logged_in_resource!(get_source_details(source_id));
 
     // source
     let sentences = move |sentences: Vec<res::Sentence>| {
         let sentences_list = sentences
             .into_iter()
             .map(|s| {
-                view! { cx,
+                view! {
                     <li>{s.sentence}</li>
                 }
             })
-            .collect_view(cx);
-        view! { cx,
+            .collect_view();
+        view! {
             <div class="content">
                 <ul>
                     {sentences_list}
@@ -266,7 +266,7 @@ pub fn SourceSentences(cx: Scope) -> impl IntoView {
     };
     let source_content = move |source: res::SourceDetails| {
         let sentences_view = sentences(source.sentences);
-        view! { cx,
+        view! {
             <h2 class="subtitle">{format!("Viewing sentences for source {}", source.name)}</h2>
             <div class="block">
                 <h3 class="subtitle">"Sentences"</h3>
@@ -275,11 +275,11 @@ pub fn SourceSentences(cx: Scope) -> impl IntoView {
         }
     };
     let source_view = move |source: Option<_>| match source {
-        Some(source) => source_content(source).into_view(cx),
-        None => utils::loading_fallback(cx, "Loading source..."),
+        Some(source) => source_content(source).into_view(),
+        None => utils::loading_fallback("Loading source..."),
     };
 
-    let view = view! { cx,
+    let view = view! {
         <LoginGuard require_login=true>
             <ResourceView resource=source_res view=source_view />
         </LoginGuard>
@@ -292,21 +292,21 @@ pub struct SourceAddSentencesParams {
     source_id: i32,
 }
 #[component]
-pub fn SourceAddSentences(cx: Scope) -> impl IntoView {
-    let SourceAddSentencesParams { source_id } = utils::params(cx)?;
+pub fn SourceAddSentences() -> impl IntoView {
+    let SourceAddSentencesParams { source_id } = utils::params()?;
     tracing::info!("Rendering SourceAddSentences {source_id}");
 
-    let analyse_textarea_ref = leptos::create_node_ref::<Textarea>(cx);
-    let analyse_act = leptos::create_action(cx, move |&()| {
+    let analyse_textarea_ref = leptos::create_node_ref::<Textarea>();
+    let analyse_act = leptos::create_action(move |&()| {
         let textarea_val = analyse_textarea_ref().unwrap().value();
-        let client = get_client(cx);
+        let client = get_client();
         async move { client.segment_paragraph(source_id, &textarea_val).await }
     });
 
     // source
-    let source_res = utils::logged_in_resource!(cx, get_source(source_id));
+    let source_res = utils::logged_in_resource!(get_source(source_id));
     let source_content = move |source: res::Source| {
-        view! { cx,
+        view! {
             <h2 class="subtitle">
                 <A href=format!("/source/{source_id}")>{source.name}</A>
             </h2>
@@ -320,36 +320,36 @@ pub fn SourceAddSentences(cx: Scope) -> impl IntoView {
         }
     };
     let source_view = move |source: Option<res::Source>| match source {
-        Some(source) => source_content(source).into_view(cx),
-        None => view! { cx, <div>"Loading source..."</div> }.into_view(cx),
+        Some(source) => source_content(source).into_view(),
+        None => view! { <div>"Loading source..."</div> }.into_view(),
     };
 
     // analysis
     let analysis_content = move |segmented: Vec<res::SegmentedSentence>| {
-        view! { cx, <SegmentedParagraphView source_id=source_id segmented /> }
+        view! { <SegmentedParagraphView source_id=source_id segmented /> }
     };
     let analysis_view = move |segmented: Option<Vec<res::SegmentedSentence>>| match segmented {
-        Some(segments) => analysis_content(segments).into_view(cx),
-        None => view! { cx, <div>"Nothing analysed yet"</div> }.into_view(cx),
+        Some(segments) => analysis_content(segments).into_view(),
+        None => view! { <div>"Nothing analysed yet"</div> }.into_view(),
     };
     let analysis = move || {
         let view = if analyse_act.pending().get() {
-            view! { cx, <div>"Analysing..."</div> }.into_view(cx)
+            view! { <div>"Analysing..."</div> }.into_view()
         } else {
             let segmented = analyse_act.value().get().transpose()?;
-            analysis_view(segmented).into_view(cx)
+            analysis_view(segmented).into_view()
         };
         WebResult::Ok(view)
     };
     let analysis = move || {
-        view! { cx,
+        view! {
             <ErrorBoundary fallback={utils::errors_fallback}>
                 {analysis}
             </ErrorBoundary>
         }
     };
 
-    let view = view! { cx,
+    let view = view! {
         <LoginGuard require_login=true>
             <div class="block">
                 <ResourceView resource=source_res view=source_view/>
@@ -368,28 +368,28 @@ pub struct SourceSentenceParams {
     sentence_id: i32,
 }
 #[component]
-pub fn SourceSentence(cx: Scope) -> impl IntoView {
+pub fn SourceSentence() -> impl IntoView {
     let SourceSentenceParams {
         source_id,
         sentence_id,
-    } = utils::params(cx)?;
+    } = utils::params()?;
     tracing::info!("Rendering Sentence {source_id} {sentence_id}");
 
-    let sentence_res = utils::logged_in_resource!(cx, get_sentence(sentence_id));
+    let sentence_res = utils::logged_in_resource!(get_sentence(sentence_id));
 
-    let reanalyse_act = leptos::create_action(cx, move |&()| {
-        let client = get_client(cx);
+    let reanalyse_act = leptos::create_action(move |&()| {
+        let client = get_client();
         async move { client.segment_sentence(sentence_id).await }
     });
-    let delete_act = leptos::create_action(cx, move |&()| {
+    let delete_act = leptos::create_action(move |&()| {
         let confirmed =
             leptos::window().confirm_with_message("Are you sure you want to delete this sentence?");
-        let client = get_client(cx);
+        let client = get_client();
         async move {
             let confirmed = confirmed?;
             let view = if confirmed {
                 client.delete_sentence(sentence_id).await?;
-                Some(view! { cx, <Redirect path={format!("/source/{source_id}")} /> })
+                Some(view! { <Redirect path={format!("/source/{source_id}")} /> })
             } else {
                 None
             };
@@ -403,7 +403,7 @@ pub fn SourceSentence(cx: Scope) -> impl IntoView {
             sentence_res.refetch();
             reanalyse_act.value().set(None);
         });
-        view! { cx,
+        view! {
             <SegmentedSentenceView source_id sentence_id=Some(sentence_id) segmented_sentence on_successful_accept=on_successful_accept />
         }
     };
@@ -411,15 +411,15 @@ pub fn SourceSentence(cx: Scope) -> impl IntoView {
         move |segmented: Option<res::SegmentedSentence>| segmented.map(analysis_content);
     let analysis = move || {
         let view = if reanalyse_act.pending().get() {
-            view! { cx, <div>"Analysing..."</div> }.into_view(cx)
+            view! { <div>"Analysing..."</div> }.into_view()
         } else {
             let segmented = reanalyse_act.value().get().transpose()?;
-            analysis_view(segmented).into_view(cx)
+            analysis_view(segmented).into_view()
         };
         WebResult::Ok(view)
     };
     let analysis = move || {
-        view! { cx,
+        view! {
             <ErrorBoundary fallback={utils::errors_fallback}>
                 {analysis}
             </ErrorBoundary>
@@ -437,14 +437,14 @@ pub fn SourceSentence(cx: Scope) -> impl IntoView {
                     sentence.sentence[sw.idx_start as usize..sw.idx_end as usize].to_string();
                 let translations = sw.translations.join(", ");
                 if let Some(reading) = sw.reading {
-                    view! { cx,
+                    view! {
                         <li>
                             <div>{format!("{word} ({reading})")}</div>
                             <div>{translations}</div>
                         </li>
                     }
                 } else {
-                    view! { cx,
+                    view! {
                         <li>
                             <div>{word}</div>
                             <div>{translations}</div>
@@ -452,8 +452,8 @@ pub fn SourceSentence(cx: Scope) -> impl IntoView {
                     }
                 }
             })
-            .collect_view(cx);
-        view! { cx,
+            .collect_view();
+        view! {
             <div class="block">
                 <div>{sentence.sentence}</div>
             </div>
@@ -480,11 +480,11 @@ pub fn SourceSentence(cx: Scope) -> impl IntoView {
         }
     };
     let sentence_view = move |sentence: Option<res::SentenceDetails>| match sentence {
-        Some(sentence) => sentence_content(sentence).into_view(cx),
-        None => view! { cx, <div>"Loading sentence..."</div> }.into_view(cx),
+        Some(sentence) => sentence_content(sentence).into_view(),
+        None => view! { <div>"Loading sentence..."</div> }.into_view(),
     };
 
-    let view = view! { cx,
+    let view = view! {
         <LoginGuard require_login=true>
             <h2 class="subtitle">"Sentence"</h2>
             <ResourceView resource=sentence_res view=sentence_view/>
@@ -494,13 +494,13 @@ pub fn SourceSentence(cx: Scope) -> impl IntoView {
 }
 
 #[component]
-pub fn DeckNew(cx: Scope) -> impl IntoView {
+pub fn DeckNew() -> impl IntoView {
     tracing::info!("Rendering DeckNew");
 
-    let name_ref = leptos::create_node_ref::<Input>(cx);
-    let save_act = leptos::create_action(cx, move |&()| {
+    let name_ref = leptos::create_node_ref::<Input>();
+    let save_act = leptos::create_action(move |&()| {
         let name = name_ref().unwrap().value();
-        let client = get_client(cx);
+        let client = get_client();
         async move {
             if name.is_empty() {
                 return Err(WebError {
@@ -508,11 +508,11 @@ pub fn DeckNew(cx: Scope) -> impl IntoView {
                 });
             }
             let id = client.new_deck(&name).await?;
-            WebResult::Ok(view! { cx, <Redirect path=format!("/deck/{id}") /> })
+            WebResult::Ok(view! { <Redirect path=format!("/deck/{id}") /> })
         }
     });
 
-    view! { cx,
+    view! {
         <LoginGuard require_login=true>
             <h2 class="subtitle">"Adding new deck"</h2>
             <form>
@@ -539,13 +539,13 @@ pub struct DeckParams {
     deck_id: i32,
 }
 #[component]
-pub fn Deck(cx: Scope) -> impl IntoView {
-    let DeckParams { deck_id } = utils::params(cx)?;
+pub fn Deck() -> impl IntoView {
+    let DeckParams { deck_id } = utils::params()?;
     tracing::info!("Rendering Deck {deck_id}");
 
     // resources
-    let deck_res = utils::logged_in_resource!(cx, get_deck(deck_id));
-    let sources_res = utils::logged_in_resource!(cx, get_sources());
+    let deck_res = utils::logged_in_resource!(get_deck(deck_id));
+    let sources_res = utils::logged_in_resource!(get_sources());
 
     #[derive(Clone, Copy)]
     struct SourceRefs {
@@ -557,13 +557,12 @@ pub fn Deck(cx: Scope) -> impl IntoView {
     }
 
     // actions
-    let name_ref = leptos::create_node_ref::<Input>(cx);
-    let (source_refs, set_source_checkbox_refs) =
-        leptos::create_signal(cx, Vec::<SourceRefs>::new());
+    let name_ref = leptos::create_node_ref::<Input>();
+    let (source_refs, set_source_checkbox_refs) = leptos::create_signal(Vec::<SourceRefs>::new());
     let (update_result_message, set_update_result_message) =
-        leptos::create_signal(cx, (None::<View>, None::<TimeoutHandle>));
-    let update_act = leptos::create_action(cx, move |&()| {
-        let client = get_client(cx);
+        leptos::create_signal((None::<View>, None::<TimeoutHandle>));
+    let update_act = leptos::create_action(move |&()| {
+        let client = get_client();
         let name = name_ref().unwrap().value();
         let mut included_sources = Vec::new();
 
@@ -619,24 +618,24 @@ pub fn Deck(cx: Scope) -> impl IntoView {
             )
             .ok();
             set_update_result_message((
-                Some(view! { cx, <div>"Updated deck!"</div> }.into_view(cx)),
+                Some(view! { <div>"Updated deck!"</div> }.into_view()),
                 handle,
             ));
 
             WebResult::Ok(())
         }
     });
-    let delete_act = leptos::create_action(cx, move |&()| {
+    let delete_act = leptos::create_action(move |&()| {
         let confirmed =
             leptos::window().confirm_with_message("Are you sure you want to delete this deck?");
-        let client = get_client(cx);
+        let client = get_client();
         async move {
             let confirmed = confirmed?;
             let view = if confirmed {
                 client.delete_deck(deck_id).await?;
-                view! { cx, <Redirect path="/" /> }.into_view(cx)
+                view! { <Redirect path="/" /> }.into_view()
             } else {
-                ().into_view(cx)
+                ().into_view()
             };
             WebResult::Ok(view)
         }
@@ -644,7 +643,7 @@ pub fn Deck(cx: Scope) -> impl IntoView {
 
     // views
     let deck_sources_content = move |deck: res::DeckDetails, sources: Vec<res::Source>| {
-        let client = get_client(cx);
+        let client = get_client();
         let today = chrono::Utc::now().date_naive();
         let filename = format!("lbr-{}-{}.apkg", deck.name, today);
         let generate_deck_url = client.generate_deck_url(deck_id, &filename);
@@ -653,13 +652,13 @@ pub fn Deck(cx: Scope) -> impl IntoView {
         let sources_list = sources
             .into_iter()
             .map(|s| {
-                let include_words = leptos::create_node_ref::<Input>(cx);
-                let word_threshold = leptos::create_node_ref::<Input>(cx);
+                let include_words = leptos::create_node_ref::<Input>();
+                let word_threshold = leptos::create_node_ref::<Input>();
                 let (words_checked, word_threshold_val) = deck.sources.iter().find(|ds| ds.id == s.id).filter(|ds| matches!(ds.kind, res::DeckSourceKind::Word)).map(|ds| (true, ds.threshold)).unwrap_or((false, 1));
 
                 let (kanji_checked, kanji_threshold_val) = deck.sources.iter().find(|ds| ds.id == s.id).filter(|ds| matches!(ds.kind, res::DeckSourceKind::Kanji)).map(|ds| (true, ds.threshold)).unwrap_or((false, 1));
-                let include_kanji = leptos::create_node_ref::<Input>(cx);
-                let kanji_threshold = leptos::create_node_ref::<Input>(cx);
+                let include_kanji = leptos::create_node_ref::<Input>();
+                let kanji_threshold = leptos::create_node_ref::<Input>();
 
                 refs.push(SourceRefs {
                     source_id: s.id,
@@ -668,7 +667,7 @@ pub fn Deck(cx: Scope) -> impl IntoView {
                     word_threshold,
                     kanji_threshold
                 });
-                view! { cx,
+                view! {
                     <li>
                         {s.name}
                         <br/>
@@ -694,10 +693,10 @@ pub fn Deck(cx: Scope) -> impl IntoView {
                     </li>
                 }
             })
-            .collect_view(cx);
+            .collect_view();
         set_source_checkbox_refs(refs);
 
-        view! { cx,
+        view! {
             <h2 class="subtitle">{format!("Viewing deck {}", deck.name)}</h2>
             <div class="block">
                 <a href=generate_deck_url download=filename class="button is-primary">
@@ -736,35 +735,43 @@ pub fn Deck(cx: Scope) -> impl IntoView {
                 <ActionView action=delete_act/>
             </div>
         }
-        .into_view(cx)
+        .into_view()
     };
     let deck_sources_view = move |deck: Option<res::DeckDetails>,
                                   sources: Option<Vec<res::Source>>| {
         match (deck, sources) {
-            (Some(d), Some(s)) => deck_sources_content(d, s).into_view(cx),
-            (None, _) => view! { cx, <div>"Loading deck..."</div> }.into_view(cx),
-            (_, None) => view! { cx, <div>"Loading sources..."</div> }.into_view(cx),
+            (Some(d), Some(s)) => deck_sources_content(d, s).into_view(),
+            (None, _) => view! { <div>"Loading deck..."</div> }.into_view(),
+            (_, None) => view! { <div>"Loading sources..."</div> }.into_view(),
         }
     };
     let deck_sources = move || {
-        let res = move || match (deck_res.read(cx), sources_res.read(cx)) {
+        let deck_sources = match (deck_res.read(), sources_res.read()) {
             (Some(Ok(Some(deck_res))), Some(Ok(Some(sources_res)))) => Ok(Some(
-                deck_sources_view(Some(deck_res), Some(sources_res)).into_view(cx),
+                deck_sources_view(Some(deck_res), Some(sources_res)).into_view(),
             )),
+            (None, Some(Ok(Some(sources_res)))) => {
+                Ok(Some(deck_sources_view(None, Some(sources_res)).into_view()))
+            }
+            (Some(Ok(Some(deck_res))), None) => {
+                Ok(Some(deck_sources_view(Some(deck_res), None).into_view()))
+            }
             (Some(Ok(None)), _) | (_, Some(Ok(None))) => Ok(None),
             (Some(Err(err)), _) | (_, Some(Err(err))) => Err(err),
-            (None, _) | (_, None) => Ok(Some(deck_sources_view(None, None).into_view(cx))),
+            (None, None) => Ok(Some(deck_sources_view(None, None).into_view())),
         };
-        view! { cx,
+        let deck_sources = leptos::store_value(deck_sources);
+        let view = view! {
             <Suspense fallback={move || deck_sources_view(None, None)}>
                 <ErrorBoundary fallback={utils::errors_fallback}>
-                    {res}
+                    {deck_sources}
                 </ErrorBoundary>
             </Suspense>
-        }
+        };
+        WebResult::Ok(view)
     };
 
-    let view = view! { cx,
+    let view = view! {
         <LoginGuard require_login=true>
             {deck_sources}
         </LoginGuard>
@@ -773,14 +780,14 @@ pub fn Deck(cx: Scope) -> impl IntoView {
 }
 
 #[component]
-pub fn IgnoredWords(cx: Scope) -> impl IntoView {
+pub fn IgnoredWords() -> impl IntoView {
     tracing::info!("Rendering IgnoredWords");
 
-    let delete_act = leptos::create_action(cx, move |word_id: &i32| {
+    let delete_act = leptos::create_action(move |word_id: &i32| {
         let confirmed = leptos::window()
             .confirm_with_message("Are you sure you want to delete this ignored word?");
         let word_id = *word_id;
-        let client = get_client(cx);
+        let client = get_client();
         async move {
             if confirmed? {
                 client.delete_ignored_word(word_id).await?;
@@ -789,10 +796,10 @@ pub fn IgnoredWords(cx: Scope) -> impl IntoView {
         }
     });
 
-    let ignored_words_res = utils::logged_in_resource!(cx, get_ignored_words());
+    let ignored_words_res = utils::logged_in_resource!(get_ignored_words());
     let ignored_words_content = move |mut ignored_words: Vec<res::IgnoredWord>| {
         if ignored_words.is_empty() {
-            return view! { cx, <div>"No ignored words"</div> }.into_view(cx);
+            return view! { <div>"No ignored words"</div> }.into_view();
         }
         ignored_words.sort_unstable_by_key(|iw| iw.word_id);
         let ignored_words = ignored_words
@@ -812,7 +819,7 @@ pub fn IgnoredWords(cx: Scope) -> impl IntoView {
                     })
                     .collect::<Vec<_>>().join(", ");
                 let word_id = format!("[{}]", iw.word_id);
-                view! { cx,
+                view! {
                     <div class="column">
                         <div class="box">
                             <div>
@@ -837,21 +844,21 @@ pub fn IgnoredWords(cx: Scope) -> impl IntoView {
                     </div>
                 }
             })
-            .collect_view(cx);
-        view! { cx,
+            .collect_view();
+        view! {
             <div class="columns is-flex-wrap-wrap">
                 {ignored_words}
             </div>
         }
-        .into_view(cx)
+        .into_view()
     };
     let ignored_words_view = move |ignored_words: Option<Vec<res::IgnoredWord>>| match ignored_words
     {
-        Some(ignored_words) => ignored_words_content(ignored_words).into_view(cx),
-        None => view! { cx, <div>"Loading..."</div> }.into_view(cx),
+        Some(ignored_words) => ignored_words_content(ignored_words).into_view(),
+        None => view! { <div>"Loading..."</div> }.into_view(),
     };
 
-    view! { cx,
+    view! {
         <LoginGuard require_login=true>
             <h2 class="subtitle">"Ignored words"</h2>
             <ActionView action=delete_act/>
@@ -861,11 +868,11 @@ pub fn IgnoredWords(cx: Scope) -> impl IntoView {
 }
 
 #[component]
-pub fn Login(cx: Scope) -> impl IntoView {
+pub fn Login() -> impl IntoView {
     tracing::info!("Rendering Login");
 
     let redirect = move || {
-        leptos_router::use_query_map(cx)
+        leptos_router::use_query_map()
             .get()
             .get("redirect")
             .map(String::to_string)
@@ -873,12 +880,12 @@ pub fn Login(cx: Scope) -> impl IntoView {
     };
 
     // form
-    let email_ref = leptos::create_node_ref::<Input>(cx);
-    let password_ref = leptos::create_node_ref::<Input>(cx);
-    let submission_act = leptos::create_action(cx, move |&()| {
+    let email_ref = leptos::create_node_ref::<Input>();
+    let password_ref = leptos::create_node_ref::<Input>();
+    let submission_act = leptos::create_action(move |&()| {
         let email = email_ref().unwrap().value();
         let password = password_ref().unwrap().value();
-        let client = get_client(cx);
+        let client = get_client();
         async move {
             if email.is_empty() {
                 return Err(WebError::new("Email cannot be empty"));
@@ -887,17 +894,17 @@ pub fn Login(cx: Scope) -> impl IntoView {
                 return Err(WebError::new("Password cannot be empty"));
             }
             client.login(email.as_str(), password.as_str()).await?;
-            let view = move || view! { cx, <Redirect path=redirect() /> };
+            let view = move || view! { <Redirect path=redirect() /> };
             WebResult::Ok(view)
         }
     });
 
-    let password_visible = leptos::create_rw_signal(cx, false);
+    let password_visible = leptos::create_rw_signal(false);
     let password_visibility_toggle = move || {
         if password_visible() {
-            view! { cx, <button class="button" on:click=move |_ev| password_visible.set(false)>"Hide passwords"</button> }
+            view! { <button class="button" on:click=move |_ev| password_visible.set(false)>"Hide passwords"</button> }
         } else {
-            view! { cx, <button class="button" on:click=move |_ev| password_visible.set(true)>"Show passwords"</button> }
+            view! { <button class="button" on:click=move |_ev| password_visible.set(true)>"Show passwords"</button> }
         }
     };
     let password_input_type = move || {
@@ -908,7 +915,7 @@ pub fn Login(cx: Scope) -> impl IntoView {
         }
     };
 
-    view! { cx,
+    view! {
         <LoginGuard require_login=false>
             <h2 class="subtitle">"Login"</h2>
             <form>
@@ -934,18 +941,18 @@ pub fn Login(cx: Scope) -> impl IntoView {
 }
 
 #[component]
-pub fn Register(cx: Scope) -> impl IntoView {
+pub fn Register() -> impl IntoView {
     tracing::info!("Rendering Register");
 
     // form
-    let email_ref = leptos::create_node_ref::<Input>(cx);
-    let password_ref = leptos::create_node_ref::<Input>(cx);
-    let repeat_password_ref = leptos::create_node_ref::<Input>(cx);
-    let submission_act = leptos::create_action(cx, move |&()| {
+    let email_ref = leptos::create_node_ref::<Input>();
+    let password_ref = leptos::create_node_ref::<Input>();
+    let repeat_password_ref = leptos::create_node_ref::<Input>();
+    let submission_act = leptos::create_action(move |&()| {
         let email = email_ref().unwrap().value();
         let password = password_ref().unwrap().value();
         let repeat_password = repeat_password_ref().unwrap().value();
-        let client = get_client(cx);
+        let client = get_client();
         async move {
             if email.is_empty() {
                 return Err(WebError::new("Email cannot be empty"));
@@ -957,16 +964,16 @@ pub fn Register(cx: Scope) -> impl IntoView {
                 return Err(WebError::new("Passwords don't match"));
             }
             client.register(&email, &password).await?;
-            WebResult::Ok(move || view! { cx, <Redirect path="/login" /> })
+            WebResult::Ok(move || view! { <Redirect path="/login" /> })
         }
     });
 
-    let password_visible = leptos::create_rw_signal(cx, false);
+    let password_visible = leptos::create_rw_signal(false);
     let password_visibility_toggle = move || {
         if password_visible() {
-            view! { cx, <button class="button" on:click=move |_ev| password_visible.set(false)>"Hide passwords"</button> }
+            view! { <button class="button" on:click=move |_ev| password_visible.set(false)>"Hide passwords"</button> }
         } else {
-            view! { cx, <button class="button" on:click=move |_ev| password_visible.set(true)>"Show passwords"</button> }
+            view! { <button class="button" on:click=move |_ev| password_visible.set(true)>"Show passwords"</button> }
         }
     };
     let password_input_type = move || {
@@ -977,7 +984,7 @@ pub fn Register(cx: Scope) -> impl IntoView {
         }
     };
 
-    view! { cx,
+    view! {
         <LoginGuard require_login=false>
             <h2 class="subtitle">"Register"</h2>
             <form>
