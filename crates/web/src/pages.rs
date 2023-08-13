@@ -762,11 +762,11 @@ pub fn Deck() -> impl IntoView {
 
     let view = view! {
         <LoginGuard require_login=true>
-            <Suspense fallback={move || deck_sources_view(None, None)}>
+            //<Suspense fallback={move || deck_sources_view(None, None)}>
                 <ErrorBoundary fallback={utils::errors_fallback}>
                     {deck_sources}
                 </ErrorBoundary>
-            </Suspense>
+            //</Suspense>
         </LoginGuard>
     };
     WebResult::Ok(view)
