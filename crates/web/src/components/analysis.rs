@@ -108,7 +108,7 @@ pub struct Component {
     reading_override: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Status {
     Accept,
     AcceptReading,
@@ -418,7 +418,10 @@ fn PhraseView(
             .get(&phrase_seq)
             .unwrap()
             .iter()
-            .any(|(_seq, (read, _write))| matches!(read().status, Status::Decline));
+            .any(|(_seq, (read, _write))| {
+                matches!(read().status, Status::Decline)
+                    || matches!(read().status, Status::AcceptReading)
+            });
         any_skipped
     };
     let form_clone = form.clone();
@@ -432,11 +435,11 @@ fn PhraseView(
         all_skipped
     };
 
-    let skipped_clone = any_skipped.clone();
+    let any_skipped_clone = any_skipped.clone();
     let box_class = move || {
         if any_accepted() {
             "box has-background-success-light"
-        } else if skipped_clone() {
+        } else if any_skipped_clone() {
             "box has-background-warning-light"
         } else {
             "box has-background-info-light"
@@ -538,7 +541,27 @@ fn ComponentView(
         .copied()
         .unwrap();
     let phrase_to_components = form.phrase_to_components.clone();
+
+    let witc = form.word_id_to_components.clone();
+    let unignore_ignored_words = move || {
+        // unignore all ignored words with the same id
+        if let Some(word_id) = component.word_id {
+            witc.get(&word_id)
+                .unwrap()
+                .iter()
+                .for_each(|(_read, write)| {
+                    write.update(|c| {
+                        if c.status == Status::Ignore {
+                            c.status = Status::Decline
+                        }
+                    })
+                });
+        }
+    };
+
+    let unignore_ignored_words_clone = unignore_ignored_words.clone();
     let accept = move |_ev| {
+        unignore_ignored_words_clone();
         // unaccept components of other interpretations
         phrase_to_components
             .get(&phrase_seq)
@@ -556,7 +579,9 @@ fn ComponentView(
         write.update(|c| c.status = Status::Accept);
     };
     let phrase_to_components = form.phrase_to_components.clone();
+    let unignore_ignored_words_clone = unignore_ignored_words.clone();
     let accept_reading = move |_ev| {
+        unignore_ignored_words_clone();
         // unaccept components of other interpretations
         phrase_to_components
             .get(&phrase_seq)
@@ -573,7 +598,9 @@ fn ComponentView(
             });
         write.update(|c| c.status = Status::AcceptReading);
     };
+    let unignore_ignored_words_clone = unignore_ignored_words.clone();
     let decline = move |_ev| {
+        unignore_ignored_words_clone();
         write.update(|c| c.status = Status::Decline);
     };
     let ignore = move |_ev| {
@@ -588,6 +615,7 @@ fn ComponentView(
         write.update(|c| c.status = Status::Ignore);
     };
     let accepted = move || matches!(read().status, Status::Accept { .. });
+    let accepted_reading = move || matches!(read().status, Status::AcceptReading { .. });
     let declined = move || matches!(read().status, Status::Decline);
     let ignored = move || matches!(read().status, Status::Ignore);
     let (reading_override, set_reading_override) = leptos::create_signal(String::new());
@@ -618,7 +646,7 @@ fn ComponentView(
                 <button class="button" style="width: 100%" disabled=accepted on:click=accept>"Accept word"</button>
             </div>
             <div class="column">
-                <button class="button" style="width: 100%" disabled=accepted on:click=accept_reading>"Accept reading"</button>
+                <button class="button" style="width: 100%" disabled=accepted_reading on:click=accept_reading>"Accept reading"</button>
             </div>
             <div class="column">
                 <button class="button" style="width: 100%" disabled=declined on:click=decline>"Decline word"</button>

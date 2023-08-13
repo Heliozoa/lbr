@@ -252,7 +252,9 @@ pub fn SourceSentences() -> impl IntoView {
             .into_iter()
             .map(|s| {
                 view! {
-                    <li>{s.sentence}</li>
+                    <li>
+                        {s.sentence}
+                    </li>
                 }
             })
             .collect_view();

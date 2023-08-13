@@ -133,7 +133,7 @@ pub fn insert_sentence_words(
             diesel::insert_into(sw::table)
                 .values(chunk)
                 .execute(conn)
-                .wrap_err("Failed to insert sentece word")?;
+                .wrap_err("Failed to insert sentence word")?;
         }
         let ignored_words = ignore_words
             .into_iter()
