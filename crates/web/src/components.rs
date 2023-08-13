@@ -138,7 +138,6 @@ where
         Some(Err(err)) => Err(err),
         None => Ok(Some(view(None).into_view())),
     };
-    let resource_view = leptos::store_value(resource_view);
     let wrapped_view = view! {
         <Suspense fallback={move || view(None)}>
             <ErrorBoundary fallback={utils::errors_fallback}>

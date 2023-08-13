@@ -745,35 +745,28 @@ pub fn Deck() -> impl IntoView {
             (_, None) => view! { <div>"Loading sources..."</div> }.into_view(),
         }
     };
-    let deck_sources = move || {
-        let deck_sources = match (deck_res.read(), sources_res.read()) {
-            (Some(Ok(Some(deck_res))), Some(Ok(Some(sources_res)))) => Ok(Some(
-                deck_sources_view(Some(deck_res), Some(sources_res)).into_view(),
-            )),
-            (None, Some(Ok(Some(sources_res)))) => {
-                Ok(Some(deck_sources_view(None, Some(sources_res)).into_view()))
-            }
-            (Some(Ok(Some(deck_res))), None) => {
-                Ok(Some(deck_sources_view(Some(deck_res), None).into_view()))
-            }
-            (Some(Ok(None)), _) | (_, Some(Ok(None))) => Ok(None),
-            (Some(Err(err)), _) | (_, Some(Err(err))) => Err(err),
-            (None, None) => Ok(Some(deck_sources_view(None, None).into_view())),
-        };
-        let deck_sources = leptos::store_value(deck_sources);
-        let view = view! {
+    let deck_sources = move || match (deck_res.read(), sources_res.read()) {
+        (Some(Ok(Some(deck_res))), Some(Ok(Some(sources_res)))) => Ok(Some(
+            deck_sources_view(Some(deck_res), Some(sources_res)).into_view(),
+        )),
+        (Some(Ok(Some(deck_res))), None) => {
+            Ok(Some(deck_sources_view(Some(deck_res), None).into_view()))
+        }
+        (None, Some(Ok(Some(sources_res)))) => {
+            Ok(Some(deck_sources_view(None, Some(sources_res)).into_view()))
+        }
+        (Some(Ok(None)), _) | (_, Some(Ok(None))) => Ok(None),
+        (Some(Err(err)), _) | (_, Some(Err(err))) => Err(err),
+        (None, None) => Ok(Some(deck_sources_view(None, None).into_view())),
+    };
+
+    let view = view! {
+        <LoginGuard require_login=true>
             <Suspense fallback={move || deck_sources_view(None, None)}>
                 <ErrorBoundary fallback={utils::errors_fallback}>
                     {deck_sources}
                 </ErrorBoundary>
             </Suspense>
-        };
-        WebResult::Ok(view)
-    };
-
-    let view = view! {
-        <LoginGuard require_login=true>
-            {deck_sources}
         </LoginGuard>
     };
     WebResult::Ok(view)
