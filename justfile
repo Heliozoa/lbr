@@ -35,8 +35,15 @@ prepare-repository: && (generate-license "web" "false") prepare-data generate-ja
     cp ./example.env ./.env
 
 
+# Prepares ichiran's settings.lisp file
+prepare-ichiran-settings ichiran-connection='(\"ichiran\" \"lbr\" \"lbr\" \"localhost\")':
+    cp ./data/ichiran/local-projects/ichiran/settings.lisp.template  ./data/ichiran/local-projects/ichiran/settings.lisp
+    sed -i 's#REPLACEME_CONNECTION#{{ichiran-connection}}#g' ./data/ichiran/local-projects/ichiran/settings.lisp
+    sed -i "s#REPLACEME_DATA#$(pwd)/data/jmdictdb/#g" ./data/ichiran/local-projects/ichiran/settings.lisp
+
+
 # Prepares the ichiran repo
-prepare-ichiran:
+prepare-ichiran ichiran-connection='(\"ichiran\" \"lbr\" \"lbr\" \"localhost\")': (prepare-ichiran-settings ichiran-connection)
     wget --output-document="./data/quicklisp.lisp" https://beta.quicklisp.org/quicklisp.lisp
     rm -rf ./data/ichiran
     sbcl \
@@ -47,10 +54,7 @@ prepare-ichiran:
 
 
 # Builds ichiran-cli for local use
-build-cli ichiran-connection='(\"ichiran\" \"lbr\" \"lbr\" \"localhost\")':
-    cp ./data/ichiran/local-projects/ichiran/settings.lisp.template  ./data/ichiran/local-projects/ichiran/settings.lisp
-    sed -i 's#REPLACEME_CONNECTION#{{ichiran-connection}}#g' ./data/ichiran/local-projects/ichiran/settings.lisp
-    sed -i "s#REPLACEME_DATA#$(pwd)/data/jmdictdb/#g" ./data/ichiran/local-projects/ichiran/settings.lisp
+build-cli ichiran-connection='(\"ichiran\" \"lbr\" \"lbr\" \"localhost\")': (prepare-ichiran-settings ichiran-connection)
     sbcl \
         --eval '(load "./data/ichiran/setup.lisp")' \
         --eval '(ql:quickload :ichiran/cli)' \
@@ -60,10 +64,7 @@ build-cli ichiran-connection='(\"ichiran\" \"lbr\" \"lbr\" \"localhost\")':
 
 
 # Builds ichiran-cli for Docker
-build-cli-docker ichiran-connection='(\"ichiran\" \"lbr\" \"lbr\" \"localhost\")':
-    cp ./data/ichiran/local-projects/ichiran/settings.lisp.template  ./data/ichiran/local-projects/ichiran/settings.lisp
-    sed -i 's#REPLACEME_CONNECTION#{{ichiran-connection}}#g' ./data/ichiran/local-projects/ichiran/settings.lisp
-    sed -i 's#REPLACEME_DATA#/lbr/data/jmdictdb/#g' ./data/ichiran/local-projects/ichiran/settings.lisp
+build-cli-docker ichiran-connection='(\"ichiran\" \"lbr\" \"lbr\" \"localhost\")': (prepare-ichiran-settings ichiran-connection)
     sbcl \
         --eval '(load "./data/ichiran/setup.lisp")' \
         --eval '(ql:quickload :ichiran/cli)' \
@@ -132,7 +133,7 @@ dl-ichiran-dump force="false":
 
 
 # Sets up the local ichiran database
-prepare-ichiran-db database-name="ichiran" dump="./data/ichiran.pgdump": dl-ichiran-dump
+prepare-ichiran-db database-name="ichiran" dump="./data/ichiran.pgdump" ichiran-connection='(\"ichiran\" \"lbr\" \"lbr\" \"localhost\")': dl-ichiran-dump (prepare-ichiran-settings ichiran-connection)
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -156,8 +157,9 @@ prepare-ichiran-db database-name="ichiran" dump="./data/ichiran.pgdump": dl-ichi
     if ! pg_restore --clean --if-exists --no-owner --role=lbr --username=postgres --dbname="{{database-name}}" "{{dump}}"; then
         echo "Errors restoring database, but these are probably fine to ignore"
     fi
+
     sbcl \
-        --eval '(load "./data/ichiran/setup.lisp")'
+        --eval '(load "./data/ichiran/setup.lisp")' \
         --eval '(ql:quickload :ichiran)' \
         --eval '(ichiran/maintenance:add-errata)' \
         --eval '(exit)'
