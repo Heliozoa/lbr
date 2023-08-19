@@ -11,18 +11,18 @@ watch:
     cargo leptos watch
 
 
-# Generates the license information for the given target (targets: ["web", "dockerhub"])
+# Generates the license information for the given target (targets: ["web", "docker"])
 generate-license target="web" overwrite="true":
     #!/usr/bin/env bash
     set -euo pipefail
 
     if [ {{ target }} = "web" ]; then
         if [ ! -f ./data/license.html ] || [ {{overwrite}} = "true" ]; then
-            cargo about generate ./about/web.hbs > ./data/license.html
+            cargo about generate ./about/web.hbs > ./data/license-web.html
         fi
-    elif [ {{ target }} = "dockerhub" ]; then
+    elif [ {{ target }} = "docker" ]; then
         if [ ! -f ./data/license.md ] || [ {{overwrite}} = "true" ]; then
-            cargo about generate ./about/dockerhub.hbs > ./data/license.md
+            cargo about generate ./about/docker.hbs > ./data/license-docker.md
         fi
     else
         echo "Unexpected target '{{target}}'"

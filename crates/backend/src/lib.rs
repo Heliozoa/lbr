@@ -258,5 +258,5 @@ pub async fn favicon() -> impl IntoResponse {
 }
 
 pub async fn license() -> impl IntoResponse {
-    Html(include_str!("../../../data/license.html"))
+    Html(include_str!("../../../data/license-web.html"))
 }

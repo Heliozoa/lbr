@@ -48,6 +48,57 @@
             <p>This page lists the licenses of the projects used in LBR.</p>
         </div>
 
+        <h2>Manually maintained licenses:</h2>
+        <ul>
+            <li>
+                ichiran: MIT
+                (<a href="https://github.com/tshatrov/ichiran/blob/master/LICENSE">
+                    https://github.com/tshatrov/ichiran/blob/master/LICENSE
+                </a>)
+            </li>
+            <li>
+                JMdict: Creative Commons Attribution-ShareAlike Licence V4.0
+                (<a href="https://www.edrdg.org/edrdg/licence.html">
+                    https://www.edrdg.org/edrdg/licence.html
+                </a>)
+            </li>
+            <li>
+                KANJIDIC2: Creative Commons Attribution-ShareAlike Licence V4.0
+                (<a href="https://www.edrdg.org/edrdg/licence.html">
+                    https://www.edrdg.org/edrdg/licence.html
+                </a>)
+            </li>
+            <li>
+                KRADFILE: Creative Commons Attribution-ShareAlike Licence V4.0
+                (<a href="https://www.edrdg.org/edrdg/licence.html">
+                    https://www.edrdg.org/edrdg/licence.html
+                </a>)
+            </li>
+            <li>
+                jmdictdb: GPLv2 or later
+                (<a href="https://gitlab.com/yamagoya/jmdictdb/-/blob/master/LICENSE.txt">
+                    https://gitlab.com/yamagoya/jmdictdb/-/blob/master/LICENSE.txt
+                </a>)
+            </li>
+            <li>
+                JmdictFurigana: Creative Commons Attribution-ShareAlike Licence V4.0
+                (<a href="https://github.com/Doublevil/JmdictFurigana#licence">
+                    https://github.com/Doublevil/JmdictFurigana#licence
+                </a>)
+            </li>
+            <li>
+                Bulma: MIT
+                (<a href="https://github.com/jgthms/bulma/blob/master/LICENSE">
+                    https://github.com/jgthms/bulma/blob/master/LICENSE
+                </a>)
+            </li>
+            <li>
+                Noto Emoji: Apache-2.0 (<a href="https://github.com/googlefonts/noto-emoji/blob/main/LICENSE">
+                    https://github.com/googlefonts/noto-emoji/blob/main/LICENSE
+                </a>)
+            </li>
+        </ul>
+
         <h2>Automatically detected licenses:</h2>
         <ul class="licenses-overview">
             {{#each overview}}
@@ -55,7 +106,7 @@
             {{/each}}
         </ul>
 
-        <h3>All license text:</h3>
+        <h3>Full information for automatically detected licenses:</h3>
         <ul class="licenses-list">
             {{#each licenses}}
             <li class="license">
@@ -71,32 +122,6 @@
                 <pre class="license-text">{{text}}</pre>
             </li>
             {{/each}}
-        </ul>
-
-        <h2>Other licenses:</h2>
-        <ul>
-            <li>
-                ichiran: MIT (https://github.com/tshatrov/ichiran/blob/master/LICENSE)
-            </li>
-            <li>
-                JMdict: Creative Commons Attribution-ShareAlike Licence V4.0
-                (https://www.edrdg.org/edrdg/licence.html)
-            </li>
-            <li>
-                KANJIDIC2: Creative Commons Attribution-ShareAlike Licence V4.0
-                (https://www.edrdg.org/edrdg/licence.html)
-            </li>
-            <li>
-                KRADFILE: Creative Commons Attribution-ShareAlike Licence V4.0
-                (https://www.edrdg.org/edrdg/licence.html)
-            </li>
-            <li>
-                jmdictdb: GPLv2 or later (https://gitlab.com/yamagoya/jmdictdb/-/blob/master/LICENSE.txt)
-            </li>
-            <li>
-                JmdictFurigana: Creative Commons Attribution-ShareAlike Licence V4.0
-                (https://github.com/Doublevil/JmdictFurigana#licence)
-            </li>
         </ul>
     </main>
 </body>

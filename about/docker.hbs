@@ -1,0 +1,45 @@
+# License
+This image is licensed under the GNU Affero General Public License Version 3 or any later version.
+
+This image is based on the official Debian image. License information for the debian image can be found at
+https://hub.docker.com/_/debian.
+
+## LBR Third Party Licenses
+This section lists the licenses of the projects used in LBR.
+
+### Manually maintained licenses:
+- ichiran: MIT (https://github.com/tshatrov/ichiran/blob/master/LICENSE)
+- JMdict: Creative Commons Attribution-ShareAlike Licence V4.0 (https://www.edrdg.org/edrdg/licence.html)
+- KANJIDIC2: Creative Commons Attribution-ShareAlike Licence V4.0 (https://www.edrdg.org/edrdg/licence.html)
+- KRADFILE: Creative Commons Attribution-ShareAlike Licence V4.0 (https://www.edrdg.org/edrdg/licence.html)
+- jmdictdb: GPLv2 or later (https://gitlab.com/yamagoya/jmdictdb/-/blob/master/LICENSE.txt)
+- JmdictFurigana: Creative Commons Attribution-ShareAlike Licence V4.0 (https://github.com/Doublevil/JmdictFurigana#licence)
+- Bulma: MIT (https://github.com/jgthms/bulma/blob/master/LICENSE)
+- Noto Emoji: Apache-2.0 (https://github.com/googlefonts/noto-emoji/blob/main/LICENSE)
+
+
+### Automatically detected licenses:
+{{#each overview}}
+- [{{name}}](#{{id}}) ({{count}})
+{{/each}}
+
+
+<details>
+    <summary><strong>Full information for automatically detected licenses (click to expand)</strong></summary>
+
+{{#each licenses}}
+#### [{{name}}]({{id}})
+Used by:
+
+{{#each used_by}}
+- [{{crate.name}}](
+{{#if crate.repository}} {{crate.repository}} {{else}} https://crates.io/crates/{{crate.name}}{{/if}}
+) {{crate.version}}
+{{/each}}
+
+Full license text:
+
+    {{text}}
+{{/each}}
+
+</details>

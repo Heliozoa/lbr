@@ -31,7 +31,7 @@ RUN cargo chef cook $RELEASE --recipe-path recipe.json
 # add included files
 ADD https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css /lbr/style/bulma.css
 COPY ./favicon/favicon.ico /lbr/favicon/favicon.ico
-COPY ./data/license.html /lbr/data/license.html
+COPY ./data/license-web.html /lbr/data/license-web.html
 
 # build
 COPY ./Cargo.toml /lbr/Cargo.toml
@@ -50,6 +50,7 @@ COPY ./data/ichiran-cli-docker /lbr/ichiran-cli
 COPY ./data/ichiran_seq_to_word_id.json /lbr/data/ichiran_seq_to_word_id.json
 COPY ./data/kanji_to_readings.json /lbr/data/kanji_to_readings.json
 COPY ./data/jmdictdb /lbr/data/jmdictdb
+COPY ./data/license-docker.md /LICENSE.md
 
 # set up default env
 ENV RUST_LOG                debug,hyper=warn
