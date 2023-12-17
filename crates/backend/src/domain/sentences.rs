@@ -32,43 +32,9 @@ pub fn segment_sentence(
 pub fn process_sentence(
     ichiran_cli: &IchiranCli,
     sentence: String,
-    ignored_word_ids: &HashSet<i32>,
-    ichiran_seq_to_word_id: &HashMap<i32, i32>,
 ) -> eyre::Result<res::SegmentedSentence> {
     let segments = segment_sentence(ichiran_cli, &sentence)?;
-    let segment_word_seqs = segments
-        .iter()
-        .filter_map(|s| {
-            if let ichiran_types::Segment::Phrase {
-                interpretations, ..
-            } = s
-            {
-                Some(interpretations)
-            } else {
-                None
-            }
-        })
-        .flatten()
-        .flat_map(|i| &i.components)
-        .filter_map(|c| c.word_id)
-        .filter_map(|seq| ichiran_seq_to_word_id.get(&seq).map(|&wi| (seq, wi)))
-        .collect::<Vec<_>>();
-    let ignored_words = segment_word_seqs
-        .iter()
-        .copied()
-        .filter_map(|(seq, id)| {
-            if ignored_word_ids.contains(&id) {
-                Some(seq)
-            } else {
-                None
-            }
-        })
-        .collect();
-    Ok(res::SegmentedSentence {
-        sentence: sentence.to_string(),
-        segments,
-        ignored_words,
-    })
+    Ok(res::SegmentedSentence { sentence, segments })
 }
 
 pub struct NewSentenceWords<'a> {

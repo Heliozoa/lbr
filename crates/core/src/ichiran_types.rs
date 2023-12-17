@@ -1,6 +1,7 @@
 //! Contains more Rusty types that represent (most of) the same data as the raw CLI output JSON.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 /// A segment of text, a single word or punctuation etc.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -13,6 +14,28 @@ pub enum Segment {
     },
     /// Non-word text segment, punctuation etc.
     Other(String),
+}
+
+impl Segment {
+    /// Iterates over the seqs in this segment.
+    pub fn seqs(&self) -> HashSet<i32> {
+        let mut set = HashSet::new();
+        match self {
+            Self::Phrase {
+                interpretations, ..
+            } => {
+                for interpretation in interpretations {
+                    for component in &interpretation.components {
+                        if let Some(id) = component.word_id {
+                            set.insert(id);
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        set
+    }
 }
 
 /// A possible interpretation for a word.
@@ -33,7 +56,7 @@ pub struct WordInfo {
     pub word: String,
     /// The reading of the word as it appears in the text.
     pub reading_hiragana: String,
-    /// Either a JMDICT seq or ichiran's own equivalent.
+    /// Either a JMdict seq or ichiran's own equivalent.
     pub word_id: Option<i32>,
     /// List of possible meanings for the word.
     pub meanings: Vec<Meaning>,

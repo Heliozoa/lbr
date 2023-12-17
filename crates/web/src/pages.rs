@@ -327,10 +327,10 @@ pub fn SourceAddSentences() -> impl IntoView {
     };
 
     // analysis
-    let analysis_content = move |segmented: Vec<res::SegmentedSentence>| {
-        view! { <SegmentedParagraphView source_id=source_id segmented /> }
+    let analysis_content = move |paragraph: res::SegmentedParagraph| {
+        view! { <SegmentedParagraphView source_id=source_id paragraph /> }
     };
-    let analysis_view = move |segmented: Option<Vec<res::SegmentedSentence>>| match segmented {
+    let analysis_view = move |segmented: Option<res::SegmentedParagraph>| match segmented {
         Some(segments) => analysis_content(segments).into_view(),
         None => view! { <div>"Nothing analysed yet"</div> }.into_view(),
     };
@@ -338,8 +338,8 @@ pub fn SourceAddSentences() -> impl IntoView {
         let view = if analyse_act.pending().get() {
             view! { <div>"Analysing..."</div> }.into_view()
         } else {
-            let segmented = analyse_act.value().get().transpose()?;
-            analysis_view(segmented).into_view()
+            let paragraph = analyse_act.value().get().transpose()?;
+            analysis_view(paragraph).into_view()
         };
         WebResult::Ok(view)
     };
@@ -406,7 +406,7 @@ pub fn SourceSentence() -> impl IntoView {
             reanalyse_act.value().set(None);
         });
         view! {
-            <SegmentedSentenceView source_id sentence_id=Some(sentence_id) segmented_sentence on_successful_accept=on_successful_accept />
+            <SegmentedSentenceView source_id sentence_id=Some(sentence_id) segmented_sentence ignored_words={Rc::new(std::collections::HashSet::new())} on_successful_accept=on_successful_accept />
         }
     };
     let analysis_view =
@@ -747,7 +747,7 @@ pub fn Deck() -> impl IntoView {
             (_, None) => view! { <div>"Loading sources..."</div> }.into_view(),
         }
     };
-    let deck_sources = move || match (deck_res.read(), sources_res.read()) {
+    let deck_sources = move || match (deck_res.get(), sources_res.get()) {
         (Some(Ok(Some(deck_res))), Some(Ok(Some(sources_res)))) => Ok(Some(
             deck_sources_view(Some(deck_res), Some(sources_res)).into_view(),
         )),

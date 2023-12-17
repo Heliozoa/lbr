@@ -1,3 +1,5 @@
+//! Types for responses from the backend to the frontend.
+
 pub use chrono::{DateTime, Utc};
 pub use lbr_core::ichiran_types::{Interpretation, Meaning, Segment, WordInfo};
 use serde::{Deserialize, Serialize};
@@ -91,8 +93,13 @@ pub struct Furigana {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SegmentedParagraph {
+    pub sentences: Vec<SegmentedSentence>,
+    pub ignored_words: HashSet<i32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SegmentedSentence {
     pub sentence: String,
     pub segments: Vec<Segment>,
-    pub ignored_words: HashSet<i32>,
 }

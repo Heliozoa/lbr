@@ -9,15 +9,12 @@ use std::{
 };
 
 #[component]
-pub fn SegmentedParagraphView(
-    source_id: i32,
-    segmented: Vec<res::SegmentedSentence>,
-) -> impl IntoView {
+pub fn SegmentedParagraphView(source_id: i32, paragraph: res::SegmentedParagraph) -> impl IntoView {
     let active_sentence = leptos::create_rw_signal(0usize);
     let completed_sentences = leptos::create_rw_signal(HashSet::<usize>::new());
     let is_active = move |idx: usize| active_sentence.get() == idx;
     let is_complete = move |idx: usize| completed_sentences.get().contains(&idx);
-    let sentence_selection = segmented
+    let sentence_selection = paragraph.sentences
         .iter()
         .enumerate()
         .map(|(idx, segmented_sentence)| {
@@ -63,7 +60,8 @@ pub fn SegmentedParagraphView(
             }
         })
         .collect_view();
-    let segmented_sentences = segmented
+    let ignored_words = Rc::new(paragraph.ignored_words);
+    let segmented_sentences = paragraph.sentences
         .into_iter()
         .enumerate()
         .map(|(idx, segmented_sentence)| {
@@ -76,7 +74,7 @@ pub fn SegmentedParagraphView(
             };
             view! {
                 <div class=class>
-                    <SegmentedSentenceView source_id sentence_id=None segmented_sentence on_successful_accept=Rc::new(move || {
+                    <SegmentedSentenceView source_id sentence_id=None segmented_sentence ignored_words={ignored_words.clone()} on_successful_accept=Rc::new(move || {
                         completed_sentences.update(|cs| {
                             cs.insert(idx);
                         });
@@ -130,7 +128,7 @@ struct Form {
 }
 
 impl Form {
-    fn init(segmented_sentence: &res::SegmentedSentence) -> Self {
+    fn init(segmented_sentence: &res::SegmentedSentence, ignored_words: &HashSet<i32>) -> Self {
         let mut word_id_to_components: WordIdToComponents = HashMap::new();
         let mut phrase_to_components: PhraseToComponents = HashMap::new();
         let mut seqs_to_component: SeqsToComponent = HashMap::new();
@@ -158,16 +156,15 @@ impl Form {
                                 .unwrap();
                             let idx_end = interpretation_idx + component.word.len();
                             if let Some(word_id) = component.word_id {
-                                let status: Status =
-                                    if segmented_sentence.ignored_words.contains(&word_id) {
-                                        Status::Ignore
-                                    } else if pre_emptively_accept_next {
-                                        // pre-emptively accept the first interpretation (should have the highest score)
-                                        Status::Accept
-                                    } else {
-                                        // pre-emptively decline the rest
-                                        Status::Decline
-                                    };
+                                let status: Status = if ignored_words.contains(&word_id) {
+                                    Status::Ignore
+                                } else if pre_emptively_accept_next {
+                                    // pre-emptively accept the first interpretation (should have the highest score)
+                                    Status::Accept
+                                } else {
+                                    // pre-emptively decline the rest
+                                    Status::Decline
+                                };
                                 let reading = if component.word == component.reading_hiragana {
                                     None
                                 } else {
@@ -218,9 +215,10 @@ pub fn SegmentedSentenceView(
     source_id: i32,
     sentence_id: Option<i32>,
     segmented_sentence: res::SegmentedSentence,
+    ignored_words: Rc<HashSet<i32>>,
     on_successful_accept: Rc<dyn Fn()>,
 ) -> impl IntoView {
-    let form = Form::init(&segmented_sentence);
+    let form = Form::init(&segmented_sentence, &ignored_words);
 
     let submit = leptos::create_action(move |sentence: &req::SegmentedSentence| {
         let client = get_client();
@@ -290,7 +288,6 @@ pub fn SegmentedSentenceView(
 
     // show each segment with interpretations
     let mut phrase_seq = 0;
-    let ignored_words = Rc::new(segmented_sentence.ignored_words);
     let mut unknown_or_ignored_storage = String::new();
     let sentence_segments = segmented_sentence.segments.into_iter().filter_map(|s| {
         let segment_view = match s {

@@ -3,7 +3,7 @@
 
 use diesel::prelude::*;
 use eyre::WrapErr;
-use jadata::wordfile::{Form, Reading, Wordfile};
+use jadata::wordfile::{Reading, Wordfile};
 use lbr_server::{
     eq,
     schema::{
@@ -63,6 +63,9 @@ fn main() -> eyre::Result<()> {
     Ok(())
 }
 
+/// A lot of the seqs returned by ichiran are for conjugated versions of words,
+/// this function figures out the seq for the root word (which is usually a word in JMdict)
+/// for each seq.
 fn initialise_ichiran_seq_data(
     lbr_conn: &mut PgConnection,
     ichiran_conn: &mut PgConnection,
@@ -74,21 +77,23 @@ fn initialise_ichiran_seq_data(
         .get_results::<(i32, i32)>(ichiran_conn)?
         .into_iter()
         .collect::<HashMap<_, _>>();
-    let mut progress = true;
-    while progress {
-        progress = false;
-        let mut updates = vec![];
-        for (&key, &value) in &ichiran_seq_to_root {
-            if let Some(&next_value) = ichiran_seq_to_root.get(&value) {
-                updates.push((key, next_value));
+    let mut left_to_process = ichiran_seq_to_root.clone();
+    while !left_to_process.is_empty() {
+        let mut new = HashMap::new();
+        for (&key, &value) in &left_to_process {
+            let mut keys = vec![key];
+            let mut last = value;
+            while let Some(&next_value) = ichiran_seq_to_root.get(&last) {
+                keys.push(last);
+                last = next_value;
+            }
+            for key in keys {
+                if ichiran_seq_to_root.insert(key, last).is_none() {
+                    new.insert(key, last);
+                }
             }
         }
-        if !updates.is_empty() {
-            progress = true;
-        }
-        for (key, new_value) in updates {
-            ichiran_seq_to_root.insert(key, new_value);
-        }
+        left_to_process = new;
     }
     let wi_values = ichiran_seq_to_root
         .into_iter()
@@ -106,22 +111,17 @@ fn initialise_ichiran_seq_data(
 fn process_wordfile(wf: &mut Wordfile) {
     for word in &mut wf.words {
         let mut kana_forms = vec![];
-        for form in &mut word.word {
-            for reading in &mut form.readings {
-                if reading.usually_kana {
-                    kana_forms.push(Form {
-                        written_form: reading.reading.clone(),
-                        readings: vec![],
-                    })
-                }
+        for reading in &mut word.readings {
+            if reading.usually_kana {
+                kana_forms.push(reading.reading.clone());
             }
         }
         // exclude ones that already have a written form
         let filtered = kana_forms
             .into_iter()
-            .filter(|kf| !word.word.iter().any(|f| f.written_form == kf.written_form))
+            .filter(|kf| !word.written_forms.iter().any(|wf| wf == kf))
             .collect::<Vec<_>>();
-        word.word.extend(filtered);
+        word.written_forms.extend(filtered);
     }
 }
 
@@ -141,7 +141,7 @@ fn insert_words(conn: &mut PgConnection, wf: &Wordfile) -> eyre::Result<Vec<i32>
         .iter()
         .map(|w| {
             (
-                w::jmdict_id.eq(w.jmdict_id),
+                w::jmdict_id.eq(w.jmdict_id as i32),
                 w::translations.eq(&w.meanings),
             )
         })
@@ -170,7 +170,7 @@ fn insert_written_forms(
         .iter()
         .copied()
         .zip(&wf.words)
-        .flat_map(|(word_id, word)| word.word.iter().map(move |w| (word_id, &w.written_form)))
+        .flat_map(|(word_id, word)| word.written_forms.iter().map(move |wf| (word_id, wf)))
         .map(|(word_id, written_form)| eq!(wf, word_id, written_form))
         .collect::<Vec<_>>();
 
@@ -203,8 +203,7 @@ fn insert_word_kanji(
     let wk_values = &wf
         .words
         .iter()
-        .flat_map(|w| w.word.iter())
-        .map(|w| &w.written_form)
+        .flat_map(|w| w.written_forms.iter())
         .zip(written_form_ids)
         .flat_map(|(wf, wf_id)| lbr::kanji_from_word(wf).map(move |kanji| (wf_id, kanji)))
         .filter(|tuple| seen.insert(*tuple))
@@ -228,8 +227,7 @@ fn insert_word_readings(
     let wr_values = written_form_ids
         .iter()
         .copied()
-        .zip(wf.words.iter().flat_map(|w| &w.word))
-        .flat_map(|(wf_id, form)| form.readings.iter().map(move |r| (wf_id, r)))
+        .zip(wf.words.iter().flat_map(|w| &w.readings))
         .map(
             |(
                 written_form_id,

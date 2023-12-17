@@ -132,7 +132,7 @@ where
     F: Fn(Option<T>) -> V + Copy + 'static,
     V: IntoView,
 {
-    let resource_view = move || match resource.read() {
+    let resource_view = move || match resource.get() {
         Some(Ok(Some(res))) => Ok(Some(view(Some(res)).into_view())),
         Some(Ok(None)) => Ok(None),
         Some(Err(err)) => Err(err),

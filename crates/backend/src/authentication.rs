@@ -129,11 +129,11 @@ impl FromRequestParts<LbrState> for Authentication {
         parts: &mut Parts,
         state: &LbrState,
     ) -> Result<Self, Self::Rejection> {
-        let cookies: Cookies = parts.extract::<Cookies>().await?;
+        let cookies = parts.extract::<Cookies>().await?;
         let signed_cookies = cookies.signed(&state.private_cookie_key);
         let session_cookie = SessionCookie::from_signed_cookies(&signed_cookies)
             .ok_or((StatusCode::UNAUTHORIZED, "Not logged in"))?;
-        match state.sessions.get(&session_cookie.session_id) {
+        match state.sessions.get(&session_cookie.session_id).await {
             Some(session) => Ok(Authentication {
                 session_id: session_cookie.session_id,
                 user_id: session.user_id,

@@ -147,8 +147,7 @@ pub async fn router(state: LbrState) -> Router<()> {
             &state,
             leptos_axum::generate_route_list(|| {
                 leptos::view! { <Root/> }
-            })
-            .await,
+            }),
             || {
                 leptos::view! { <Root/> }
             },

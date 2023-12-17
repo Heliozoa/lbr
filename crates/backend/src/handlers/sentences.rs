@@ -3,7 +3,6 @@
 use super::prelude::*;
 use crate::{
     domain::sentences::{self, NewSentenceWords},
-    queries,
     utils::database,
 };
 
@@ -149,17 +148,11 @@ pub async fn segment(
 
     let segmented_sentence = tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
-        let ignored_words = queries::ignored_words(&mut conn, user.user_id)?;
         let sentence = s::table
             .filter(s::id.eq(id))
             .select(s::sentence)
             .get_result::<String>(&mut conn)?;
-        let segmented_sentence = sentences::process_sentence(
-            &state.ichiran_cli,
-            sentence,
-            &ignored_words,
-            &state.ichiran_seq_to_word_id,
-        )?;
+        let segmented_sentence = sentences::process_sentence(&state.ichiran_cli, sentence)?;
         EyreResult::Ok(segmented_sentence)
     })
     .await??;

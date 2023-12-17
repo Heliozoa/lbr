@@ -1,3 +1,5 @@
+//! Types for communication between the backend and frontend.
+
 pub mod request;
 pub mod response;
 

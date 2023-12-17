@@ -11,7 +11,7 @@ rust-version = "1.56"
 version = "0.1.0"
 
 [workspace.dependencies]
-jadata = { path = "./crates/jadata" }
+jadata = { git = "https://github.com/Heliozoa/jadata" }
 lbr = { path = "./crates/lbr" }
 lbr_api = { path = "./crates/api" }
 lbr_core = { path = "./crates/core" }
@@ -19,13 +19,12 @@ lbr_frontend = { path = "./crates/frontend" }
 lbr_server = { path = "./crates/backend" }
 lbr_web = { path = "./crates/web" }
 
-leptos = "0.5.0-beta"
-leptos_axum = "0.5.0-beta"
-leptos_meta = "0.5.0-beta"
-leptos_router = "0.5.0-beta"
+leptos = "0.5.2"
+leptos_axum = "0.5.2"
+leptos_meta = "0.5.2"
+leptos_router = "0.5.2"
 
 [profile.dev.package]
-serde-xml-rs.opt-level = 3
 serde.opt-level = 3
 serde_json.opt-level = 3
 

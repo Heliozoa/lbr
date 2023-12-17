@@ -1,3 +1,5 @@
+//! Types for requests from the frontend to the backend.
+
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, collections::HashSet};
 

@@ -365,7 +365,7 @@ impl Client {
         &self,
         source_id: i32,
         paragraph: &str,
-    ) -> WebResult<Vec<res::SegmentedSentence>> {
+    ) -> WebResult<res::SegmentedParagraph> {
         tracing::info!("Segmenting paragraph {paragraph}");
 
         let json = serde_json::to_string(&req::Paragraph {
