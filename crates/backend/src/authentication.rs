@@ -156,12 +156,12 @@ impl FromRequestParts<LbrState> for Authentication {
 }
 
 fn build_cookie(value: impl Into<Cow<'static, str>>) -> Cookie<'static> {
-    Cookie::build(SessionCookie::NAME, value)
+    Cookie::build((SessionCookie::NAME, value))
         .path("/")
         .secure(false)
         .http_only(true)
         .same_site(SameSite::Strict)
-        .finish()
+        .build()
 }
 
 /// Saves a new session for the user to both the cookies and server cache.

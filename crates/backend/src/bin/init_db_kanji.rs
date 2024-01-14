@@ -3,14 +3,11 @@
 
 use diesel::prelude::*;
 use eyre::{Context, ContextCompat};
-use jadata::kanjifile::{Kanji, Kanjifile, Reading};
+use jadata::kanjifile::{Kanji, Kanjifile};
 use lbr_server::{
     eq,
     schema::{kanji as k, kanji_readings as kr, kanji_similar as ks, word_kanji as wk},
-    utils::{
-        database::{Position, ReadingKind},
-        diesel::PostgresChunks,
-    },
+    utils::diesel::PostgresChunks,
 };
 use std::{collections::HashMap, fs::File, io::BufReader};
 
@@ -29,7 +26,7 @@ fn main() -> eyre::Result<()> {
     let mut conn = PgConnection::establish(&database_url)?;
 
     tracing::info!("Reading kanjifile");
-    let kf_path = "./crates/jadata/generated/kanjifile.json";
+    let kf_path = "./data/jadata/generated/kanjifile.json";
     let kf = File::open(kf_path).wrap_err_with(|| format!("Failed to read file at '{kf_path}'"))?;
     tracing::info!("Deserializing kanjifile");
     let kf: Kanjifile = serde_json::from_reader(BufReader::new(kf))?;
@@ -52,7 +49,6 @@ fn main() -> eyre::Result<()> {
 fn seed_kanji(conn: &mut PgConnection, kf: Kanjifile) -> eyre::Result<()> {
     tracing::info!("Seeding kanji");
     let kanji_ids = insert_kanji(conn, &kf)?;
-    insert_kanji_readings(conn, &kf.kanji, &kanji_ids)?;
     insert_kanji_similar(conn, &kf.kanji, &kanji_ids)?;
     Ok(())
 }
@@ -73,33 +69,6 @@ fn insert_kanji(conn: &mut PgConnection, kf: &Kanjifile) -> eyre::Result<Vec<i32
         .returning(k::id)
         .get_results::<i32>(conn)?;
     Ok(k_ids)
-}
-
-fn insert_kanji_readings(
-    conn: &mut PgConnection,
-    kanji: &[Kanji],
-    kanji_ids: &[i32],
-) -> eyre::Result<()> {
-    tracing::info!("Processing kanji readings");
-    let mut kr_values = vec![];
-    for (kanji, kanji_id) in kanji.iter().zip(kanji_ids) {
-        for Reading {
-            kind,
-            reading,
-            okurigana,
-            position,
-        } in &kanji.readings
-        {
-            let kind = ReadingKind::from(*kind);
-            let position = position.map(Position::from);
-            kr_values.push(eq!(kr, kanji_id, reading, kind, okurigana, position));
-        }
-    }
-    tracing::info!("Inserting kanji readings");
-    for chunk in kr_values.pg_chunks() {
-        diesel::insert_into(kr::table).values(chunk).execute(conn)?;
-    }
-    Ok(())
 }
 
 fn insert_kanji_similar(

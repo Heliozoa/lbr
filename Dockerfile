@@ -38,7 +38,6 @@ COPY ./Cargo.toml /lbr/Cargo.toml
 COPY ./crates /lbr/crates
 RUN cargo leptos build $RELEASE
 
-
 # sets up the env and entrypoint for the application
 FROM debian:bookworm-slim AS runtime
 WORKDIR /lbr
@@ -57,7 +56,7 @@ ENV RUST_LOG                debug,hyper=warn
 ENV SERVER_URL              0.0.0.0:3000
 ENV DATABASE_URL            postgres://lbr:lbr@host.docker.internal/lbr
 ENV ICHIRAN_DATABASE_URL    postgres://lbr:lbr@host.docker.internal/ichiran
-ENV ICHIRAN_CONNECTION      '("ichiran" "lbr" "lbr" "localhost")'
+ENV ICHIRAN_CONNECTION      '("ichiran" "lbr" "lbr" "host.docker.internal")'
 ENV ICHIRAN_CLI_PATH        /lbr/ichiran-cli
 ENV LEPTOS_OUTPUT_NAME      lbr
 ENV LEPTOS_SITE_ROOT        site
@@ -66,6 +65,6 @@ ENV LEPTOS_SITE_ADDR        0.0.0.0:3000
 ENV LEPTOS_RELOAD_PORT      3001
 
 # server entrypoint
-COPY --from=builder /lbr/target/server/*/lbr_server /lbr/lbr_server
+COPY --from=builder /lbr/target/*/lbr_server /lbr/lbr_server
 COPY --from=builder /lbr/target/site /lbr/site
 ENTRYPOINT ["/lbr/lbr_server"]

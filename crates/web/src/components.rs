@@ -111,8 +111,9 @@ pub fn LoginGuard(children: ChildrenFn, require_login: bool) -> impl IntoView {
             children().into_view()
         } else {
             let redirect = if require_login {
-                let redirect = leptos_router::use_route().path();
-                format!("/login?redirect={redirect}")
+                //let redirect = leptos_router::use_route().path();
+                //format!("/login?redirect={redirect}")
+                "/".to_string()
             } else {
                 "/".to_string()
             };

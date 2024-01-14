@@ -1,8 +1,8 @@
 //! Web backend for LBR.
 
-use axum::Server;
 use eyre::WrapErr;
-use std::env;
+use std::{env, net::SocketAddr};
+use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
@@ -11,7 +11,7 @@ async fn main() -> eyre::Result<()> {
 
     let server_url = env::var("SERVER_URL")
         .wrap_err("Missing SERVER_URL")?
-        .parse()
+        .parse::<SocketAddr>()
         .wrap_err("Invalid SERVER_URL")?;
 
     let lbr_database_url = env::var("DATABASE_URL").wrap_err("Missing DATABASE_URL")?;
@@ -31,8 +31,10 @@ async fn main() -> eyre::Result<()> {
     .wrap_err("Failed to build router")?;
 
     tracing::info!("Starting server at {server_url}");
-    Server::bind(&server_url)
-        .serve(router.into_make_service())
+    let server_addr = TcpListener::bind(server_url)
+        .await
+        .wrap_err("Failed to bind to address")?;
+    axum::serve(server_addr, router.into_make_service())
         .await
         .wrap_err("Failed to start server")?;
     Ok(())

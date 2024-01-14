@@ -38,7 +38,7 @@ fn main() -> eyre::Result<()> {
     let mut ichiran_conn = PgConnection::establish(&ichiran_database_url)?;
 
     tracing::info!("Reading wordfile");
-    let wf_path: &str = "./crates/jadata/generated/wordfile.json";
+    let wf_path: &str = "./data/jadata/generated/wordfile.json";
     let wf = File::open(wf_path).wrap_err_with(|| format!("Failed to read file at '{wf_path}'"))?;
     tracing::info!("Deserializing wordfile");
     let mut wf: Wordfile = serde_json::from_reader(BufReader::new(wf))?;
@@ -141,7 +141,7 @@ fn insert_words(conn: &mut PgConnection, wf: &Wordfile) -> eyre::Result<Vec<i32>
         .iter()
         .map(|w| {
             (
-                w::jmdict_id.eq(w.jmdict_id as i32),
+                w::jmdict_id.eq(w.jmdict_id.map(|id| id as i32)),
                 w::translations.eq(&w.meanings),
             )
         })

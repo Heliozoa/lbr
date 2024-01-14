@@ -13,7 +13,7 @@ fn main() -> eyre::Result<()> {
     let mut conn = PgConnection::establish(&database_url)?;
 
     tracing::info!("Reading kanjifile");
-    let kf_path = "./crates/jadata/generated/kanjifile.json";
+    let kf_path = "./data/jadata/generated/kanjifile.json";
     let kf = File::open(kf_path).wrap_err_with(|| format!("Failed to read file at '{kf_path}'"))?;
     tracing::info!("Deserializing kanjifile");
     let kf: Kanjifile = serde_json::from_reader(BufReader::new(kf))?;

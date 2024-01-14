@@ -8,14 +8,6 @@ pub mod sql_types {
     #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "furigana"))]
     pub struct Furigana;
-
-    #[derive(diesel::sql_types::SqlType)]
-    #[diesel(postgres_type(name = "pos"))]
-    pub struct Pos;
-
-    #[derive(diesel::sql_types::SqlType)]
-    #[diesel(postgres_type(name = "reading_kind"))]
-    pub struct ReadingKind;
 }
 
 diesel::table! {
@@ -57,17 +49,11 @@ diesel::table! {
 }
 
 diesel::table! {
-    use diesel::sql_types::*;
-    use super::sql_types::ReadingKind;
-    use super::sql_types::Pos;
-
     kanji_readings (id) {
         id -> Int4,
         kanji_id -> Int4,
         reading -> Text,
-        kind -> ReadingKind,
         okurigana -> Nullable<Text>,
-        position -> Nullable<Pos>,
     }
 }
 
@@ -150,7 +136,7 @@ diesel::table! {
 diesel::table! {
     words (id) {
         id -> Int4,
-        jmdict_id -> Int4,
+        jmdict_id -> Nullable<Int4>,
         translations -> Array<Nullable<Text>>,
     }
 }

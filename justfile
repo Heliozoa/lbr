@@ -226,6 +226,8 @@ dl-jmdictdb force="false":
         echo "Downloading jmdictdb"
         wget --output-document=- https://gitlab.com/yamagoya/jmdictdb/-/archive/master/jmdictdb-master.tar.gz?path=jmdictdb/data \
             | tar zxf - --strip-components=3 --directory=${path} jmdictdb-master-jmdictdb-data/jmdictdb/data/
+    else
+        echo "Already exists"
     fi
 
 
@@ -234,12 +236,18 @@ dl-jmdict force="false":
     #!/usr/bin/env bash
     set -euo pipefail
 
-    path=./crates/jadata/external/JMdict_e_examp.xml
+    dir=./data/jadata/external
+    name=JMdict_e_examp.xml
+    path=${dir}/${name}
     echo "Checking ${path}"
     if [ ! -f  ${path} ] || [ ! {{force}} = "false" ]; then
+        rm -rf ${path}
+        mkdir -p ${dir}
         echo "Downloading JMdict_e_examp"
         wget --output-document=- http://ftp.edrdg.org/pub/Nihongo/JMdict_e_examp.gz \
             | gunzip -c - > ${path}
+    else
+        echo "Already exists"
     fi
 
 
@@ -248,12 +256,18 @@ dl-kanjidic force="false":
     #!/usr/bin/env bash
     set -euo pipefail
 
-    path=./crates/jadata/external/kanjidic2.xml
+    dir=./data/jadata/external
+    name=kanjidic2.xml
+    path=${dir}/${name}
     echo "Checking ${path}"
     if [ ! -f ${path} ] || [ ! {{force}} = "false" ]; then
+        rm -rf ${path}
+        mkdir -p ${dir}
         echo "Downloading kanjidic"
         wget --output-document=- http://www.edrdg.org/kanjidic/kanjidic2.xml.gz \
             | gunzip -c - > ${path}
+    else
+        echo "Already exists"
     fi
 
 
@@ -262,12 +276,18 @@ dl-kradfile force="false":
     #!/usr/bin/env bash
     set -euo pipefail
 
-    path=./crates/jadata/external/kradfile
+    dir=./data/jadata/external
+    name=kradfile
+    path=${dir}/${name}
     echo "Checking ${path}"
     if [ ! -f ${path} ] || [ ! {{force}} = "false" ]; then
+        rm -rf ${path}
+        mkdir -p ${dir}
         echo "Downloading kradfile"
         wget --output-document=- http://ftp.edrdg.org/pub/Nihongo/kradfile.gz \
             | gunzip -c - > ${path}
+    else
+        echo "Already exists"
     fi
 
 
@@ -276,42 +296,58 @@ dl-furigana force="false":
     #!/usr/bin/env bash
     set -euo pipefail
 
-    for path in ./data/JmdictFurigana.json ./crates/jadata/external/JmdictFurigana.json
-    do
-        echo "Checking ${path}"
-        if [ ! -f ${path} ] || [ ! {{force}} = "false" ]; then
-            echo "Downloading JmdictFurigana"
-            curl https://api.github.com/repos/Doublevil/JmdictFurigana/releases/latest \
-                | jq '.assets[] | select(.name == "JmdictFurigana.json").browser_download_url' \
-                | xargs wget --output-document=- \
-                | jq . > ${path}
-        fi
-    done
+    dir=./data/jadata/external
+    name=JmdictFuriganaPretty.json
+    path=${dir}/${name}
+    echo "Checking ${path}"
+    if [ ! -f ${path} ] || [ ! {{force}} = "false" ]; then
+        rm -rf ${path}
+        mkdir -p ${dir}
+        echo "Downloading JmdictFurigana"
+        curl https://api.github.com/repos/Doublevil/JmdictFurigana/releases/latest \
+            | jq '.assets[] | select(.name == "JmdictFurigana.json").browser_download_url' \
+            | xargs wget --output-document=- \
+            | jq . > ${path}
+    else
+        echo "Already exists"
+    fi
 
 
 # Generates the kanjifile and wordfile
 generate-jadata:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [ ! -d ./data/jadata ]; then
+        git clone https://github.com/Heliozoa/jadata ./data/jadata
+    else
+        cd ./data/jadata && git pull
+        cd ../../
+    fi
+
+    cd ./data/jadata
+
     export RUST_LOG=info
 
-    echo "Generating kanjifile"
-    cargo run --release -p jadata -- \
+    echo "Generating wordfile"
+    cargo run --release -- \
         kanjifile \
-        --kanjidic ./crates/jadata/external/kanjidic2.xml \
-        --kradfile ./crates/jadata/external/kradfile \
-        --names ./crates/jadata/included/kanjifile_names.json \
-        --similar ./crates/jadata/included/kanjifile_similar.json \
-        --manual ./crates/jadata/included/kanjifile_manual.json \
-        --output ./crates/jadata/generated/kanjifile.json
-    echo "Generated kanjifile"
+        -v 1 \
+        -d ./external/kanjidic2.xml \
+        -k ./external/kradfile \
+        -s ./included/kanjifile_skeleton.json \
+        -t json \
+        -o ./generated/kanjifile.json
 
     echo "Generating wordfile"
-    cargo run --release -p jadata -- \
+    cargo run --release -- \
         wordfile \
-        --jmdict ./crates/jadata/external/JMdict_e_examp.xml \
-        --jmdict-version "$(sed -n '0,/<!-- Rev \([0-9.]*\)/s//\1/p' ./crates/jadata/external/JMdict_e_examp.xml)" \
-        --furigana ./crates/jadata/external/JmdictFurigana.json \
-        --output ./crates/jadata/generated/wordfile.json
-    echo "Generated wordfile"
+        -v 1 \
+        -j ./external/JMdict_e_examp.xml \
+        -f ./external/JmdictFuriganaPretty.json \
+        -s ./included/wordfile_skeleton.json \
+        -t json \
+        -o ./generated/wordfile.json
 
     echo "Finished"
 
@@ -328,7 +364,7 @@ docker-build release="--release":
 
 
 # Runs the Docker image
-docker-run database-url="postgres://lbr:lbr@host.docker.internal/lbr" ichiran-database-url="postgres://lbr:lbr@host.docker.internal/ichiran" ichiran-connection='(\"ichiran\" \"lbr\" \"lbr\" \"host.docker.internal\")' private-cookie-password="uvoo4rei1aiN0po4aitix9pie0eo7aaZei0aem6ix5oi5quooxaiQuooTohs2Pha":
+docker-run database-url="postgres://lbr:lbr@localhost/lbr" ichiran-database-url="postgres://lbr:lbr@localhost/ichiran" ichiran-connection='(\"ichiran\" \"lbr\" \"lbr\" \"localhost\")' private-cookie-password="uvoo4rei1aiN0po4aitix9pie0eo7aaZei0aem6ix5oi5quooxaiQuooTohs2Pha":
     docker run \
         --init \
         --rm \
@@ -336,8 +372,7 @@ docker-run database-url="postgres://lbr:lbr@host.docker.internal/lbr" ichiran-da
         --env ICHIRAN_DATABASE_URL="{{ ichiran-database-url }}" \
         --env ICHIRAN_CONNECTION="{{ ichiran-connection }}" \
         --env PRIVATE_COOKIE_PASSWORD="{{ private-cookie-password }}" \
-        --add-host=host.docker.internal:host-gateway \
-        -p 3000:3000 \
+        --network=host \
         heliozoagh/lbr
 
 

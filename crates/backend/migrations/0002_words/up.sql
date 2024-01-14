@@ -1,6 +1,6 @@
 CREATE TABLE words (
     id SERIAL PRIMARY KEY,
-    jmdict_id INTEGER NOT NULL,
+    jmdict_id INTEGER,
     translations TEXT [] NOT NULL
 );
 CREATE TABLE written_forms (

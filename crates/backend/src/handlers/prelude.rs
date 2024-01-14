@@ -2,7 +2,7 @@
 
 pub use crate::{
     authentication::Authentication,
-    error::{EyreResult, LbrError, LbrResult},
+    error::{EyreResult, LbrResult},
     schema,
     utils::diesel::{eq, query, PostgresChunks},
     LbrState,

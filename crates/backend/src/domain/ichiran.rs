@@ -19,7 +19,7 @@ pub fn get_ichiran_seq_to_word_id(
         .collect::<HashMap<_, _>>();
     let jmdict_id_to_word_id = w::table
         .select((w::jmdict_id, w::id))
-        .get_results::<(i32, i32)>(lbr_conn)?
+        .get_results::<(Option<i32>, i32)>(lbr_conn)?
         .into_iter()
         .collect::<HashMap<_, _>>();
     let mut ichiran_seq_to_word_id = HashMap::new();
@@ -33,7 +33,7 @@ pub fn get_ichiran_seq_to_word_id(
             }
         }
         let jmdict_seq = root_seq;
-        if let Some(word_id) = jmdict_id_to_word_id.get(&jmdict_seq).copied() {
+        if let Some(word_id) = jmdict_id_to_word_id.get(&Some(jmdict_seq)).copied() {
             ichiran_seq_to_word_id.insert(ichiran_seq, word_id);
         }
     }

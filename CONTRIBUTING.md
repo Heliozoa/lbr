@@ -23,9 +23,6 @@ A web frontend that works with the backend.
 
 Uses the [Leptos](https://docs.rs/leptos) web framework and [Bulma](https://bulma.io/) for the styling.
 
-### `jadata` (`./crates/jadata`)
-Generates files used by LBR related to the Japanese language.
-
 ### `lbr` (`./crates/lbr`)
 The main library of the project that offers all the core functionality.
 
@@ -88,6 +85,16 @@ Run the image with `just docker-run`
 
 LBR will be available at `http://0.0.0.0:3000`. The container will use your localhost `lbr` and `ichiran` databases.
 
+
 ## Deployment
 ### Using Docker
-A Docker image is available at https://hub.docker.com/repository/docker/heliozoagh/lbr/general. The image requires a connection to both the `lbr` and `ichiran` databases, configured with the environment variables `DATABASE_URL`, `ICHIRAN_DATABASE_URL`, `ICHIRAN_CONNECTION` and `PRIVATE_COOKIE_PASSWORD`.
+A Docker image is available at https://hub.docker.com/repository/docker/heliozoagh/lbr/general. The image requires a connection to both the `lbr` and `ichiran` databases, configured with the environment variables `DATABASE_URL`, `ICHIRAN_DATABASE_URL`, `ICHIRAN_CONNECTION` and `PRIVATE_COOKIE_PASSWORD`. This image can be deployed at https://render.com/ etc.
+
+### Databases
+
+To set up the databases at some remote host, you can set them up locally and then copy them over with
+```bash
+pg_dump --no-owner --dbname=postgres://lbr:lbr@localhost/ichiran | psql <ichiran-connection-string>
+pg_dump --no-owner --dbname=postgres://lbr:lbr@localhost/lbr | psql <lbr-connection-string>
+```
+where the connection strings are databases at something like https://neon.tech/ for example.
