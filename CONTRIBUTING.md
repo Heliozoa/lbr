@@ -98,3 +98,5 @@ pg_dump --no-owner --dbname=postgres://lbr:lbr@localhost/ichiran | psql <ichiran
 pg_dump --no-owner --dbname=postgres://lbr:lbr@localhost/lbr | psql <lbr-connection-string>
 ```
 where the connection strings are databases at something like https://neon.tech/ for example.
+
+If the database host requires SNI, such as with Neon, you can add `:use-ssl :full` to end of the `ICHIRAN_CONNECTION` list.

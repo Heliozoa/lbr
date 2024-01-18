@@ -31,7 +31,7 @@ generate-license target="web" overwrite="true":
 
 
 # Sets up local databases and downloads and generates files required for local development
-prepare-repository: && (generate-license "web" "false") prepare-data generate-jadata prepare-ichiran prepare-db-user prepare-ichiran-db prepare-lbr-db build-cli build-cli-docker
+prepare-repository: && (generate-license "web" "false") prepare-data generate-jadata prepare-ichiran prepare-db-user prepare-ichiran-db prepare-lbr-db build-cli
     cp ./example.env ./.env
 
 
@@ -61,16 +61,6 @@ build-cli ichiran-connection='(\"ichiran\" \"lbr\" \"lbr\" \"localhost\")': (pre
         --eval '(ichiran/cli:build)' \
         --eval '(exit)'
     mv ./data/ichiran/local-projects/ichiran/ichiran-cli ./data/ichiran-cli
-
-
-# Builds ichiran-cli for Docker
-build-cli-docker ichiran-connection='(\"ichiran\" \"lbr\" \"lbr\" \"localhost\")': (prepare-ichiran-settings ichiran-connection)
-    sbcl \
-        --eval '(load "./data/ichiran/setup.lisp")' \
-        --eval '(ql:quickload :ichiran/cli)' \
-        --eval '(ichiran/cli:build)' \
-        --eval '(exit)'
-    mv ./data/ichiran/local-projects/ichiran/ichiran-cli ./data/ichiran-cli-docker
 
 
 

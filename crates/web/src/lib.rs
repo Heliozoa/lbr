@@ -30,9 +30,10 @@ pub fn Root() -> impl IntoView {
             <div class="is-flex is-flex-direction-column" style="min-height: 100vh">
                 <div class="section is-flex is-flex-grow-1">
                     <div class="container">
-                        <ErrorBoundary fallback>
-                            <Content/>
-                        </ErrorBoundary>
+                        // causes "RouterContext not found"
+                        //<ErrorBoundary fallback>
+                        <Content/>
+                        //</ErrorBoundary>
                     </div>
                 </div>
                 <footer class="footer">
