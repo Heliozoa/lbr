@@ -2,16 +2,17 @@
 
 use crate::{context::get_client, error::WebResult};
 use lbr_api::{request as req, response as res};
-use leptos::*;
+use leptos::prelude::*;
+use send_wrapper::SendWrapper;
 use std::{
     collections::{HashMap, HashSet},
-    rc::Rc,
+    sync::Arc,
 };
 
 #[component]
 pub fn SegmentedParagraphView(source_id: i32, paragraph: res::SegmentedParagraph) -> impl IntoView {
-    let active_sentence = leptos::create_rw_signal(0usize);
-    let completed_sentences = leptos::create_rw_signal(HashSet::<usize>::new());
+    let active_sentence = RwSignal::new(0usize);
+    let completed_sentences = RwSignal::new(HashSet::<usize>::new());
     let is_active = move |idx: usize| active_sentence.get() == idx;
     let is_complete = move |idx: usize| completed_sentences.get().contains(&idx);
     let sentence_selection = paragraph.sentences
@@ -60,7 +61,7 @@ pub fn SegmentedParagraphView(source_id: i32, paragraph: res::SegmentedParagraph
             }
         })
         .collect_view();
-    let ignored_words = Rc::new(paragraph.ignored_words);
+    let ignored_words = Arc::new(paragraph.ignored_words);
     let segmented_sentences = paragraph.sentences
         .into_iter()
         .enumerate()
@@ -74,14 +75,14 @@ pub fn SegmentedParagraphView(source_id: i32, paragraph: res::SegmentedParagraph
             };
             view! {
                 <div class=class>
-                    <SegmentedSentenceView source_id sentence_id=None segmented_sentence ignored_words={ignored_words.clone()} on_successful_accept=Rc::new(move || {
+                    <SegmentedSentenceView source_id sentence_id=None segmented_sentence ignored_words={ignored_words.clone()} on_successful_accept=Arc::new(move || {
                         completed_sentences.update(|cs| {
                             cs.insert(idx);
                         });
                         active_sentence.update(|acs| {
                             *acs += 1;
                         });
-                        let _ = leptos::window().location().set_hash("paragraph-segmentation");
+                        let _ = leptos::prelude::window().location().set_hash("paragraph-segmentation");
                     }) />
                 </div>
             }
@@ -122,9 +123,9 @@ type SeqsToComponent =
 
 #[derive(Debug, Clone)]
 struct Form {
-    word_id_to_components: Rc<WordIdToComponents>,
-    phrase_to_components: Rc<PhraseToComponents>,
-    seqs_to_component: Rc<SeqsToComponent>,
+    word_id_to_components: Arc<WordIdToComponents>,
+    phrase_to_components: Arc<PhraseToComponents>,
+    seqs_to_component: Arc<SeqsToComponent>,
 }
 
 impl Form {
@@ -132,6 +133,7 @@ impl Form {
         let mut word_id_to_components: WordIdToComponents = HashMap::new();
         let mut phrase_to_components: PhraseToComponents = HashMap::new();
         let mut seqs_to_component: SeqsToComponent = HashMap::new();
+        tracing::info!("ignored words {ignored_words:#?}");
 
         let mut phrase_idx = 0;
         for (phrase_seq, segment) in segmented_sentence.segments.iter().enumerate() {
@@ -157,6 +159,7 @@ impl Form {
                             let idx_end = interpretation_idx + component.word.len();
                             if let Some(word_id) = component.word_id {
                                 let status: Status = if ignored_words.contains(&word_id) {
+                                    tracing::info!("ignoring for some reason");
                                     Status::Ignore
                                 } else if pre_emptively_accept_next {
                                     // pre-emptively accept the first interpretation (should have the highest score)
@@ -170,7 +173,7 @@ impl Form {
                                 } else {
                                     Some(component.reading_hiragana.clone())
                                 };
-                                let signal = leptos::create_signal(Component {
+                                let signal = leptos::prelude::signal(Component {
                                     idx_start: interpretation_idx,
                                     idx_end,
                                     word_id,
@@ -203,9 +206,9 @@ impl Form {
         }
 
         Self {
-            word_id_to_components: Rc::new(word_id_to_components),
-            phrase_to_components: Rc::new(phrase_to_components),
-            seqs_to_component: Rc::new(seqs_to_component),
+            word_id_to_components: Arc::new(word_id_to_components),
+            phrase_to_components: Arc::new(phrase_to_components),
+            seqs_to_component: Arc::new(seqs_to_component),
         }
     }
 }
@@ -215,20 +218,20 @@ pub fn SegmentedSentenceView(
     source_id: i32,
     sentence_id: Option<i32>,
     segmented_sentence: res::SegmentedSentence,
-    ignored_words: Rc<HashSet<i32>>,
-    on_successful_accept: Rc<dyn Fn()>,
+    ignored_words: Arc<HashSet<i32>>,
+    on_successful_accept: Arc<dyn Fn() + Send + Sync>,
 ) -> impl IntoView {
     let form = Form::init(&segmented_sentence, &ignored_words);
 
-    let submit = leptos::create_action(move |sentence: &req::SegmentedSentence| {
+    let submit = Action::new(move |sentence: &req::SegmentedSentence| {
         let client = get_client();
         let sentence = sentence.clone();
         let on_successful_accept = on_successful_accept.clone();
         async move {
             if let Some(sentence_id) = sentence_id {
-                client.update_sentence(sentence_id, &sentence).await?
+                SendWrapper::new(client.update_sentence(sentence_id, &sentence)).await?
             } else {
-                client.new_sentence(source_id, &sentence).await?
+                SendWrapper::new(client.new_sentence(source_id, &sentence)).await?
             }
             on_successful_accept();
             WebResult::Ok(())
@@ -244,7 +247,7 @@ pub fn SegmentedSentenceView(
     let accept_sentence = move |_ev| {
         let mut words = Vec::new();
         let mut ignore_words = HashSet::new();
-        for component in components.iter().map(|read| read()) {
+        for component in components.iter().map(|read| read.get()) {
             match component.status {
                 Status::Accept => {
                     let reading = if component.reading_override.trim().is_empty() {
@@ -287,10 +290,9 @@ pub fn SegmentedSentenceView(
     };
 
     // show each segment with interpretations
-    let mut phrase_seq = 0;
     let mut unknown_or_ignored_storage = String::new();
-    let sentence_segments = segmented_sentence.segments.into_iter().filter_map(|s| {
-        let segment_view = match s {
+    let sentence_segments = segmented_sentence.segments.into_iter().enumerate().filter_map(|(phrase_seq, s)| {
+        match s {
             res::Segment::Phrase {
                 phrase,
                 interpretations,
@@ -338,9 +340,7 @@ pub fn SegmentedSentenceView(
                 unknown_or_ignored_storage += &other;
                 None
             },
-        };
-        phrase_seq += 1;
-        segment_view
+        }
     }).collect_view();
     let tailing_unknown_or_ignored_words = if !unknown_or_ignored_storage.is_empty() {
         Some(view! {
@@ -368,12 +368,12 @@ fn PhraseView(
     interpretations: Vec<res::Interpretation>,
     form: Form,
     phrase_seq: usize,
-    ignored_words: Rc<HashSet<i32>>,
+    ignored_words: Arc<HashSet<i32>>,
 ) -> impl IntoView {
-    let mut interpretation_seq = 0;
     let interpretations = interpretations
         .into_iter()
-        .filter_map(|interpretation| {
+        .enumerate()
+        .filter_map(|(interpretation_seq, interpretation)| {
             // filter out interpretations where all components are ignored
             let all_unknown_or_ignored =
                 interpretation.components.iter().all(|c| match c.word_id {
@@ -392,7 +392,6 @@ fn PhraseView(
                         ignored_words=ignored_words.clone()
                     />
                 };
-                interpretation_seq += 1;
                 Some(view)
             }
         })
@@ -405,7 +404,7 @@ fn PhraseView(
             .get(&phrase_seq)
             .unwrap()
             .iter()
-            .any(|(_seq, (read, _write))| matches!(read().status, Status::Accept));
+            .any(|(_seq, (read, _write))| matches!(read.get().status, Status::Accept));
         any_accepted
     };
     let form_clone = form.clone();
@@ -416,8 +415,8 @@ fn PhraseView(
             .unwrap()
             .iter()
             .any(|(_seq, (read, _write))| {
-                matches!(read().status, Status::Decline)
-                    || matches!(read().status, Status::AcceptReading)
+                matches!(read.get().status, Status::Decline)
+                    || matches!(read.get().status, Status::AcceptReading)
             });
         any_skipped
     };
@@ -428,7 +427,7 @@ fn PhraseView(
             .get(&phrase_seq)
             .unwrap()
             .iter()
-            .all(|(_seq, (read, _write))| matches!(read().status, Status::Decline));
+            .all(|(_seq, (read, _write))| matches!(read.get().status, Status::Decline));
         all_skipped
     };
 
@@ -473,13 +472,13 @@ fn InterpretationView(
     form: Form,
     phrase_seq: usize,
     interpretation_seq: usize,
-    ignored_words: Rc<HashSet<i32>>,
+    ignored_words: Arc<HashSet<i32>>,
 ) -> impl IntoView {
-    let mut component_seq = 0;
     let components = interpretation
         .components
         .into_iter()
-        .map(|component| {
+        .enumerate()
+        .map(|(component_seq, component)| {
             let unknown_or_ignored = match component.word_id {
                 Some(word_id) => ignored_words.contains(&word_id),
                 None => true,
@@ -488,9 +487,9 @@ fn InterpretationView(
                 view! {
                     <div>{format!("{} (ignored)", component.word)}</div>
                 }
-                .into_view()
+                .into_any()
             } else {
-                let view = view! {
+                view! {
                     <ComponentView
                         show_reading={interpretation.reading_hiragana != component.reading_hiragana}
                         component
@@ -499,9 +498,8 @@ fn InterpretationView(
                         interpretation_seq
                         component_seq
                     />
-                };
-                component_seq += 1;
-                view.into_view()
+                }
+                .into_any()
             }
         })
         .collect_view();
@@ -529,7 +527,7 @@ fn ComponentView(
         .map(|meaning| view! { <MeaningView meaning/> })
         .collect_view();
     let reading_view = show_reading.then(|| {
-        view! { <span>{&component.reading_hiragana}</span>
+        view! { <span>{component.reading_hiragana.clone()}</span>
         <br/> }
     });
     let (read, write) = form
@@ -611,17 +609,17 @@ fn ComponentView(
         }
         write.update(|c| c.status = Status::Ignore);
     };
-    let accepted = move || matches!(read().status, Status::Accept { .. });
-    let accepted_reading = move || matches!(read().status, Status::AcceptReading { .. });
-    let declined = move || matches!(read().status, Status::Decline);
-    let ignored = move || matches!(read().status, Status::Ignore);
-    let (reading_override, set_reading_override) = leptos::create_signal(String::new());
+    let accepted = move || matches!(read.get().status, Status::Accept { .. });
+    let accepted_reading = move || matches!(read.get().status, Status::AcceptReading { .. });
+    let declined = move || matches!(read.get().status, Status::Decline);
+    let ignored = move || matches!(read.get().status, Status::Ignore);
+    let (reading_override, set_reading_override) = leptos::prelude::signal(String::new());
     view! {
         <div>
             {reading_view}
             <label class="label">"Override reading"
                 <input class="input" prop:value=reading_override on:input=move |ev| {
-                    let new_value = leptos::event_target_value(&ev);
+                    let new_value = leptos::prelude::event_target_value(&ev);
                     set_reading_override.update(|reading_override| {
                         *reading_override = new_value.clone()
                     });

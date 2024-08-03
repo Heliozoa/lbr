@@ -24,6 +24,11 @@ impl WebError {
             message: e.to_string(),
         }
     }
+    pub fn from_js(js: JsValue) -> Self {
+        Self {
+            message: format!("{js:?}"),
+        }
+    }
 }
 
 impl From<eyre::Report> for WebError {

@@ -2,22 +2,25 @@
 
 use crate::error::{WebError, WebResult};
 use lbr_api::{request as req, response as res};
-use leptos::*;
 use reqwasm::http::{Request, Response};
 use web_sys::RequestCredentials;
 
-#[derive(Clone, Copy)]
-pub struct Client;
+#[derive(Clone)]
+pub struct Client {}
 
 /// Non-API methods
 impl Client {
-    async fn assert_success(&self, res: &Response) -> eyre::Result<()> {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    async fn assert_success(res: &Response) -> eyre::Result<()> {
         match res.status() {
             100..=399 => Ok(()),
             401 => {
                 tracing::warn!("Server unexpectedly returned 401");
                 // not logged in according to server, so refresh logged in status
-                self.refresh_session();
+                Self::refresh_session();
                 Err(eyre::eyre!("Unauthorized"))
             }
             code => {
@@ -31,11 +34,9 @@ impl Client {
         }
     }
 
-    fn refresh_session(&self) {
+    pub fn refresh_session() {
         let session = super::get_session();
-        if !session.user_id.pending().get_untracked() {
-            session.user_id.dispatch(());
-        }
+        session.user_id.dispatch(());
     }
 }
 
@@ -49,14 +50,14 @@ impl Client {
             password: password.into(),
         };
         let json = serde_json::to_string(&register).map_err(WebError::from)?;
-        let res = Request::post(&format!("/api/auth/register"))
+        let res = Request::post("/api/auth/register")
             .credentials(RequestCredentials::Include)
             .body(json)
             .header("Content-Type", "application/json")
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
 
         tracing::info!("Registered {email}");
         Ok(())
@@ -70,16 +71,16 @@ impl Client {
             password: password.into(),
         };
         let json = serde_json::to_string(&login).map_err(WebError::from)?;
-        let res = Request::post(&format!("/api/auth/login"))
+        let res = Request::post("/api/auth/login")
             .credentials(RequestCredentials::Include)
             .body(json)
             .header("Content-Type", "application/json")
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
 
-        self.refresh_session();
+        Self::refresh_session();
 
         tracing::info!("Logged in as {email}");
         Ok(())
@@ -88,12 +89,12 @@ impl Client {
     pub async fn current_user(&self) -> WebResult<Option<i32>> {
         tracing::info!("Fetching current user");
 
-        let res = Request::get(&format!("/api/auth/current"))
+        let res = Request::get("/api/auth/current")
             .credentials(RequestCredentials::Include)
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
         let current_user: Option<i32> = res.json().await.map_err(WebError::from)?;
 
         Ok(current_user)
@@ -102,14 +103,14 @@ impl Client {
     pub async fn logout(&self) -> WebResult<()> {
         tracing::info!("Logging out");
 
-        let res = Request::post(&format!("/api/auth/logout"))
+        let res = Request::post("/api/auth/logout")
             .credentials(RequestCredentials::Include)
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
 
-        self.refresh_session();
+        Self::refresh_session();
 
         tracing::info!("Logged out");
         Ok(())
@@ -118,12 +119,12 @@ impl Client {
     pub async fn get_sources(&self) -> WebResult<Vec<res::Source>> {
         tracing::info!("Fetching sources");
 
-        let res = Request::get(&format!("/api/sources"))
+        let res = Request::get("/api/sources")
             .credentials(RequestCredentials::Include)
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
         let sources = res.json().await.map_err(WebError::from)?;
 
         tracing::info!("Fetched sources: {sources:?}");
@@ -135,14 +136,14 @@ impl Client {
 
         let json =
             serde_json::to_string(&req::NewSource { name: name.into() }).map_err(WebError::from)?;
-        let res = Request::post(&format!("/api/sources"))
+        let res = Request::post("/api/sources")
             .credentials(RequestCredentials::Include)
             .body(json)
             .header("Content-Type", "application/json")
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
         let id = read_i32(&res).await?;
 
         tracing::info!("Created source {name}");
@@ -157,7 +158,7 @@ impl Client {
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
         let source = res.json().await.map_err(WebError::from)?;
 
         tracing::info!("Fetched source {id}: {source:?}");
@@ -172,7 +173,7 @@ impl Client {
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
         let source = res.json().await.map_err(WebError::from)?;
 
         tracing::info!("Fetched source {id}: {source:?}");
@@ -191,7 +192,7 @@ impl Client {
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
 
         Ok(())
     }
@@ -204,7 +205,7 @@ impl Client {
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
 
         tracing::info!("Deleted source {id}");
         Ok(())
@@ -218,7 +219,7 @@ impl Client {
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
         let sentence = res.json().await.map_err(WebError::from)?;
 
         tracing::info!("Fetched sentence {id}");
@@ -233,7 +234,7 @@ impl Client {
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
 
         tracing::info!("Deleted sentence {id}");
         Ok(())
@@ -242,12 +243,12 @@ impl Client {
     pub async fn get_decks(&self) -> WebResult<Vec<res::Deck>> {
         tracing::info!("Fetching decks");
 
-        let res = Request::get(&format!("/api/decks"))
+        let res = Request::get("/api/decks")
             .credentials(RequestCredentials::Include)
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
         let decks = res.json().await.map_err(WebError::from)?;
 
         tracing::info!("Fetched decks: {decks:?}");
@@ -259,14 +260,14 @@ impl Client {
 
         let json =
             serde_json::to_string(&req::NewDeck { name: name.into() }).map_err(WebError::from)?;
-        let res = Request::post(&format!("/api/decks"))
+        let res = Request::post("/api/decks")
             .credentials(RequestCredentials::Include)
             .body(json)
             .header("Content-Type", "application/json")
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
         let id = read_i32(&res).await?;
 
         tracing::info!("Created deck {name}");
@@ -281,7 +282,7 @@ impl Client {
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
         let deck = res.json().await.map_err(WebError::from)?;
 
         tracing::info!("Fetched deck {id}: {deck:?}");
@@ -308,7 +309,7 @@ impl Client {
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
 
         tracing::info!("Updated sources for deck {id}");
         Ok(())
@@ -326,7 +327,7 @@ impl Client {
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
 
         tracing::info!("Deleted deck {id}");
         Ok(())
@@ -340,7 +341,7 @@ impl Client {
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
         let ignored_words = res.json().await.map_err(WebError::from)?;
 
         tracing::info!("Fetched ignored words");
@@ -355,7 +356,7 @@ impl Client {
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
 
         tracing::info!("Deleted ignored word {word_id}");
         Ok(())
@@ -380,7 +381,7 @@ impl Client {
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
         let segmented = res.json().await.map_err(WebError::from)?;
 
         tracing::info!("Segmented paragraph {paragraph}");
@@ -396,7 +397,7 @@ impl Client {
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
         let segmented = res.json().await.map_err(WebError::from)?;
 
         tracing::info!("Segmented sentence {sentence_id}");
@@ -418,7 +419,7 @@ impl Client {
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
 
         tracing::info!("Sent sentence {}", sentence.sentence);
         Ok(())
@@ -439,10 +440,16 @@ impl Client {
             .send()
             .await
             .map_err(WebError::from)?;
-        self.assert_success(&res).await?;
+        Self::assert_success(&res).await?;
 
         tracing::info!("Updated sentence {}", sentence.sentence);
         Ok(())
+    }
+}
+
+impl Default for Client {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

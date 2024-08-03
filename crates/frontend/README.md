@@ -1,1 +1,1 @@
-Web frontend for LBR
+Web frontend for LBR.

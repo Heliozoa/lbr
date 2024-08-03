@@ -2,7 +2,7 @@
 
 use super::prelude::*;
 use crate::{domain::decks, utils::database::DeckSourceKind};
-use std::io::Read;
+use std::io::Cursor;
 
 // handlers
 
@@ -201,21 +201,14 @@ pub async fn generate(
             .filter(d::id.eq(id).and(d::user_id.eq(user_id)))
             .get_result(&mut conn)?;
 
-        let mut temp = tempfile::NamedTempFile::new()?;
-        let temp_path = temp
-            .path()
-            .as_os_str()
-            .to_str()
-            .ok_or_else(|| eyre::eyre!("Invalid temporary path"))?;
         let mut deck = decks::gen_deck(&mut conn, &deck.name, deck.id, deck.anki_deck_id)?;
-        deck.write_to_file(temp_path)?;
-        let mut buf = Vec::new();
-        temp.read_to_end(&mut buf)?;
+        let mut buf = Cursor::new(Vec::new());
+        deck.write(&mut buf)?;
         EyreResult::Ok(buf)
     })
     .await??;
 
-    Ok(deck_data)
+    Ok(deck_data.into_inner())
 }
 
 // queries

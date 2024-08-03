@@ -15,7 +15,7 @@ use axum::{
     http::{Request, Response, StatusCode, Uri},
     response::{IntoResponse, Response as AxumResponse},
 };
-use leptos::*;
+use leptos::prelude::*;
 use tower::ServiceExt;
 use tower_http::services::ServeDir;
 
@@ -37,9 +37,5 @@ async fn get_static_file(uri: Uri, root: &str) -> Result<Response<Body>, (Status
     // This path is relative to the cargo root
     match ServeDir::new(root).oneshot(req).await {
         Ok(res) => Ok(res.map(Body::new)),
-        Err(err) => Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Something went wrong: {err}"),
-        )),
     }
 }

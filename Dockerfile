@@ -46,8 +46,6 @@ WORKDIR /lbr
 RUN apt update -y
 RUN apt install -y libpq5 libssl3 ca-certificates
 COPY ./data/ichiran-cli-docker /lbr/ichiran-cli
-COPY ./data/ichiran_seq_to_word_id.json /lbr/data/ichiran_seq_to_word_id.json
-COPY ./data/kanji_to_readings.json /lbr/data/kanji_to_readings.json
 COPY ./data/jmdictdb /lbr/data/jmdictdb
 COPY ./data/license-docker.md /LICENSE.md
 

@@ -14,7 +14,7 @@ pub fn gen_deck(
     deck_id: i32,
     anki_deck_id: i64,
 ) -> eyre::Result<Package> {
-    tracing::info!("Fetching words");
+    tracing::info!("Creating cards");
     let cards = get_cards(conn, deck_id)?;
 
     tracing::info!("Creating deck");
@@ -29,18 +29,20 @@ fn get_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Card>> {
         .into_iter()
         .map(Card::Word)
         .chain(kanji_cards.into_iter().map(Card::Kanji))
-        .collect();
+        .collect::<Vec<_>>();
+    tracing::debug!("Created {} cards", cards.len());
     Ok(cards)
 }
 
 fn get_word_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<WordCard>> {
     use crate::schema::{
         deck_sources as ds, kanji as k, sentence_words as sw, sentences as s, word_kanji as wk,
-        words as w, written_forms as wf,
+        word_readings as wr, words as w,
     };
 
     // get all sentence words for the deck
     let sentence_words: Vec<SentenceWordQuery> = ds::table
+        // get all word sources for the deck
         .filter(
             ds::deck_id
                 .eq(deck_id)
@@ -51,6 +53,7 @@ fn get_word_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Wor
         // get all words related to the sentences
         .inner_join(sw::table.on(sw::sentence_id.eq(s::id)))
         .inner_join(w::table.on(w::id.nullable().eq(sw::word_id)))
+        .inner_join(wr::table.on(wr::word_id.eq(w::id)))
         .select(SentenceWordQuery::as_select())
         .load(conn)?;
 
@@ -62,9 +65,8 @@ fn get_word_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Wor
     let kanji: Vec<KanjiQuery> = w::table
         // get all words related to the sentences
         .filter(w::id.eq_any(sentence_word_word_ids))
-        .inner_join(wf::table.on(wf::word_id.eq(w::id)))
         // get all kanji related to the words
-        .inner_join(wk::table.on(wk::written_form_id.eq(wf::id)))
+        .inner_join(wk::table.on(wk::word_id.eq(w::id)))
         .inner_join(k::table.on(k::id.eq(wk::kanji_id)))
         .select(KanjiQuery::as_select())
         .load(conn)?;
@@ -102,7 +104,7 @@ fn get_word_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Wor
 fn get_kanji_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<KanjiCard>> {
     use crate::schema::{
         deck_sources as ds, kanji as k, kanji_similar as ks, sentence_words as sw, sentences as s,
-        word_kanji as wk, words as w, written_forms as wf,
+        word_kanji as wk, word_readings as wr, words as w,
     };
 
     // get all words from kanji sources for the deck
@@ -114,9 +116,9 @@ fn get_kanji_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Ka
         // get all words related to the sentences
         .inner_join(sw::table.on(sw::sentence_id.eq(s::id)))
         .inner_join(w::table.on(w::id.nullable().eq(sw::word_id)))
+        .inner_join(wr::table.on(wr::word_id.eq(w::id)))
         // get all kanji related to the words
-        .inner_join(wf::table.on(wf::word_id.eq(w::id)))
-        .inner_join(wk::table.on(wk::written_form_id.eq(wf::id)))
+        .inner_join(wk::table.on(wk::word_id.eq(w::id)))
         .inner_join(k::table.on(k::id.eq(wk::kanji_id)))
         .select(KanjiWordQuery::as_select())
         .load(conn)?;
@@ -266,7 +268,7 @@ crate::query! {
         furigana: Vec<Option<database::Furigana>> = sentence_words::furigana,
         // postgres doesn't support non-null constraints on array elements,
         // so these are Options even though they're never None
-        translations: Vec<Option<String>> = words::translations,
+        translations: Vec<Option<String>> = word_readings::translations,
         sentence_id: i32 = sentences::id,
     }
 }
@@ -277,10 +279,10 @@ crate::query! {
         kanji_id: i32 = kanji::id,
         kanji: String = kanji::chara,
         kanji_name: Option<String> = kanji::name,
-        written_form: String = written_forms::written_form,
+        written_form: String = words::word,
         // postgres doesn't support non-null constraints on array elements,
         // so these are Options even though they're never None
-        translations: Vec<Option<String>> = words::translations,
+        translations: Vec<Option<String>> = word_readings::translations,
     }
 }
 

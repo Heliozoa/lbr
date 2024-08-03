@@ -101,7 +101,7 @@ macro_rules! diesel_enum {
                 bytes: <::diesel::pg::Pg as ::diesel::backend::Backend>::RawValue<'_>
             ) -> ::diesel::deserialize::Result<Self> {
                 let variant_name =
-                    <String as ::diesel::deserialize::FromSql<_, _>>::from_sql(bytes)?;
+                    <String as ::diesel::deserialize::FromSql<::diesel::sql_types::Text, ::diesel::pg::Pg>>::from_sql(bytes)?;
                 let res = match variant_name.as_str() {
                     $($l => Self::$variant,)*
                     other => panic!("Invalid data from database: {other}"),

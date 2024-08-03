@@ -147,7 +147,7 @@ impl FromRequestParts<LbrState> for Authentication {
                         .await
                         .map_err(|_| (StatusCode::UNAUTHORIZED, "Failed to save session"))?;
                 Ok(Authentication {
-                    session_id: session_id,
+                    session_id,
                     user_id: session_cookie.user_id,
                 })
             }

@@ -1,7 +1,7 @@
-use lbr_web::Root;
-use leptos::*;
+use lbr_web::App;
 use tracing::Level;
-use tracing_wasm::WASMLayerConfigBuilder;
+use tracing_subscriber::{fmt::format::Pretty, prelude::*};
+use tracing_web::{performance_layer, MakeWebConsoleWriter};
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
@@ -11,16 +11,17 @@ pub fn hydrate() {
     let wasm_log = option_env!("WASM_LOG")
         .and_then(|var| var.parse().ok())
         .unwrap_or(Level::INFO);
-    tracing_wasm::set_as_global_default_with_config(
-        WASMLayerConfigBuilder::default()
-            .set_max_level(wasm_log)
-            .build(),
-    );
+    let writer = MakeWebConsoleWriter::new().with_max_level(wasm_log);
+    let fmt_layer = tracing_subscriber::fmt::layer()
+        .with_ansi(false)
+        .without_time()
+        .with_writer(writer);
+    let perf_layer = performance_layer().with_details_from_fields(Pretty::default());
+    tracing_subscriber::registry()
+        .with(fmt_layer)
+        .with(perf_layer)
+        .init();
 
-    tracing::info!("hydrating (logging level {wasm_log})");
-
-    leptos::mount_to_body(move || {
-        lbr_web::context::initialise_context();
-        view! { <Root/> }
-    });
+    tracing::info!("Hydrating, logging level `{wasm_log}`");
+    leptos::mount::hydrate_body(App);
 }

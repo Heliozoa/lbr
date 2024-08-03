@@ -1,5 +1,4 @@
-.env
+/data
 target
-data
-ichiran
-crates/frontend/dist
+dist
+.env

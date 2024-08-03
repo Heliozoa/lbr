@@ -13,6 +13,7 @@ use std::collections::{HashMap, HashSet};
 pub fn segment_sentence(
     ichiran: &IchiranCli,
     sentence: &str,
+    ichiran_seq_to_word_id: &HashMap<i32, i32>,
 ) -> eyre::Result<Vec<ichiran_types::Segment>> {
     // get individual words from sentence with ichiran
     let segments = match ichiran.segment(sentence) {
@@ -24,7 +25,7 @@ pub fn segment_sentence(
             return Err(err).wrap_err_with(|| format!("Failed to segment sentence '{sentence}'"));
         }
     };
-    let segmented_sentence = lbr::core::to_lbr_segments(sentence, segments);
+    let segmented_sentence = lbr::core::to_lbr_segments(sentence, segments, ichiran_seq_to_word_id);
     Ok(segmented_sentence)
 }
 
@@ -32,8 +33,9 @@ pub fn segment_sentence(
 pub fn process_sentence(
     ichiran_cli: &IchiranCli,
     sentence: String,
+    ichiran_seq_to_word_id: &HashMap<i32, i32>,
 ) -> eyre::Result<res::SegmentedSentence> {
-    let segments = segment_sentence(ichiran_cli, &sentence)?;
+    let segments = segment_sentence(ichiran_cli, &sentence, ichiran_seq_to_word_id)?;
     Ok(res::SegmentedSentence { sentence, segments })
 }
 
@@ -48,7 +50,6 @@ pub struct NewSentenceWords<'a> {
 pub fn insert_sentence_words(
     conn: &mut PgConnection,
     kanji_to_readings: &HashMap<String, Vec<String>>,
-    ichiran_seq_to_word_id: &HashMap<i32, i32>,
     new_sentence_words: NewSentenceWords<'_>,
 ) -> eyre::Result<()> {
     use crate::schema::{ignored_words as iw, sentence_words as sw};
@@ -64,7 +65,7 @@ pub fn insert_sentence_words(
     conn.transaction(move |conn| {
         let mut sentence_words = Vec::new();
         for req::Word {
-            id: ichiran_id,
+            id: word_id,
             reading,
             idx_start,
             idx_end,
@@ -82,9 +83,6 @@ pub fn insert_sentence_words(
                 })
                 .transpose()?
                 .unwrap_or_default();
-            let word_id = ichiran_id
-                .and_then(|id| ichiran_seq_to_word_id.get(&id))
-                .copied();
             sentence_words.push(eq!(
                 sw,
                 sentence_id,
@@ -103,14 +101,8 @@ pub fn insert_sentence_words(
         }
         let ignored_words = ignore_words
             .into_iter()
-            .map(|ichiran_seq| {
-                ichiran_seq_to_word_id
-                    .get(&ichiran_seq)
-                    .copied()
-                    .ok_or_else(|| eyre::eyre!("Failed to find word id for {ichiran_seq}"))
-            })
-            .map(|word_id| word_id.map(|word_id| eq!(iw, word_id, user_id)))
-            .collect::<Result<Vec<_>, _>>()?;
+            .map(|word_id| eq!(iw, word_id, user_id))
+            .collect::<Vec<_>>();
         for chunk in ignored_words.pg_chunks() {
             diesel::insert_into(iw::table)
                 .values(chunk)

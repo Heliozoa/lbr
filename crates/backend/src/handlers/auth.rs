@@ -34,7 +34,7 @@ pub async fn login(
     State(state): State<LbrState>,
     cookies: Cookies,
     Json(login): Json<req::Login<'static>>,
-) -> LbrResult<()> {
+) -> LbrResult<Json<i32>> {
     use schema::users as u;
 
     let task_state = state.clone();
@@ -55,7 +55,7 @@ pub async fn login(
     let signed_cookies = cookies.signed(&state.private_cookie_key);
     authentication::save_session(user_id, signed_cookies, &state.sessions).await?;
 
-    Ok(())
+    Ok(Json(user_id))
 }
 
 #[instrument]

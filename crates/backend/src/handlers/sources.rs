@@ -202,7 +202,6 @@ pub async fn add_sentence(
             sentences::insert_sentence_words(
                 conn,
                 &state.kanji_to_readings,
-                &state.ichiran_seq_to_word_id,
                 NewSentenceWords {
                     user_id: user.user_id,
                     sentence_id,

@@ -10,6 +10,8 @@ use std::collections::HashMap;
 
 /// Returns a mapping from kanji to its potential readings.
 pub fn kanji_to_readings(conn: &mut PgConnection) -> eyre::Result<HashMap<String, Vec<String>>> {
+    tracing::info!("Building a mapping from kanji to its readings");
+
     let kanji_with_reading = k::table
         .inner_join(kr::table.on(kr::kanji_id.eq(k::id)))
         .select(KanjiWithReading::as_select())
@@ -140,6 +142,70 @@ mod test {
             &"もののけ"
                 [furigana[1].reading_start_idx as usize..furigana[1].reading_end_idx as usize],
             "け"
+        );
+    }
+
+    #[test]
+    fn converts_furigana_to_db_furigana2() {
+        use crate::utils::database::Furigana as DbFurigana;
+        use furigana::{Furigana, FuriganaSegment};
+
+        let furigana = vec![
+            FuriganaSegment {
+                segment: "近",
+                furigana: Some("きん"),
+            },
+            FuriganaSegment {
+                segment: "所",
+                furigana: Some("じょ"),
+            },
+        ];
+        let furigana = Furigana {
+            furigana,
+            accuracy: 1,
+        };
+        let furigana = furigana_to_db_furigana(furigana).unwrap();
+        assert_eq!(furigana.len(), 2, "{furigana:#?}");
+        assert_eq!(
+            furigana[0],
+            DbFurigana {
+                word_start_idx: 0,
+                word_end_idx: 3,
+                reading_start_idx: 0,
+                reading_end_idx: 6
+            },
+            "{:#?}",
+            furigana[0]
+        );
+        assert_eq!(
+            furigana[1],
+            DbFurigana {
+                word_start_idx: 3,
+                word_end_idx: 6,
+                reading_start_idx: 6,
+                reading_end_idx: 12
+            },
+            "{:#?}",
+            furigana[1]
+        );
+
+        assert_eq!(
+            &"近所"[furigana[0].word_start_idx as usize..furigana[0].word_end_idx as usize],
+            "近"
+        );
+        assert_eq!(
+            &"きんじょ"
+                [furigana[0].reading_start_idx as usize..furigana[0].reading_end_idx as usize],
+            "きん"
+        );
+        assert_eq!(
+            &"近所"[furigana[1].word_start_idx as usize..furigana[1].word_end_idx as usize],
+            "所"
+        );
+        assert_eq!(
+            &"きんじょ"
+                [furigana[1].reading_start_idx as usize..furigana[1].reading_end_idx as usize],
+            "じょ"
         );
     }
 }

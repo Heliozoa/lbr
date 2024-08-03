@@ -50,31 +50,6 @@ pub enum IncludedSourceKind {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct NewSentence<'a> {
-    pub source_id: i32,
-    pub deck_id: i32,
-    pub sentence: Cow<'a, str>,
-    pub sentence_words: Vec<NewSentenceWord<'a>>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct NewSentenceWord<'a> {
-    pub word_id: i32,
-    pub reading: Option<Cow<'a, str>>,
-    pub idx_start: i32,
-    pub idx_end: i32,
-    pub furigana: Vec<NewSentenceWordFurigana>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct NewSentenceWordFurigana {
-    pub word_start_idx: i32,
-    pub word_end_idx: i32,
-    pub reading_start_idx: i32,
-    pub reading_end_idx: i32,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct UpdateSentence<'a> {
     pub sentence: Cow<'a, str>,
     pub sentence_words: Cow<'a, [UpdatedSentenceWord<'a>]>,

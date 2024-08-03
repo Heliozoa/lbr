@@ -10,10 +10,11 @@ use lbr_api::{request as req, response as res};
 use leptos::{
     html::{Input, Textarea},
     leptos_dom::helpers::TimeoutHandle,
-    *,
+    prelude::*,
 };
-use leptos_router::*;
-use std::{rc::Rc, time::Duration};
+use leptos_router::{components::*, params::Params};
+use send_wrapper::SendWrapper;
+use std::{sync::Arc, time::Duration};
 
 #[component]
 pub fn Home() -> impl IntoView {
@@ -28,16 +29,18 @@ pub fn Home() -> impl IntoView {
                 <SourceList sources/>
             </div>
         }
+        .into_any()
     };
     let sources_view = move |sources: Option<_>| {
         view! {
             <h2 class="subtitle is-6 has-text-weight-bold">"Sources"</h2>
             <A href="/source/new">"New source"</A>
             {match sources {
-                Some(sources) => sources_content(sources).into_view(),
-                None => utils::loading_fallback("Loading sources..."),
+                Some(sources) => sources_content(sources).into_any(),
+                None => utils::loading_fallback("Loading sources...").into_any(),
             }}
         }
+        .into_any()
     };
 
     // decks
@@ -49,16 +52,18 @@ pub fn Home() -> impl IntoView {
                 <DeckList decks/>
             </div>
         }
+        .into_any()
     };
     let decks_view = move |decks: Option<_>| {
         view! {
             <h2 class="subtitle is-6 has-text-weight-bold">"Decks"</h2>
             <A href="/deck/new">"New deck"</A>
             {match decks {
-                Some(decks) => decks_content(decks).into_view(),
-                None => utils::loading_fallback("Loading decks..."),
+                Some(decks) => decks_content(decks).into_any(),
+                None => utils::loading_fallback("Loading decks...").into_any(),
             }}
         }
+        .into_any()
     };
 
     let other_view = move || {
@@ -66,8 +71,9 @@ pub fn Home() -> impl IntoView {
             Some({
                 view! {
                     <h2 class="subtitle is-6 has-text-weight-bold">"Other"</h2>
-                    <A href=format!("/ignored-words")>"Ignored words"</A>
+                    <A href="/ignored-words">"Ignored words"</A>
                 }
+                .into_any()
             })
         } else {
             None
@@ -94,19 +100,17 @@ pub fn Home() -> impl IntoView {
 pub fn SourceNew() -> impl IntoView {
     tracing::info!("Rendering SourceNew");
 
-    let name_ref = leptos::create_node_ref::<Input>();
-    let send = leptos::create_action(move |()| {
-        let name = name_ref().unwrap().value();
+    let name_ref = NodeRef::<Input>::new();
+    let send = Action::new(move |()| async move {
+        let name = name_ref.get().unwrap().value();
         let client = get_client();
-        async move {
-            if name.is_empty() {
-                return Err(WebError {
-                    message: "Source name cannot be empty".to_string(),
-                });
-            }
-            let id = client.new_source(&name).await?;
-            WebResult::Ok(view! { <Redirect path=format!("/source/{id}") /> })
+        if name.is_empty() {
+            return Err(WebError {
+                message: "Source name cannot be empty".to_string(),
+            });
         }
+        let id = SendWrapper::new(client.new_source(&name)).await?;
+        WebResult::Ok(view! { <Redirect path=format!("/source/{id}") /> })
     });
 
     view! {
@@ -133,52 +137,54 @@ pub fn SourceNew() -> impl IntoView {
 
 #[derive(Debug, Clone, PartialEq, Params)]
 pub struct SourceParams {
-    source_id: i32,
+    source_id: Option<i32>,
 }
 #[component]
 pub fn Source() -> impl IntoView {
     let SourceParams { source_id } = utils::params()?;
+    let source_id = source_id.unwrap();
     tracing::info!("Rendering Source {source_id}");
 
     // resources
     let source_res = utils::logged_in_resource!(get_source(source_id));
 
     // actions
-    let name_ref = leptos::create_node_ref::<Input>();
+    let name_ref = NodeRef::<Input>::new();
     let (update_result_message, set_update_result_message) =
-        leptos::create_signal((None::<View>, None::<TimeoutHandle>));
-    let update_act = leptos::create_action(move |&()| {
-        let name = name_ref().unwrap().value();
+        leptos::prelude::signal((None::<&'static str>, None::<TimeoutHandle>));
+    let update_act = Action::new(move |&()| {
+        let name = name_ref.get().unwrap().value();
         let client = get_client();
         async move {
-            client.update_source(source_id, &name).await?;
-            source_res.refetch();
-            let handle = leptos::set_timeout_with_handle(
+            SendWrapper::new(client.update_source(source_id, &name)).await?;
+            // todo source_res.refetch();
+            let handle = leptos::prelude::set_timeout_with_handle(
                 move || {
-                    set_update_result_message((None, None));
+                    set_update_result_message.set((None, None));
                 },
                 Duration::from_secs(4),
             )
             .ok();
-            set_update_result_message((
-                Some(view! { <div>"Updated source!"</div> }.into_view()),
-                handle,
-            ));
+            set_update_result_message.set((Some("Updated source!"), handle));
             WebResult::Ok(())
         }
     });
-    let delete_act = leptos::create_action(move |&()| {
+    let delete_act = Action::new(move |&()| {
         // TODO: make the user type the name of the source
-        let confirmed =
-            leptos::window().confirm_with_message("Are you sure you want to delete this source? Doing so will delete all the sentences associated with this source");
+        let confirmed = leptos::prelude::window()
+            .confirm_with_message(
+                "Are you sure you want to delete this source? \
+            Doing so will delete all the sentences associated with this source",
+            )
+            .map_err(WebError::from_js);
         let client = get_client();
         async move {
             let confirmed = confirmed?;
             let view = if confirmed {
-                client.delete_source(source_id).await?;
-                view! { <Redirect path="/" /> }.into_view()
+                SendWrapper::new(client.delete_source(source_id)).await?;
+                Some(view! { <Redirect path="/" /> })
             } else {
-                ().into_view()
+                None
             };
             WebResult::Ok(view)
         }
@@ -214,7 +220,7 @@ pub fn Source() -> impl IntoView {
                 </form>
             </div>
             <div class="block">
-                <button class="button is-danger" on:click=move |_ev| delete_act.dispatch(())>
+                <button class="button is-danger" on:click=move |_ev| { delete_act.dispatch(()); }>
                     "Delete source"
                 </button>
                 <ActionView action=delete_act/>
@@ -222,8 +228,8 @@ pub fn Source() -> impl IntoView {
         }
     };
     let source_view = move |source: Option<_>| match source {
-        Some(source) => source_content(source).into_view(),
-        None => utils::loading_fallback("Loading source..."),
+        Some(source) => source_content(source).into_any(),
+        None => utils::loading_fallback("Loading source...").into_any(),
     };
 
     let view = view! {
@@ -236,11 +242,12 @@ pub fn Source() -> impl IntoView {
 
 #[derive(Debug, Clone, PartialEq, Params)]
 pub struct SentencesParams {
-    source_id: i32,
+    source_id: Option<i32>,
 }
 #[component]
 pub fn SourceSentences() -> impl IntoView {
     let SentencesParams { source_id } = utils::params()?;
+    let source_id = source_id.unwrap();
     tracing::info!("Rendering SourceSentences {source_id}");
 
     // resources
@@ -253,7 +260,7 @@ pub fn SourceSentences() -> impl IntoView {
             .map(|s| {
                 view! {
                     <li>
-                        {s.sentence}
+                        <A href=format!("/source/{source_id}/sentence/{}", s.id)>{s.sentence}</A>
                     </li>
                 }
             })
@@ -277,8 +284,8 @@ pub fn SourceSentences() -> impl IntoView {
         }
     };
     let source_view = move |source: Option<_>| match source {
-        Some(source) => source_content(source).into_view(),
-        None => utils::loading_fallback("Loading source..."),
+        Some(source) => source_content(source).into_any(),
+        None => utils::loading_fallback("Loading source...").into_any(),
     };
 
     let view = view! {
@@ -291,18 +298,19 @@ pub fn SourceSentences() -> impl IntoView {
 
 #[derive(Debug, Clone, PartialEq, Params)]
 pub struct SourceAddSentencesParams {
-    source_id: i32,
+    source_id: Option<i32>,
 }
 #[component]
 pub fn SourceAddSentences() -> impl IntoView {
     let SourceAddSentencesParams { source_id } = utils::params()?;
+    let source_id = source_id.unwrap();
     tracing::info!("Rendering SourceAddSentences {source_id}");
 
-    let analyse_textarea_ref = leptos::create_node_ref::<Textarea>();
-    let analyse_act = leptos::create_action(move |&()| {
-        let textarea_val = analyse_textarea_ref().unwrap().value();
+    let analyse_textarea_ref = NodeRef::<Textarea>::new();
+    let analyse_act = Action::new(move |&()| {
+        let textarea_val = analyse_textarea_ref.get().unwrap().value();
         let client = get_client();
-        async move { client.segment_paragraph(source_id, &textarea_val).await }
+        async move { SendWrapper::new(client.segment_paragraph(source_id, &textarea_val)).await }
     });
 
     // source
@@ -316,14 +324,14 @@ pub fn SourceAddSentences() -> impl IntoView {
                 "Paragraph"
                 <textarea class="textarea" node_ref=analyse_textarea_ref/>
             </label>
-            <button class="button is-primary mt-1" on:click=move |_ev| analyse_act.dispatch(())>
+            <button class="button is-primary mt-1" on:click=move |_ev| { analyse_act.dispatch(()); }>
                 "Analyse"
             </button>
         }
     };
     let source_view = move |source: Option<res::Source>| match source {
-        Some(source) => source_content(source).into_view(),
-        None => view! { <div>"Loading source..."</div> }.into_view(),
+        Some(source) => source_content(source).into_any(),
+        None => view! { <div>"Loading source..."</div> }.into_any(),
     };
 
     // analysis
@@ -331,15 +339,15 @@ pub fn SourceAddSentences() -> impl IntoView {
         view! { <SegmentedParagraphView source_id=source_id paragraph /> }
     };
     let analysis_view = move |segmented: Option<res::SegmentedParagraph>| match segmented {
-        Some(segments) => analysis_content(segments).into_view(),
-        None => view! { <div>"Nothing analysed yet"</div> }.into_view(),
+        Some(segments) => analysis_content(segments).into_any(),
+        None => view! { <div>"Nothing analysed yet"</div> }.into_any(),
     };
     let analysis = move || {
         let view = if analyse_act.pending().get() {
-            view! { <div>"Analysing..."</div> }.into_view()
+            view! { <div>"Analysing..."</div> }.into_any()
         } else {
             let paragraph = analyse_act.value().get().transpose()?;
-            analysis_view(paragraph).into_view()
+            analysis_view(paragraph).into_any()
         };
         WebResult::Ok(view)
     };
@@ -366,8 +374,8 @@ pub fn SourceAddSentences() -> impl IntoView {
 
 #[derive(Debug, Clone, PartialEq, Params)]
 pub struct SourceSentenceParams {
-    source_id: i32,
-    sentence_id: i32,
+    source_id: Option<i32>,
+    sentence_id: Option<i32>,
 }
 #[component]
 pub fn SourceSentence() -> impl IntoView {
@@ -375,22 +383,25 @@ pub fn SourceSentence() -> impl IntoView {
         source_id,
         sentence_id,
     } = utils::params()?;
+    let source_id = source_id.unwrap();
+    let sentence_id = sentence_id.unwrap();
     tracing::info!("Rendering Sentence {source_id} {sentence_id}");
 
     let sentence_res = utils::logged_in_resource!(get_sentence(sentence_id));
 
-    let reanalyse_act = leptos::create_action(move |&()| {
+    let reanalyse_act = Action::new(move |&()| {
         let client = get_client();
-        async move { client.segment_sentence(sentence_id).await }
+        async move { SendWrapper::new(client.segment_sentence(sentence_id)).await }
     });
-    let delete_act = leptos::create_action(move |&()| {
-        let confirmed =
-            leptos::window().confirm_with_message("Are you sure you want to delete this sentence?");
+    let delete_act = Action::new(move |&()| {
+        let confirmed = leptos::prelude::window()
+            .confirm_with_message("Are you sure you want to delete this sentence?")
+            .map_err(WebError::from_js);
         let client = get_client();
         async move {
             let confirmed = confirmed?;
             let view = if confirmed {
-                client.delete_sentence(sentence_id).await?;
+                SendWrapper::new(client.delete_sentence(sentence_id)).await?;
                 Some(view! { <Redirect path={format!("/source/{source_id}")} /> })
             } else {
                 None
@@ -401,22 +412,22 @@ pub fn SourceSentence() -> impl IntoView {
 
     // analysis
     let analysis_content = move |segmented_sentence: res::SegmentedSentence| {
-        let on_successful_accept = Rc::new(move || {
-            sentence_res.refetch();
+        let on_successful_accept = Arc::new(move || {
+            // todo sentence_res.refetch();
             reanalyse_act.value().set(None);
         });
         view! {
-            <SegmentedSentenceView source_id sentence_id=Some(sentence_id) segmented_sentence ignored_words={Rc::new(std::collections::HashSet::new())} on_successful_accept=on_successful_accept />
+            <SegmentedSentenceView source_id sentence_id=Some(sentence_id) segmented_sentence ignored_words={Arc::new(std::collections::HashSet::new())} on_successful_accept=on_successful_accept />
         }
     };
     let analysis_view =
         move |segmented: Option<res::SegmentedSentence>| segmented.map(analysis_content);
     let analysis = move || {
         let view = if reanalyse_act.pending().get() {
-            view! { <div>"Analysing..."</div> }.into_view()
+            view! { <div>"Analysing..."</div> }.into_any()
         } else {
             let segmented = reanalyse_act.value().get().transpose()?;
-            analysis_view(segmented).into_view()
+            analysis_view(segmented).into_any()
         };
         WebResult::Ok(view)
     };
@@ -460,7 +471,7 @@ pub fn SourceSentence() -> impl IntoView {
                 <div>{sentence.sentence}</div>
             </div>
             <div class="block">
-                <button class="button is-primary" on:click=move |_ev| reanalyse_act.dispatch(())>
+                <button class="button is-primary" on:click=move |_ev| { reanalyse_act.dispatch(()); }>
                     "Reanalyse"
                 </button>
             </div>
@@ -474,7 +485,7 @@ pub fn SourceSentence() -> impl IntoView {
                 </div>
             </div>
             <div class="block">
-                <button class="button is-danger" on:click=move |_ev| delete_act.dispatch(())>
+                <button class="button is-danger" on:click=move |_ev| { delete_act.dispatch(()); }>
                     "Delete sentence"
                 </button>
                 <ActionView action=delete_act/>
@@ -482,8 +493,8 @@ pub fn SourceSentence() -> impl IntoView {
         }
     };
     let sentence_view = move |sentence: Option<res::SentenceDetails>| match sentence {
-        Some(sentence) => sentence_content(sentence).into_view(),
-        None => view! { <div>"Loading sentence..."</div> }.into_view(),
+        Some(sentence) => sentence_content(sentence).into_any(),
+        None => view! { <div>"Loading sentence..."</div> }.into_any(),
     };
 
     let view = view! {
@@ -499,9 +510,9 @@ pub fn SourceSentence() -> impl IntoView {
 pub fn DeckNew() -> impl IntoView {
     tracing::info!("Rendering DeckNew");
 
-    let name_ref = leptos::create_node_ref::<Input>();
-    let save_act = leptos::create_action(move |&()| {
-        let name = name_ref().unwrap().value();
+    let name_ref = NodeRef::<Input>::new();
+    let save_act = Action::new(move |&()| {
+        let name = name_ref.get().unwrap().value();
         let client = get_client();
         async move {
             if name.is_empty() {
@@ -509,7 +520,7 @@ pub fn DeckNew() -> impl IntoView {
                     message: "Deck name cannot be empty!".to_string(),
                 });
             }
-            let id = client.new_deck(&name).await?;
+            let id = SendWrapper::new(client.new_deck(&name)).await?;
             WebResult::Ok(view! { <Redirect path=format!("/deck/{id}") /> })
         }
     });
@@ -538,11 +549,12 @@ pub fn DeckNew() -> impl IntoView {
 
 #[derive(Debug, Clone, PartialEq, Params)]
 pub struct DeckParams {
-    deck_id: i32,
+    deck_id: Option<i32>,
 }
 #[component]
 pub fn Deck() -> impl IntoView {
     let DeckParams { deck_id } = utils::params()?;
+    let deck_id = deck_id.unwrap();
     tracing::info!("Rendering Deck {deck_id}");
 
     // resources
@@ -559,13 +571,13 @@ pub fn Deck() -> impl IntoView {
     }
 
     // actions
-    let name_ref = leptos::create_node_ref::<Input>();
-    let (source_refs, set_source_checkbox_refs) = leptos::create_signal(Vec::<SourceRefs>::new());
+    let name_ref = NodeRef::<Input>::new();
+    let (source_refs, set_source_checkbox_refs) = leptos::prelude::signal(Vec::<SourceRefs>::new());
     let (update_result_message, set_update_result_message) =
-        leptos::create_signal((None::<View>, None::<TimeoutHandle>));
-    let update_act = leptos::create_action(move |&()| {
+        leptos::prelude::signal((None::<&'static str>, None::<TimeoutHandle>));
+    let update_act = Action::new(move |&()| {
         let client = get_client();
-        let name = name_ref().unwrap().value();
+        let name = name_ref.get().unwrap().value();
         let mut included_sources = Vec::new();
 
         async move {
@@ -575,10 +587,10 @@ pub fn Deck() -> impl IntoView {
                 include_kanji,
                 word_threshold,
                 kanji_threshold,
-            } in source_refs()
+            } in source_refs.get()
             {
-                if include_words().unwrap().checked() {
-                    let threshold = word_threshold().unwrap().value().parse().map_err(|e| {
+                if include_words.get().unwrap().checked() {
+                    let threshold = word_threshold.get().unwrap().value().parse().map_err(|e| {
                         WebError::new(format!("Failed to parse threshold as number: {e}"))
                     })?;
                     if threshold < 1 {
@@ -590,10 +602,16 @@ pub fn Deck() -> impl IntoView {
                         kind: req::IncludedSourceKind::Word,
                     });
                 }
-                if include_kanji().unwrap().checked() {
-                    let threshold = kanji_threshold().unwrap().value().parse().map_err(|e| {
-                        WebError::new(format!("Failed to parse threshold as number: {e}"))
-                    })?;
+                if include_kanji.get().unwrap().checked() {
+                    let threshold =
+                        kanji_threshold
+                            .get()
+                            .unwrap()
+                            .value()
+                            .parse()
+                            .map_err(|e| {
+                                WebError::new(format!("Failed to parse threshold as number: {e}"))
+                            })?;
                     if threshold < 1 {
                         return Err(WebError::new("Threshold cannot be lower than 1"));
                     }
@@ -605,39 +623,35 @@ pub fn Deck() -> impl IntoView {
                 }
             }
 
-            client
-                .update_deck(deck_id, &name, &included_sources)
-                .await?;
-            deck_res.refetch();
+            SendWrapper::new(client.update_deck(deck_id, &name, &included_sources)).await?;
+            // todo deck_res.refetch();
             if let Some(handle) = update_result_message.get().1 {
                 handle.clear();
             }
-            let handle = leptos::set_timeout_with_handle(
+            let handle = leptos::prelude::set_timeout_with_handle(
                 move || {
-                    set_update_result_message((None, None));
+                    set_update_result_message.set((None, None));
                 },
                 Duration::from_secs(4),
             )
             .ok();
-            set_update_result_message((
-                Some(view! { <div>"Updated deck!"</div> }.into_view()),
-                handle,
-            ));
+            set_update_result_message.set((Some("Updated deck!"), handle));
 
             WebResult::Ok(())
         }
     });
-    let delete_act = leptos::create_action(move |&()| {
-        let confirmed =
-            leptos::window().confirm_with_message("Are you sure you want to delete this deck?");
+    let delete_act = Action::new(move |&()| {
+        let confirmed = leptos::prelude::window()
+            .confirm_with_message("Are you sure you want to delete this deck?")
+            .map_err(WebError::from_js);
         let client = get_client();
         async move {
             let confirmed = confirmed?;
             let view = if confirmed {
-                client.delete_deck(deck_id).await?;
-                view! { <Redirect path="/" /> }.into_view()
+                SendWrapper::new(client.delete_deck(deck_id)).await?;
+                Some(view! { <Redirect path="/" /> })
             } else {
-                ().into_view()
+                None
             };
             WebResult::Ok(view)
         }
@@ -654,13 +668,13 @@ pub fn Deck() -> impl IntoView {
         let sources_list = sources
             .into_iter()
             .map(|s| {
-                let include_words = leptos::create_node_ref::<Input>();
-                let word_threshold = leptos::create_node_ref::<Input>();
+                let include_words = NodeRef::<Input>::new();
+                let word_threshold = NodeRef::<Input>::new();
                 let (words_checked, word_threshold_val) = deck.sources.iter().find(|ds| ds.id == s.id).filter(|ds| matches!(ds.kind, res::DeckSourceKind::Word)).map(|ds| (true, ds.threshold)).unwrap_or((false, 1));
 
                 let (kanji_checked, kanji_threshold_val) = deck.sources.iter().find(|ds| ds.id == s.id).filter(|ds| matches!(ds.kind, res::DeckSourceKind::Kanji)).map(|ds| (true, ds.threshold)).unwrap_or((false, 1));
-                let include_kanji = leptos::create_node_ref::<Input>();
-                let kanji_threshold = leptos::create_node_ref::<Input>();
+                let include_kanji = NodeRef::<Input>::new();
+                let kanji_threshold = NodeRef::<Input>::new();
 
                 refs.push(SourceRefs {
                     source_id: s.id,
@@ -696,7 +710,7 @@ pub fn Deck() -> impl IntoView {
                 }
             })
             .collect_view();
-        set_source_checkbox_refs(refs);
+        set_source_checkbox_refs.set(refs);
 
         view! {
             <h2 class="subtitle">{format!("Viewing deck {}", deck.name)}</h2>
@@ -727,11 +741,11 @@ pub fn Deck() -> impl IntoView {
                         "Update deck"
                     </button>
                     <ActionView action=update_act/>
-                    {move || update_result_message().0}
+                    {move || update_result_message.get().0}
                 </form>
             </div>
             <div class="block">
-                <button class="button is-danger" on:click=move |_ev| delete_act.dispatch(())>
+                <button class="button is-danger" on:click=move |_ev| { delete_act.dispatch(()); }>
                     "Delete deck"
                 </button>
                 <ActionView action=delete_act/>
@@ -742,9 +756,9 @@ pub fn Deck() -> impl IntoView {
     let deck_sources_view = move |deck: Option<res::DeckDetails>,
                                   sources: Option<Vec<res::Source>>| {
         match (deck, sources) {
-            (Some(d), Some(s)) => deck_sources_content(d, s).into_view(),
-            (None, _) => view! { <div>"Loading deck..."</div> }.into_view(),
-            (_, None) => view! { <div>"Loading sources..."</div> }.into_view(),
+            (Some(d), Some(s)) => deck_sources_content(d, s).into_any(),
+            (None, _) => view! { <div>"Loading deck..."</div> }.into_any(),
+            (_, None) => view! { <div>"Loading sources..."</div> }.into_any(),
         }
     };
     let deck_sources = move || match (deck_res.get(), sources_res.get()) {
@@ -778,14 +792,15 @@ pub fn Deck() -> impl IntoView {
 pub fn IgnoredWords() -> impl IntoView {
     tracing::info!("Rendering IgnoredWords");
 
-    let delete_act = leptos::create_action(move |word_id: &i32| {
-        let confirmed = leptos::window()
-            .confirm_with_message("Are you sure you want to delete this ignored word?");
+    let delete_act = Action::new(move |word_id: &i32| {
+        let confirmed = leptos::prelude::window()
+            .confirm_with_message("Are you sure you want to delete this ignored word?")
+            .map_err(|e| WebError::new(format!("{e:?}")));
         let word_id = *word_id;
         let client = get_client();
         async move {
             if confirmed? {
-                client.delete_ignored_word(word_id).await?;
+                SendWrapper::new(client.delete_ignored_word(word_id)).await?;
             }
             Ok(())
         }
@@ -794,7 +809,7 @@ pub fn IgnoredWords() -> impl IntoView {
     let ignored_words_res = utils::logged_in_resource!(get_ignored_words());
     let ignored_words_content = move |mut ignored_words: Vec<res::IgnoredWord>| {
         if ignored_words.is_empty() {
-            return view! { <div>"No ignored words"</div> }.into_view();
+            return view! { <div>"No ignored words"</div> }.into_any();
         }
         ignored_words.sort_unstable_by_key(|iw| iw.word_id);
         let ignored_words = ignored_words
@@ -834,7 +849,7 @@ pub fn IgnoredWords() -> impl IntoView {
                                 ": "
                                 {translations}
                             </div>
-                            <button class="button is-danger mt-2" on:click=move |_ev| delete_act.dispatch(iw.word_id)>"Delete ignored word"</button>
+                            <button class="button is-danger mt-2" on:click=move |_ev| { delete_act.dispatch(iw.word_id); }>"Delete ignored word"</button>
                         </div>
                     </div>
                 }
@@ -845,12 +860,12 @@ pub fn IgnoredWords() -> impl IntoView {
                 {ignored_words}
             </div>
         }
-        .into_view()
+        .into_any()
     };
     let ignored_words_view = move |ignored_words: Option<Vec<res::IgnoredWord>>| match ignored_words
     {
-        Some(ignored_words) => ignored_words_content(ignored_words).into_view(),
-        None => view! { <div>"Loading..."</div> }.into_view(),
+        Some(ignored_words) => ignored_words_content(ignored_words).into_any(),
+        None => view! { <div>"Loading..."</div> }.into_any(),
     };
 
     view! {
@@ -867,19 +882,19 @@ pub fn Login() -> impl IntoView {
     tracing::info!("Rendering Login");
 
     let redirect = move || {
-        leptos_router::use_query_map()
+        leptos_router::hooks::use_query_map()
             .get()
             .get("redirect")
-            .map(String::to_string)
             .unwrap_or_else(|| "/".to_string())
     };
 
     // form
-    let email_ref = leptos::create_node_ref::<Input>();
-    let password_ref = leptos::create_node_ref::<Input>();
-    let submission_act = leptos::create_action(move |&()| {
-        let email = email_ref().unwrap().value();
-        let password = password_ref().unwrap().value();
+    let email_ref = NodeRef::<Input>::new();
+    let password_ref = NodeRef::<Input>::new();
+    let submission_act = Action::new(move |&()| {
+        tracing::info!("Logging in");
+        let email = email_ref.get().unwrap().value();
+        let password = password_ref.get().unwrap().value();
         let client = get_client();
         async move {
             if email.is_empty() {
@@ -888,27 +903,33 @@ pub fn Login() -> impl IntoView {
             if password.is_empty() {
                 return Err(WebError::new("Password cannot be empty"));
             }
-            client.login(email.as_str(), password.as_str()).await?;
+            SendWrapper::new(client.login(email.as_str(), password.as_str())).await?;
             let view = move || view! { <Redirect path=redirect() /> };
             WebResult::Ok(view)
         }
     });
 
-    let password_visible = leptos::create_rw_signal(false);
+    let password_visible = RwSignal::new(false);
     let password_visibility_toggle = move || {
-        if password_visible() {
-            view! { <button class="button" on:click=move |_ev| password_visible.set(false)>"Hide passwords"</button> }
+        if password_visible.get() {
+            view! { <button class="button" on:click=move |_ev| password_visible.set(false)>"Hide password"</button> }.into_any()
         } else {
-            view! { <button class="button" on:click=move |_ev| password_visible.set(true)>"Show passwords"</button> }
+            view! { <button class="button" on:click=move |_ev| password_visible.set(true)>"Show password"</button> }.into_any()
         }
     };
     let password_input_type = move || {
-        if password_visible() {
+        if password_visible.get() {
             "text"
         } else {
             "password"
         }
     };
+
+    Effect::new(move |_| {
+        if let Some(email_ref) = email_ref.get() {
+            email_ref.focus().unwrap();
+        }
+    });
 
     view! {
         <LoginGuard require_login=false>
@@ -940,13 +961,14 @@ pub fn Register() -> impl IntoView {
     tracing::info!("Rendering Register");
 
     // form
-    let email_ref = leptos::create_node_ref::<Input>();
-    let password_ref = leptos::create_node_ref::<Input>();
-    let repeat_password_ref = leptos::create_node_ref::<Input>();
-    let submission_act = leptos::create_action(move |&()| {
-        let email = email_ref().unwrap().value();
-        let password = password_ref().unwrap().value();
-        let repeat_password = repeat_password_ref().unwrap().value();
+    let email_ref = NodeRef::<Input>::new();
+    let password_ref = NodeRef::<Input>::new();
+    let repeat_password_ref = NodeRef::<Input>::new();
+    let submit = Action::new(move |&()| {
+        tracing::info!("Registering");
+        let email = email_ref.get().unwrap().value();
+        let password = password_ref.get().unwrap().value();
+        let repeat_password = repeat_password_ref.get().unwrap().value();
         let client = get_client();
         async move {
             if email.is_empty() {
@@ -958,26 +980,32 @@ pub fn Register() -> impl IntoView {
             if password != repeat_password {
                 return Err(WebError::new("Passwords don't match"));
             }
-            client.register(&email, &password).await?;
-            WebResult::Ok(move || view! { <Redirect path="/login" /> })
+            SendWrapper::new(client.register(&email, &password)).await?;
+            WebResult::Ok(view! { <Redirect path="/login" /> })
         }
     });
 
-    let password_visible = leptos::create_rw_signal(false);
+    let password_visible: RwSignal<bool> = RwSignal::new(false);
     let password_visibility_toggle = move || {
-        if password_visible() {
-            view! { <button class="button" on:click=move |_ev| password_visible.set(false)>"Hide passwords"</button> }
+        if password_visible.get() {
+            view! { <button class="button" on:click=move |_ev| password_visible.set(false)>"Hide passwords"</button> }.into_any()
         } else {
-            view! { <button class="button" on:click=move |_ev| password_visible.set(true)>"Show passwords"</button> }
+            view! { <button class="button" on:click=move |_ev| password_visible.set(true)>"Show passwords"</button> }.into_any()
         }
     };
     let password_input_type = move || {
-        if password_visible() {
+        if password_visible.get() {
             "text"
         } else {
             "password"
         }
     };
+
+    Effect::new(move |_| {
+        if let Some(email_ref) = email_ref.get() {
+            email_ref.focus().unwrap();
+        }
+    });
 
     view! {
         <LoginGuard require_login=false>
@@ -997,13 +1025,13 @@ pub fn Register() -> impl IntoView {
                 </label>
                 <button class="button mr-2" type="submit" on:click={move |ev| {
                     ev.prevent_default();
-                    submission_act.dispatch(())
+                    submit.dispatch(());
                 }}>
                     "Register"
                 </button>
                 {password_visibility_toggle}
             </form>
-            <ActionView action=submission_act/>
+            <ActionView action=submit/>
         </LoginGuard>
     }
 }

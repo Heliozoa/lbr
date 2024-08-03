@@ -1,19 +1,24 @@
 //! Contains functionality related to lbr_core.
 
 use lbr_core::ichiran_types as it;
+use std::collections::HashMap;
 
 /// Converts ichiran segments to lbr's format.
 ///
 /// # Panics
 /// On some invalid ichiran inputs.
-pub fn to_lbr_segments(text: &str, ichiran_segments: Vec<ichiran::Segment>) -> Vec<it::Segment> {
+pub fn to_lbr_segments(
+    text: &str,
+    ichiran_segments: Vec<ichiran::Segment>,
+    ichiran_seq_to_word_id: &HashMap<i32, i32>,
+) -> Vec<it::Segment> {
     let mut segments = vec![];
     let mut idx = 0;
     for segment in ichiran_segments {
         if let ichiran::Segment::Words(words) = segment {
             for word_segment in words {
                 for word in word_segment.words {
-                    process_word(&mut segments, text, word, &mut idx);
+                    process_word(&mut segments, text, word, &mut idx, ichiran_seq_to_word_id);
                 }
             }
         }
@@ -25,7 +30,13 @@ pub fn to_lbr_segments(text: &str, ichiran_segments: Vec<ichiran::Segment>) -> V
     segments
 }
 
-fn process_word(segments: &mut Vec<it::Segment>, text: &str, word: ichiran::Word, idx: &mut usize) {
+fn process_word(
+    segments: &mut Vec<it::Segment>,
+    text: &str,
+    word: ichiran::Word,
+    idx: &mut usize,
+    ichiran_seq_to_word_id: &HashMap<i32, i32>,
+) {
     // handle word
     let mut word_in_text = None;
     let mut interpretations = vec![];
@@ -35,7 +46,7 @@ fn process_word(segments: &mut Vec<it::Segment>, text: &str, word: ichiran::Word
             ichiran::Alternative::WordInfo(info) => {
                 let score = info.score;
                 let reading_hiragana = info.kana.clone();
-                let component = to_lbr_word_info(info);
+                let component = to_lbr_word_info(info, ichiran_seq_to_word_id);
                 word_in_text = Some(component.word.clone());
                 components.push(component);
                 interpretations.push(it::Interpretation {
@@ -48,7 +59,7 @@ fn process_word(segments: &mut Vec<it::Segment>, text: &str, word: ichiran::Word
                 word_in_text = Some(info.text);
                 let reading_hiragana = info.kana.clone();
                 for component in info.components {
-                    let component = to_lbr_word_info(component);
+                    let component = to_lbr_word_info(component, ichiran_seq_to_word_id);
                     components.push(component);
                 }
                 interpretations.push(it::Interpretation {
@@ -76,11 +87,18 @@ fn process_word(segments: &mut Vec<it::Segment>, text: &str, word: ichiran::Word
     })
 }
 
-fn to_lbr_word_info(info: ichiran::WordInfo) -> it::WordInfo {
+fn to_lbr_word_info(
+    info: ichiran::WordInfo,
+    ichiran_seq_to_word_id: &HashMap<i32, i32>,
+) -> it::WordInfo {
+    // we convert the ichiran seqs to our word ids here so we don't have to worry about them later
+    let word_id = info
+        .seq
+        .and_then(|seq| ichiran_seq_to_word_id.get(&seq).copied());
     it::WordInfo {
         word: info.text,
         reading_hiragana: info.kana,
-        word_id: info.seq,
+        word_id,
         meanings: info
             .gloss
             .into_iter()

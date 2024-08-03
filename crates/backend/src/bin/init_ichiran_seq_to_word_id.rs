@@ -16,7 +16,7 @@ fn main() -> eyre::Result<()> {
 
     let ichiran_seq_to_word_id =
         lbr_server::domain::ichiran::get_ichiran_seq_to_word_id(&mut lbr_conn, &mut ichiran_conn)?;
-    let contents = bitcode::encode(&ichiran_seq_to_word_id)?;
+    let contents = bitcode::encode(&ichiran_seq_to_word_id);
     std::fs::write("./data/ichiran_seq_to_word_id.bitcode", contents)?;
     Ok(())
 }

@@ -14,7 +14,9 @@ pub async fn get_one(
     Path(id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<Json<res::SentenceDetails>> {
-    use schema::{sentence_words as sw, sentences as s, sources as so, words as w};
+    use schema::{
+        sentence_words as sw, sentences as s, sources as so, word_readings as wr, words as w,
+    };
 
     let sentence = tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
@@ -26,6 +28,7 @@ pub async fn get_one(
             .get_result(&mut conn)?;
         let words = sw::table
             .inner_join(w::table.on(sw::word_id.eq(w::id.nullable())))
+            .inner_join(wr::table.on(wr::word_id.eq(w::id)))
             .filter(sw::sentence_id.eq(id))
             .select(SentenceWord::as_select())
             .load(&mut conn)?;
@@ -93,7 +96,6 @@ pub async fn update(
             sentences::insert_sentence_words(
                 conn,
                 &state.kanji_to_readings,
-                &state.ichiran_seq_to_word_id,
                 NewSentenceWords {
                     user_id: user.user_id,
                     sentence_id,
@@ -114,7 +116,7 @@ pub async fn update(
 #[instrument]
 pub async fn delete(
     State(state): State<LbrState>,
-    Path(id): Path<i32>,
+    Path(sentence_id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<()> {
     use schema::{sentence_words as sw, sentences as s, sources as so};
@@ -123,7 +125,7 @@ pub async fn delete(
         let mut conn = state.lbr_pool.get()?;
         let id = s::table
             .inner_join(so::table.on(so::id.eq(s::source_id)))
-            .filter(so::user_id.eq(user.user_id))
+            .filter(so::user_id.eq(user.user_id).and(s::id.eq(sentence_id)))
             .select(s::id)
             .get_result::<i32>(&mut conn)?;
         conn.transaction(|conn| {
@@ -152,7 +154,11 @@ pub async fn segment(
             .filter(s::id.eq(id))
             .select(s::sentence)
             .get_result::<String>(&mut conn)?;
-        let segmented_sentence = sentences::process_sentence(&state.ichiran_cli, sentence)?;
+        let segmented_sentence = sentences::process_sentence(
+            &state.ichiran_cli,
+            sentence,
+            &state.ichiran_seq_to_word_id,
+        )?;
         EyreResult::Ok(segmented_sentence)
     })
     .await??;
@@ -175,6 +181,6 @@ query! {
         idx_start: i32 = sentence_words::idx_start,
         idx_end: i32 = sentence_words::idx_end,
         furigana: Vec<Option<database::Furigana>> = sentence_words::furigana,
-        translations: Vec<Option<String>> = words::translations,
+        translations: Vec<Option<String>> = word_readings::translations,
     }
 }

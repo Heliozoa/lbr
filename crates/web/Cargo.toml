@@ -20,16 +20,13 @@ chrono = { version = "0.4.26", default-features = false, features = [
   "clock",
 ] }
 eyre = "0.6.8"
-leptos = { workspace = true, features = [
-  "nightly",
-] }
-leptos_meta = { workspace = true, features = [
-  "nightly",
-] }
-leptos_router = { workspace = true, features = [
-  "nightly",
-] }
+futures-util = "0.3.30"
+leptos.workspace = true
+leptos_meta.workspace = true
+leptos_router.workspace = true
+mini-moka = "0.10.3"
 reqwasm = "0.5.0"
+send_wrapper = "0.6.0"
 serde = { version = "1.0.164", features = ["derive"] }
 serde_json = "1.0.97"
 thiserror = "1.0.40"
@@ -39,5 +36,5 @@ web-sys = { version = "0.3.60", features = ["HtmlDocument"] }
 
 [features]
 default = []
-hydrate = ["leptos/hydrate", "leptos_router/hydrate", "leptos_meta/hydrate"]
+hydrate = ["leptos/hydrate"]
 ssr = ["leptos/ssr", "leptos_router/ssr", "leptos_meta/ssr"]

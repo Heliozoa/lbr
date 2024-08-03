@@ -106,7 +106,7 @@ impl KanjiFields {
 }
 
 /// Globally unique anki model ID. Randomly chosen.
-const MODEL_ID: i64 = -1842913271028638742;
+const LBR_KANJI_ANKI_MODEL_ID: i64 = -1842913271028638742;
 pub fn create_model() -> Model {
     let fields = KanjiFields::fields();
     let templates = vec![Template::new("lbr-kanji")
@@ -136,7 +136,7 @@ pub fn create_model() -> Model {
 </div>
 "#,
         )];
-    Model::new(MODEL_ID, "lbr-kanji", fields, templates).css(
+    Model::new(LBR_KANJI_ANKI_MODEL_ID, "lbr-kanji", fields, templates).css(
         r#"
 .card {
     text-align: center;

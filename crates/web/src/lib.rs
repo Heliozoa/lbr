@@ -1,3 +1,5 @@
+#![allow(clippy::unit_arg)]
+
 pub mod components;
 pub mod context;
 pub mod error;
@@ -5,15 +7,19 @@ pub mod pages;
 pub mod utils;
 
 use components::*;
-use leptos::*;
+use leptos::prelude::*;
 use leptos_meta::*;
-use leptos_router::*;
+use leptos_router::{components::*, ParamSegment, StaticSegment};
 use pages::*;
 
 /// Wraps the content in a basic layout and a final fallback error boundary which should never actually trigger
 #[component]
-pub fn Root() -> impl IntoView {
-    let fallback = move |errors: RwSignal<Errors>| {
+pub fn App() -> impl IntoView {
+    tracing::info!("Rendering app");
+
+    context::initialise_context();
+
+    let fallback = move |errors: ArcRwSignal<Errors>| {
         errors
             .get_untracked()
             .into_iter()
@@ -22,18 +28,18 @@ pub fn Root() -> impl IntoView {
             })
             .collect_view()
     };
-    provide_meta_context();
 
     view! {
             <Stylesheet id="lbr" href="/pkg/lbr.css"/>
+            <Link rel="shortcut icon" type_="image/ico" href="/favicon.ico"/>
+            <Meta name="description" content="LBR is an application for studying Japanese"/>
             <Title text="LBR"/>
             <div class="is-flex is-flex-direction-column" style="min-height: 100vh">
                 <div class="section is-flex is-flex-grow-1">
                     <div class="container">
-                        // causes "RouterContext not found"
-                        //<ErrorBoundary fallback>
-                        <Content/>
-                        //</ErrorBoundary>
+                        <ErrorBoundary fallback>
+                            <Content/>
+                        </ErrorBoundary>
                     </div>
                 </div>
                 <footer class="footer">
@@ -55,52 +61,52 @@ pub fn Content() -> impl IntoView {
             <Navbar/>
             <main>
                 <h1 class="title">"LBR"</h1>
-                <AnimatedRoutes>
+                <FlatRoutes fallback=|| "Page not found.">
                     <Route
-                        path=""
-                        view=|| view! { <Home/> }
+                        path=StaticSegment("/")
+                        view=Home
                     />
                     <Route
-                        path="source/new"
-                        view=|| view! { <SourceNew/>}
+                        path=(StaticSegment("source"), StaticSegment("new"))
+                        view=SourceNew
                     />
                     <Route
-                        path="source/:source_id"
-                        view=|| view! { <Source/> }
+                        path=(StaticSegment("source"), ParamSegment("source_id"))
+                        view=Source
                     />
                     <Route
-                        path="source/:source_id/add-sentences"
-                        view=|| view! { <SourceAddSentences/> }
+                        path=(StaticSegment("source"), ParamSegment("source_id"), StaticSegment("add-sentences"))
+                        view=SourceAddSentences
                     />
                     <Route
-                        path="source/:source_id/sentences"
-                        view=|| view! { <SourceSentences/> }
+                        path=(StaticSegment("source"), ParamSegment("source_id"), StaticSegment("sentences"))
+                        view=SourceSentences
                     />
                     <Route
-                        path="source/:source_id/sentence/:sentence_id"
-                        view=|| view! { <SourceSentence/> }
+                        path=(StaticSegment("source"), ParamSegment("source_id"), StaticSegment("sentences"), ParamSegment("sentence_id"))
+                        view=SourceSentence
                     />
                     <Route
-                        path="deck/new"
-                        view=|| view! { <DeckNew/> }
+                        path=(StaticSegment("deck"), StaticSegment("new"))
+                        view=DeckNew
                     />
                     <Route
-                        path="deck/:deck_id"
-                        view=|| view! { <Deck/> }
+                        path=(StaticSegment("deck"), ParamSegment("deck_id"))
+                        view=Deck
                     />
                     <Route
-                        path="ignored-words"
-                        view=|| view! { <IgnoredWords/> }
+                        path=StaticSegment("ignored-words")
+                        view=IgnoredWords
                     />
                     <Route
-                        path="login"
-                        view=|| view! { <Login/> }
+                        path=StaticSegment("login")
+                        view=Login
                     />
                     <Route
-                        path="register"
-                        view=|| view! { <Register/> }
+                        path=StaticSegment("register")
+                        view=Register
                     />
-                </AnimatedRoutes>
+                </FlatRoutes>
             </main>
         </Router>
     }

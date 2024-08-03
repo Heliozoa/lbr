@@ -21,7 +21,7 @@ pub async fn segment(
 
     let segmented_paragraph = tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
-        let _source = so::table
+        let source_id = so::table
             .filter(so::id.eq(source_id).and(so::user_id.eq(user_id)))
             .select(so::id)
             .get_result::<i32>(&mut conn)?;
@@ -41,7 +41,11 @@ pub async fn segment(
                     continue;
                 }
                 let segmented_sentence = scope.spawn(|| {
-                    sentences::process_sentence(&state.ichiran_cli, sentence.to_string())
+                    sentences::process_sentence(
+                        &state.ichiran_cli,
+                        sentence.to_string(),
+                        &state.ichiran_seq_to_word_id,
+                    )
                 });
                 handles.push(segmented_sentence);
             }

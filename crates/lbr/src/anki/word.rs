@@ -196,7 +196,7 @@ impl WordFields {
 }
 
 /// Globally unique anki model ID. Randomly chosen.
-const MODEL_ID: i64 = -4236074849754614939;
+const LBR_WORD_ANKI_MODEL_ID: i64 = -4236074849754614939;
 pub fn create_model() -> Model {
     let fields = WordFields::fields();
     let templates = vec![Template::new("lbr-word")
@@ -229,7 +229,7 @@ pub fn create_model() -> Model {
 </div>
 "#,
         )];
-    Model::new(MODEL_ID, "lbr-word", fields, templates).css(
+    Model::new(LBR_WORD_ANKI_MODEL_ID, "lbr-word", fields, templates).css(
         r#"
 .card {
     text-align: center;

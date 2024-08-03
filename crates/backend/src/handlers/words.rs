@@ -1,7 +1,6 @@
 //! /words
 
 use super::prelude::*;
-use itertools::Itertools;
 use std::collections::HashMap;
 
 // handlers
@@ -11,22 +10,21 @@ pub async fn ignored_words(
     State(state): State<LbrState>,
     user: Authentication,
 ) -> LbrResult<Json<Vec<res::IgnoredWord>>> {
-    use schema::{ignored_words as iw, word_readings as wr, words as w, written_forms as wf};
+    use schema::{ignored_words as iw, word_readings as wr, words as w};
 
     let ignored_words = tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
         let user_ignored_words = iw::table.filter(iw::user_id.eq(user.user_id));
         let ignored_word_translations = user_ignored_words
-            .inner_join(w::table.on(w::id.eq(iw::word_id)))
+            .inner_join(wr::table.on(wr::word_id.eq(iw::word_id)))
             .select(IgnoredWordTranslations::as_select())
             .get_results(&mut conn)?;
         let ignored_word_written_forms = user_ignored_words
-            .inner_join(wf::table.on(wf::word_id.eq(iw::word_id)))
+            .inner_join(w::table.on(w::id.eq(iw::word_id)))
             .select(IgnoredWordWrittenForm::as_select())
             .get_results(&mut conn)?;
         let ignored_word_readings = user_ignored_words
-            .inner_join(wf::table.on(wf::word_id.eq(iw::word_id)))
-            .inner_join(wr::table.on(wr::written_form_id.eq(wf::id)))
+            .inner_join(wr::table.on(wr::word_id.eq(iw::word_id)))
             .select(IgnoredWordReading::as_select())
             .get_results(&mut conn)?;
 
@@ -43,18 +41,19 @@ pub async fn ignored_words(
                 )
             })
             .collect::<HashMap<_, _>>();
-        let mut written_form_id_to_readings = ignored_word_readings
+        let word_id_to_readings = ignored_word_readings
             .into_iter()
-            .map(|iwr| (iwr.written_form_id, iwr.reading))
-            .into_grouping_map()
-            .collect();
+            .map(|iwr| (iwr.word_id, iwr.reading))
+            .collect::<HashMap<_, _>>();
         for iwwf in ignored_word_written_forms {
             if let Some(iw) = word_id_to_ignored_word.get_mut(&iwwf.word_id) {
-                let readings = written_form_id_to_readings
-                    .remove(&iwwf.written_form_id)
-                    .unwrap_or_default();
+                let readings = word_id_to_readings
+                    .iter()
+                    .filter(|(k, _)| **k == iwwf.word_id)
+                    .map(|(_, v)| v.clone())
+                    .collect::<Vec<_>>();
                 iw.written_forms.push(res::IgnoredWordWrittenForm {
-                    written_form: iwwf.written_form,
+                    written_form: iwwf.word,
                     readings,
                 })
             }
@@ -98,7 +97,7 @@ query! {
     #[derive(Debug)]
     struct IgnoredWordTranslations {
         word_id: i32 = ignored_words::word_id,
-        translations: Vec<Option<String>> = words::translations,
+        translations: Vec<Option<String>> = word_readings::translations,
     }
 }
 
@@ -106,15 +105,14 @@ query! {
     #[derive(Debug)]
     struct IgnoredWordWrittenForm {
         word_id: i32 = ignored_words::word_id,
-        written_form_id: i32 = written_forms::id,
-        written_form: String = written_forms::written_form,
+        word: String = words::word,
     }
 }
 
 query! {
     #[derive(Debug)]
     struct IgnoredWordReading {
-        written_form_id: i32 = written_forms::id,
+        word_id: i32 = ignored_words::word_id,
         reading: String = word_readings::reading,
     }
 }

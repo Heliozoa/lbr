@@ -105,16 +105,8 @@ diesel::table! {
 }
 
 diesel::table! {
-    word_ichiran (id) {
-        id -> Int4,
-        root_seq -> Int4,
-        ichiran_seq -> Int4,
-    }
-}
-
-diesel::table! {
-    word_kanji (written_form_id, kanji_id) {
-        written_form_id -> Int4,
+    word_kanji (word_id, kanji_id) {
+        word_id -> Int4,
         kanji_id -> Int4,
     }
 }
@@ -125,27 +117,18 @@ diesel::table! {
 
     word_readings (id) {
         id -> Int4,
-        written_form_id -> Int4,
+        word_id -> Int4,
         reading -> Text,
-        reading_katakana -> Text,
         furigana -> Array<Nullable<Furigana>>,
-        usually_kana -> Bool,
+        translations -> Array<Nullable<Text>>,
     }
 }
 
 diesel::table! {
     words (id) {
         id -> Int4,
-        jmdict_id -> Nullable<Int4>,
-        translations -> Array<Nullable<Text>>,
-    }
-}
-
-diesel::table! {
-    written_forms (id) {
-        id -> Int4,
-        word_id -> Int4,
-        written_form -> Text,
+        jmdict_id -> Int4,
+        word -> Text,
     }
 }
 
@@ -160,9 +143,8 @@ diesel::joinable!(sentence_words -> words (word_id));
 diesel::joinable!(sentences -> sources (source_id));
 diesel::joinable!(sources -> users (user_id));
 diesel::joinable!(word_kanji -> kanji (kanji_id));
-diesel::joinable!(word_kanji -> written_forms (written_form_id));
-diesel::joinable!(word_readings -> written_forms (written_form_id));
-diesel::joinable!(written_forms -> words (word_id));
+diesel::joinable!(word_kanji -> words (word_id));
+diesel::joinable!(word_readings -> words (word_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     deck_sources,
@@ -175,9 +157,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     sentences,
     sources,
     users,
-    word_ichiran,
     word_kanji,
     word_readings,
     words,
-    written_forms,
 );
