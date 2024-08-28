@@ -1,4 +1,6 @@
+#!/bin/nu
 use common.nu *
+
 use prepare-ichiran-cli.nu [
     prepare_ichiran_cli
     prepare_ichiran_cli_prompt

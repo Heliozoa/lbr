@@ -1,3 +1,6 @@
+#!/bin/nu
+use common.nu *
+
 def main [...args: string] {
     mut init = ["--init"]
     mut bash = []

@@ -1,5 +1,4 @@
 #!/bin/nu
-
 use common.nu *
 
 # Initialises the lbr database, resetting it in the process.
@@ -17,15 +16,14 @@ export def prepare_lbr_db_prompt [] -> string {
 export def prepare_lbr_db [database_url: string] {
     confirm $"WARNING: This will reset the database at ($database_url)"
     print $"Resetting database at ($database_url)"
-    exit_on_error {||
-        diesel database reset --migration-dir ./crates/backend/migrations --database-url $database_url
-            | complete
-    }
+    diesel database reset --migration-dir ./crates/backend/migrations --database-url $database_url
+        | complete
+        | check_error
 
     print "Seeding database"
-    exit_on_error {||
-        (timeit
-            cargo run --release -p lbr_server --bin update_db
-        ) | complete
-    }
+    timeit (
+        cargo run --release -p lbr_server --bin update_db
+            | complete
+            | check_error
+    )
 }

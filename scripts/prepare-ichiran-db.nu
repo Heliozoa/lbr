@@ -1,5 +1,4 @@
 #!/bin/nu
-
 use common.nu *
 
 # Initialises the ichiran database.
@@ -24,33 +23,19 @@ export def prepare_ichiran_db_dump_prompt [] -> string {
 
 # Initialises the ichiran database.
 export def prepare_ichiran_db [database_name: string, database_user: string, database_dump: string] -> string {
-    print $"Dropping database ($database_name)"
-    exit_on_error {||
-        dropdb --username=postgres --if-exists $database_name
-            | complete
-    }
+    print $"Dropping database `($database_name)`"
+    dropdb --username=postgres --if-exists $database_name
+        | complete
+        | check_error
 
     print "Creating database"
-    exit_on_error {||
-        createdb --username=postgres --owner=($database_user) --encoding='UTF8' --locale='ja_JP.utf8' --template=template0 $database_name
-            | complete
-    }
+    createdb --username=postgres --owner=($database_user) --encoding='UTF8' --locale='ja_JP.utf8' --template=template0 $database_name
+        | complete
+        | check_error
 
     print "Restoring database, this may take a while"
-    warn_on_error {||
-        (timeit 
-            pg_restore --clean --if-exists --no-owner --role=($database_user) --username=postgres --dbname=($database_name) $database_dump
-        ) | complete
-    }
-
-    print "Running ichiran commands"
-    exit_on_error {||
-        (timeit
-            sbcl 
-                --eval '(load "./data/ichiran/setup.lisp")'
-                --eval '(ql:quickload :ichiran)'
-                --eval '(ichiran/maintenance:add-errata)'
-                --eval '(exit)'
-        ) | complete
-    }
+    pg_restore --clean --if-exists --no-owner --role=($database_user) --username=postgres --dbname=($database_name) $database_dump
+        | complete
+        # pg_restore will probably report errors that we don't care about, so we'll only warn here
+        | check_warning
 }

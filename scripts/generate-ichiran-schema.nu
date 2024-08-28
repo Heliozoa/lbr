@@ -1,5 +1,4 @@
 #!/bin/nu
-
 use common.nu *
 
 # Generates the Diesel schema for ichiran.
@@ -10,11 +9,11 @@ export def main [] {
 
 # Generates the Diesel schema for ichiran.
 export def generate_ichiran_schema [url: string] {
-    let completion = exit_on_error {||
-        diesel print-schema --database-url $url
-            | complete
-    }
+    let completion = diesel print-schema --database-url $url
+        | complete
+        | check_error
     let path = "./crates/backend/src/schema_ichiran.rs"
-    echo $completion.stdout | save --force $path
+    echo $completion.stdout
+        | save --force $path
     print $"Saved ichiran schema to ($path)"
 }

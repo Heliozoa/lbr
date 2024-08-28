@@ -30,6 +30,7 @@ export def input_password [target: string] -> string {
         print "Password cannot be empty"
         exit 1
     } else {
+        print ""
         return $inp
     }
 }
@@ -42,19 +43,22 @@ export def confirm [prompt: string] {
     }
 }
 
-export def exit_on_error [cmd: closure] -> record {
-    let completion: record = warn_on_error $cmd
-    if ($completion.exit_code != 0) {
-        exit 1
+export def check_warning [] => string {
+    if $in.exit_code != 0 {
+        print "Error running external command"
+        print $"stdout: ($in.stdout)"
+        print $"stderr: ($in.stderr)"
     }
-    return $completion
+    return $in.stdout
 }
 
-export def warn_on_error [cmd: closure] -> record {
-    let completion: record = do $cmd
-    if ($completion.exit_code != 0) {
-        print "Error(s) running command"
-        print $completion.stderr
+export def check_error [] => string {
+    if $in.exit_code != 0 {
+        print "Error running external command"
+        print $"stdout: ($in.stdout)"
+        print $"stderr: ($in.stderr)"
+        exit 1
+    } else {
+        return $in.stdout
     }
-    return $completion
 }
