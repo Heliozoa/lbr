@@ -45,7 +45,7 @@ serde_json = "1.0.97"
 tempfile = "3.6.0"
 tokio = { version = "1.28.2", features = ["full"] }
 tokio-util = { version = "0.7.8", features = ["io"] }
-tower = "0.4.13"
+tower = { version = "0.4.13", features = ["util"] }
 tower-cookies = { version = "0.10.0", features = ["signed"] }
 tower-http = { version = "0.5.0", features = ["cors", "fs"] }
 tracing = "0.1.37"

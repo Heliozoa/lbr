@@ -19,10 +19,10 @@ lbr_frontend = { path = "./crates/lbr_frontend" }
 lbr_server = { path = "./lbr_server" }
 lbr_web = { path = "./crates/lbr_web" }
 
-leptos = "0.7.0-beta2"
-leptos_axum = "0.7.0-beta2"
-leptos_meta = "0.7.0-beta3"
-leptos_router = "0.7.0-beta2"
+leptos = "0.7.0-beta5"
+leptos_axum = "0.7.0-beta5"
+leptos_meta = "0.7.0-beta5"
+leptos_router = "0.7.0-beta5"
 
 [profile.dev.package]
 serde.opt-level = 3
