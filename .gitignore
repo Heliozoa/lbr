@@ -1,3 +1,7 @@
-/data
-/target
+# dirs
+/data/
+/target/
+dist/
+
+# files
 /.env
