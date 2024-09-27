@@ -12,26 +12,26 @@ Thanks for your interest in contributing to LBR! Issues, pull requests and discu
 ## Project structure
 The project is split into a few crates in the `./crates` directory:
 
-### `lbr_api` (`./crates/api`)
+### `lbr_api`
 Contains types for communicating between the backend and frontend.
 
-### `lbr_server` (`./crates/backend`)
+### `lbr_server`
 A web server offering the functionality of LBR in its endpoints.
 
 Uses [axum](https://docs.rs/axum) for the web server and [diesel](https://docs.rs/diesel) with postgres for the database.
 
-### `lbr_core` (`./crates/core`)
+### `lbr_core`
 Contains some core types shared by the main library and frontends.
 
-### `lbr_frontend` (`./crates/frontend`)
-A thin wrapper around `lbr_web`.
+### `lbr_frontend`
+A thin wrapper around `lbr_web` which only uses its frontend features.
 
-### `lbr_web` (`./crates/web`)
+### `lbr_web`
 A web frontend that works with the backend.
 
 Uses the [Leptos](https://docs.rs/leptos) web framework and [Bulma](https://bulma.io/) for the styling.
 
-### `lbr` (`./crates/lbr`)
+### `lbr`
 The main library of the project that offers all the core functionality.
 
 
