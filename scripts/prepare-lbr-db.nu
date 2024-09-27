@@ -16,7 +16,7 @@ export def prepare_lbr_db_prompt [] -> string {
 export def prepare_lbr_db [database_url: string] {
     confirm $"WARNING: This will reset the database at ($database_url)"
     print $"Resetting database at ($database_url)"
-    diesel database reset --migration-dir ./crates/backend/migrations --database-url $database_url
+    diesel database reset --migration-dir ./crates/lbr_server/migrations --database-url $database_url
         | complete
         | check_error
 

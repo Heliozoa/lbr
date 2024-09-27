@@ -12,7 +12,7 @@ export def generate_ichiran_schema [url: string] {
     let completion = diesel print-schema --database-url $url
         | complete
         | check_error
-    let path = "./crates/backend/src/schema_ichiran.rs"
+    let path = "./crates/lbr_server/src/schema_ichiran.rs"
     echo $completion.stdout
         | save --force $path
     print $"Saved ichiran schema to ($path)"

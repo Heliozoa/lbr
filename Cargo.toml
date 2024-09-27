@@ -13,11 +13,11 @@ version = "0.1.0"
 [workspace.dependencies]
 jadata = { path = "./crates/jadata" }
 lbr = { path = "./crates/lbr" }
-lbr_api = { path = "./crates/api" }
-lbr_core = { path = "./crates/core" }
-lbr_frontend = { path = "./crates/frontend" }
-lbr_server = { path = "./crates/backend" }
-lbr_web = { path = "./crates/web" }
+lbr_api = { path = "./crates/lbr_api" }
+lbr_core = { path = "./crates/lbr_core" }
+lbr_frontend = { path = "./crates/lbr_frontend" }
+lbr_server = { path = "./lbr_server" }
+lbr_web = { path = "./crates/lbr_web" }
 
 leptos = "0.7.0-beta2"
 leptos_axum = "0.7.0-beta2"
