@@ -37,15 +37,17 @@ export def generate_env [
     private_cookie_password: string
 ] {
     let ichiran_database_url = $"postgres://($ichiran_database_user):($ichiran_database_password)@($ichiran_database_host)/($ichiran_database_name)"
-    echo $"
-SERVER_URL=0.0.0.0:3000
-DATABASE_URL=($lbr_connection)
-ICHIRAN_DATABASE_URL=($ichiran_database_url)
-ICHIRAN_CONNECTION_HOST=($ichiran_database_host)
-ICHIRAN_CONNECTION_NAME=($ichiran_database_name)
-ICHIRAN_CONNECTION_USER=($ichiran_database_user)
-ICHIRAN_CONNECTION_PASSWORD=($ichiran_database_password)
-ICHIRAN_CLI_PATH=./data/ichiran-cli
-PRIVATE_COOKIE_PASSWORD=($private_cookie_password)
-" | save --force .env
+    [
+        $"SERVER_URL=0.0.0.0:3000",
+        $"DATABASE_URL=($lbr_connection)",
+        $"ICHIRAN_DATABASE_URL=($ichiran_database_url)",
+        $"ICHIRAN_CONNECTION_HOST=($ichiran_database_host)",
+        $"ICHIRAN_CONNECTION_NAME=($ichiran_database_name)",
+        $"ICHIRAN_CONNECTION_USER=($ichiran_database_user)",
+        $"ICHIRAN_CONNECTION_PASSWORD=($ichiran_database_password)",
+        $"ICHIRAN_CLI_PATH=./data/ichiran-cli",
+        $"PRIVATE_COOKIE_PASSWORD=($private_cookie_password)",
+    ]
+        | str join "\n"
+        | save --force .env
 }
