@@ -1,5 +1,5 @@
 [workspace]
-members = ["./crates/*", "crates/jadata"]
+members = ["./crates/*"]
 resolver = "2"
 
 [workspace.package]
@@ -16,20 +16,20 @@ lbr = { path = "./crates/lbr" }
 lbr_api = { path = "./crates/lbr_api" }
 lbr_core = { path = "./crates/lbr_core" }
 lbr_frontend = { path = "./crates/lbr_frontend" }
-lbr_server = { path = "./lbr_server" }
+lbr_server = { path = "./crates/lbr_server" }
 lbr_web = { path = "./crates/lbr_web" }
 
-leptos = "0.7.0-beta5"
-leptos_axum = "0.7.0-beta5"
-leptos_meta = "0.7.0-beta5"
-leptos_router = "0.7.0-beta5"
+leptos = "0.7.0-rc0"
+leptos_axum = "0.7.0-rc0"
+leptos_meta = "0.7.0-rc0"
+leptos_router = "0.7.0-rc0"
+
+# [patch.crates-io]
+# ichiran = { path = "../ichiran" }
 
 [profile.dev.package]
 serde.opt-level = 3
 serde_json.opt-level = 3
-
-# [patch.crates-io]
-# ichiran = { path = "../ichiran" }
 
 [profile.wasm-release]
 codegen-units = 1
