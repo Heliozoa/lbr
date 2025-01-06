@@ -1,7 +1,7 @@
 #!/bin/nu
 # Utility functions for the other scripts
 
-export def env-vars [] -> record {
+export def env-vars []: nothing -> record {
     open .env  
         |lines 
         | split column '#'
@@ -15,7 +15,7 @@ export def initialise_logging [] {
     $env.RUST_LOG = "info"
 }
 
-export def input_default [prompt: string, default: string] -> string {
+export def input_default [prompt: string, default: string]: nothing -> string {
     let inp = input $"($prompt) \(default `($default)`): "
     if ($inp | is-empty) {
         return $default
@@ -24,7 +24,7 @@ export def input_default [prompt: string, default: string] -> string {
     }
 }
 
-export def input_password [target: string] -> string {
+export def input_password [target: string]: nothing -> string {
     let inp = input --suppress-output $"Input password for ($target): "
     if ($inp | is-empty) {
         print "Password cannot be empty"
@@ -43,7 +43,7 @@ export def confirm [prompt: string] {
     }
 }
 
-export def check_warning [] => string {
+export def check_warning []: record -> string {
     if $in.exit_code != 0 {
         print "Error running external command"
         print $"stdout: ($in.stdout)"
@@ -52,7 +52,7 @@ export def check_warning [] => string {
     return $in.stdout
 }
 
-export def check_error [] => string {
+export def check_error []: record -> string {
     if $in.exit_code != 0 {
         print "Error running external command"
         print $"stdout: ($in.stdout)"

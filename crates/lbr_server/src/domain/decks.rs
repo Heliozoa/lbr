@@ -19,6 +19,8 @@ pub fn gen_deck(
 
     tracing::info!("Creating deck");
     let package = lbr::anki::create_deck(name, anki_deck_id, cards);
+
+    tracing::info!("Created deck");
     Ok(package)
 }
 

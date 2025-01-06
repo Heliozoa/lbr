@@ -7,18 +7,34 @@ use downloads.nu [
 
 # Prepares the ichiran CLI
 def main [] {
-    let ichiran_database_name = input_default "ichiran database name" "ichiran"
-    let ichiran_database_user = input_default "ichiran database user" "lbr"
-    let ichiran_database_password = input_password "ichiran database password"
-    let ichiran_database_host = input_default "ichiran database host" "localhost"
+    let ichiran_connection_name = prepare_ichiran_cli_connection_name_prompt
+    let ichiran_connection_user = prepare_ichiran_cli_connection_user_prompt
+    let ichiran_connection_password = prepare_ichiran_cli_connection_password_prompt
+    let ichiran_connection_host = prepare_ichiran_cli_connection_host_prompt
     let jmdictdb_path = input_default "jmdictdb download path" "./data/jmdictdb"
     (prepare_ichiran_cli
-        $ichiran_database_name
-        $ichiran_database_user
-        $ichiran_database_password
-        $ichiran_database_host
+        $ichiran_connection_name
+        $ichiran_connection_user
+        $ichiran_connection_password
+        $ichiran_connection_host
         $jmdictdb_path
     )
+}
+
+export def prepare_ichiran_cli_connection_name_prompt []: nothing -> string {
+    return (input_default "ichiran database name" "ichiran")
+}
+
+export def prepare_ichiran_cli_connection_user_prompt []: nothing -> string {
+    return (input_default "ichiran database user" "lbr")
+}
+
+export def prepare_ichiran_cli_connection_password_prompt []: nothing -> string {
+    return (input_password "ichiran database password")
+}
+
+export def prepare_ichiran_cli_connection_host_prompt []: nothing -> string {
+    return (input_default "ichiran database host" "localhost")
 }
 
 export def prepare_ichiran_cli [
@@ -58,14 +74,14 @@ export def prepare_ichiran_cli [
         | check_error
 
     print "Building the CLI, this may take a while"
-    timeit (
-        sbcl
+    timeit {
+        (sbcl
             --eval '(load "./data/ichiran/setup.lisp")'
             --eval '(ql:quickload :ichiran/cli)'
             --eval '(ichiran/cli:build)'
-            --eval '(exit)'
+            --eval '(exit)')
         | complete
         | check_error
-    )
+    }
     mv ./data/ichiran/local-projects/ichiran/ichiran-cli ./data/ichiran-cli
 }

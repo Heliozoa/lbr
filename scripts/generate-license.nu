@@ -9,7 +9,7 @@ def main [] {
 }
 
 # Generates files that contain all of the third-party license information.
-export def generate_license [target: string] -> string {
+export def generate_license [target: string]: nothing -> string {
     if (target == "web") {
         cargo about generate ./about/web.hbs > ./data/license-web.html
             | complete

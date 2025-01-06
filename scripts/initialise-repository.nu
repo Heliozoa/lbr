@@ -1,9 +1,12 @@
 #!/bin/nu
 use common.nu *
 
-use prepare-ichiran-cli.nu [
+use prepare-ichiran-cli.nu [ 
     prepare_ichiran_cli
-    prepare_ichiran_cli_prompt
+    prepare_ichiran_cli_connection_name_prompt
+    prepare_ichiran_cli_connection_user_prompt
+    prepare_ichiran_cli_connection_password_prompt
+    prepare_ichiran_cli_connection_host_prompt
 ]
 use prepare-ichiran-db.nu [
     prepare_ichiran_db_name_prompt
@@ -19,6 +22,9 @@ use prepare-lbr-db.nu [
 ]
 use generate-license.nu [
     generate_license
+]
+use generate-env.nu [
+    generate_env
 ]
 use downloads.nu
 
@@ -40,14 +46,17 @@ def main [] {
     dl_kradfile $kradfile_path
     dl_jmdict_furigana $jmdict_furigana_path
 
-    let ichiran_connection = prepare_ichiran_cli_prompt
     let ichiran_database_name = prepare_ichiran_db_name_prompt
     let ichiran_database_user = prepare_ichiran_db_user_prompt
     let ichiran_database_password = input_password "ichiran database"
     let ichiran_database_dump = prepare_ichiran_db_dump_prompt
     let lbr_connection = prepare_lbr_db_prompt
 
-    prepare_ichiran_cli $ichiran_connection $jmdictdb_path
+    let ichiran_connection_name = prepare_ichiran_cli_connection_name_prompt
+    let ichiran_connection_user = prepare_ichiran_cli_connection_user_prompt
+    let ichiran_connection_password = prepare_ichiran_cli_connection_password_prompt
+    let ichiran_connection_host = prepare_ichiran_cli_connection_host_prompt
+    prepare_ichiran_cli $ichiran_connection_name $ichiran_connection_user $ichiran_connection_password $ichiran_connection_host $jmdictdb_path
     prepare_ichiran_db $ichiran_database_name $ichiran_database_user $ichiran_database_dump
     prepare-ichiran-seq-to-word-id
 
@@ -57,11 +66,14 @@ def main [] {
     generate_license "web"
     generate_license "docker"
 
+    let private_cookie_password = input_password "cookies"
+
     (generate_env
         $lbr_connection
-        $ichiran_connection
+        $ichiran_connection_host
         $ichiran_database_name
         $ichiran_database_user
-        $ichiran_database_password
+        $ichiran_connection_password
+        $private_cookie_password
     )
 }

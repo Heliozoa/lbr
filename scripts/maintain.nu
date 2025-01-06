@@ -34,18 +34,18 @@ export def main [] {
         prepare-ichiran-seq-to-word-id
 
         print "Updating lbr data"
-        timeit (
-            cargo run --release --bin update_db --
+        timeit {
+            (cargo run --release --bin update_db --
                 "./data/kanjidic2.xml"
                 "./data/kradfile"
                 ./crates/jadata/data/kanji_names.json
                 ./crates/jadata/data/kanji_similar.json
                 ./crates/jadata/data/kanji_extra.json
                 "./data/JMdict_e_examp.xml"
-                "./data/JmdictFurigana.json"
+                "./data/JmdictFurigana.json")
             | complete
             | check_error
-        )
+        }
         prepare-ichiran-seq-to-word-id
     }
 }

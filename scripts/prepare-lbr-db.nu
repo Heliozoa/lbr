@@ -8,7 +8,7 @@ def main [] {
     prepare_lbr_db $database_url
 }
 
-export def prepare_lbr_db_prompt [] -> string {
+export def prepare_lbr_db_prompt []: nothing -> string {
     return (input_default "LBR database URL" "postgres://lbr:lbr@localhost/lbr")
 }
 
@@ -21,9 +21,9 @@ export def prepare_lbr_db [database_url: string] {
         | check_error
 
     print "Seeding database"
-    timeit (
+    timeit {
         cargo run --release -p lbr_server --bin update_db
             | complete
             | check_error
-    )
+    }
 }

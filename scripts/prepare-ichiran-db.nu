@@ -9,20 +9,20 @@ def main [] {
     prepare_ichiran_db $database_name $database_user $database_dump
 }
 
-export def prepare_ichiran_db_name_prompt [] -> string {
+export def prepare_ichiran_db_name_prompt []: nothing -> string {
     return (input_default "ichiran database name" "ichiran")
 }
 
-export def prepare_ichiran_db_user_prompt [] -> string {
+export def prepare_ichiran_db_user_prompt []: nothing -> string {
     return (input_default "ichiran database user" "lbr")
 }
 
-export def prepare_ichiran_db_dump_prompt [] -> string {
+export def prepare_ichiran_db_dump_prompt []: nothing -> string {
     return (input_default "ichiran database dump path" "./data/ichiran.pgdump")
 }
 
 # Initialises the ichiran database.
-export def prepare_ichiran_db [database_name: string, database_user: string, database_dump: string] -> string {
+export def prepare_ichiran_db [database_name: string, database_user: string, database_dump: string]: nothing -> string {
     print $"Dropping database `($database_name)`"
     dropdb --username=postgres --if-exists $database_name
         | complete
