@@ -1,3 +1,30 @@
 {
-    "kanji_names": {}
+    "kanji_names": {
+        "客": "guest",
+        "入": "entrance",
+        "来": "arrival",
+        "店": "store",
+        "内": "interior",
+        "流": "flow",
+        "有": "existence",
+        "線": "line",
+        "放": "release",
+        "送": "delivery",
+        "新": "new",
+        "商": "trade",
+        "品": "item",
+        "物": "thing",
+        "袋": "bag",
+        "握": "grip",
+        "歩": "walk",
+        "回": "turn",
+        "音": "sound",
+        "全": "all",
+        "混": "mix",
+        "合": "total",
+        "私": "me",
+        "鼓": "drum",
+        "膜": "membrane",
+        "触": "touch"
+    }
 }

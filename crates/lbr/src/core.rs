@@ -73,7 +73,16 @@ fn process_word(
 
     // handle other segment between this and the previous word segment
     let word_in_text = word_in_text.unwrap();
-    let word_start_idx = text[*idx..].find(&word_in_text).unwrap();
+    let word_start_idx = match text[*idx..].find(&word_in_text) {
+        Some(word_start_idx) => word_start_idx,
+        None => {
+            tracing::warn!(
+                "Failed to find word '{word_in_text}' from ichiran in text '{}'",
+                &text[*idx..]
+            );
+            return;
+        }
+    };
     if word_start_idx != 0 {
         let other = text[*idx..*idx + word_start_idx].to_string();
         segments.push(it::Segment::Other(other));

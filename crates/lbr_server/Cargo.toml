@@ -33,7 +33,7 @@ dotenvy = "0.15.7"
 eyre = "0.6.8"
 furigana = "0.1.1"
 ichiran = "0.4.0"
-itertools = "0.13.0"
+itertools = "0.14.0"
 leptos = { workspace = true, features = ["ssr"] }
 leptos_axum.workspace = true
 leptos_meta = { workspace = true, features = ["ssr"] }

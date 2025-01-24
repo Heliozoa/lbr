@@ -133,7 +133,7 @@ impl Form {
         let mut word_id_to_components: WordIdToComponents = HashMap::new();
         let mut phrase_to_components: PhraseToComponents = HashMap::new();
         let mut seqs_to_component: SeqsToComponent = HashMap::new();
-        tracing::info!("ignored words {ignored_words:#?}");
+        tracing::debug!("ignored words {ignored_words:#?}");
 
         let mut phrase_idx = 0;
         for (phrase_seq, segment) in segmented_sentence.segments.iter().enumerate() {
@@ -195,6 +195,7 @@ impl Form {
                         }
                         pre_emptively_accept_next = false;
                     }
+                    phrase_idx += phrase.len();
                 }
                 res::Segment::Other(other) => {
                     phrase_idx += other.len();
