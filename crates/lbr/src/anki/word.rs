@@ -79,9 +79,14 @@ impl WordCard {
                 }
                 sentence_idx = sw_idx_end;
             }
+
             if in_word {
                 sentence.push_str("</span>");
             }
+
+            // close out the word with a "word break opportunity" so that when line breaks are needed
+            // they are placed after words instead of in the middle
+            sentence.push_str("<wbr/>");
         }
 
         // push stuff left over after processing all sentence words

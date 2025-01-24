@@ -102,7 +102,7 @@ pub fn SourceNew() -> impl IntoView {
 
     let name_ref = NodeRef::<Input>::new();
     let send = Action::new(move |()| async move {
-        let name = name_ref.get().unwrap().value();
+        let name = name_ref.get().expect("failed to get name_ref").value();
         let client = get_client();
         if name.is_empty() {
             return Err(WebError {
@@ -142,7 +142,7 @@ pub struct SourceParams {
 #[component]
 pub fn Source() -> impl IntoView {
     let SourceParams { source_id } = utils::params()?;
-    let source_id = source_id.unwrap();
+    let source_id = source_id.expect("failed to get source_id");
     tracing::info!("Rendering Source {source_id}");
 
     // resources
@@ -153,7 +153,7 @@ pub fn Source() -> impl IntoView {
     let (update_result_message, set_update_result_message) =
         leptos::prelude::signal((None::<&'static str>, None::<TimeoutHandle>));
     let update_act = Action::new(move |&()| {
-        let name = name_ref.get().unwrap().value();
+        let name = name_ref.get().expect("Failed to get name_ref").value();
         let client = get_client();
         async move {
             SendWrapper::new(client.update_source(source_id, &name)).await?;
@@ -247,7 +247,7 @@ pub struct SentencesParams {
 #[component]
 pub fn SourceSentences() -> impl IntoView {
     let SentencesParams { source_id } = utils::params()?;
-    let source_id = source_id.unwrap();
+    let source_id = source_id.expect("failed to get source_id");
     tracing::info!("Rendering SourceSentences {source_id}");
 
     // resources
@@ -303,12 +303,15 @@ pub struct SourceAddSentencesParams {
 #[component]
 pub fn SourceAddSentences() -> impl IntoView {
     let SourceAddSentencesParams { source_id } = utils::params()?;
-    let source_id = source_id.unwrap();
+    let source_id = source_id.expect("failed to get source_id");
     tracing::info!("Rendering SourceAddSentences {source_id}");
 
     let analyse_textarea_ref = NodeRef::<Textarea>::new();
     let analyse_act = Action::new(move |&()| {
-        let textarea_val = analyse_textarea_ref.get().unwrap().value();
+        let textarea_val = analyse_textarea_ref
+            .get()
+            .expect("failed to get analyse_textarea_ref")
+            .value();
         let client = get_client();
         async move { SendWrapper::new(client.segment_paragraph(source_id, &textarea_val)).await }
     });
@@ -383,8 +386,8 @@ pub fn SourceSentence() -> impl IntoView {
         source_id,
         sentence_id,
     } = utils::params()?;
-    let source_id = source_id.unwrap();
-    let sentence_id = sentence_id.unwrap();
+    let source_id = source_id.expect("failed to get source_id");
+    let sentence_id = sentence_id.expect("failed to get sentence_id");
     tracing::info!("Rendering Sentence {source_id} {sentence_id}");
 
     let sentence_res = utils::logged_in_resource!(get_sentence(sentence_id));
@@ -512,7 +515,7 @@ pub fn DeckNew() -> impl IntoView {
 
     let name_ref = NodeRef::<Input>::new();
     let save_act = Action::new(move |&()| {
-        let name = name_ref.get().unwrap().value();
+        let name = name_ref.get().expect("failed to get name_ref").value();
         let client = get_client();
         async move {
             if name.is_empty() {
@@ -554,7 +557,7 @@ pub struct DeckParams {
 #[component]
 pub fn Deck() -> impl IntoView {
     let DeckParams { deck_id } = utils::params()?;
-    let deck_id = deck_id.unwrap();
+    let deck_id = deck_id.expect("failed to get deck_id");
     tracing::info!("Rendering Deck {deck_id}");
 
     // resources
@@ -577,7 +580,7 @@ pub fn Deck() -> impl IntoView {
         leptos::prelude::signal((None::<&'static str>, None::<TimeoutHandle>));
     let update_act = Action::new(move |&()| {
         let client = get_client();
-        let name = name_ref.get().unwrap().value();
+        let name = name_ref.get().expect("failed to get name_ref").value();
         let mut included_sources = Vec::new();
 
         async move {
@@ -589,10 +592,19 @@ pub fn Deck() -> impl IntoView {
                 kanji_threshold,
             } in source_refs.get()
             {
-                if include_words.get().unwrap().checked() {
-                    let threshold = word_threshold.get().unwrap().value().parse().map_err(|e| {
-                        WebError::new(format!("Failed to parse threshold as number: {e}"))
-                    })?;
+                if include_words
+                    .get()
+                    .expect("failed to get include_words")
+                    .checked()
+                {
+                    let threshold = word_threshold
+                        .get()
+                        .expect("failed to get word_threshold")
+                        .value()
+                        .parse()
+                        .map_err(|e| {
+                            WebError::new(format!("Failed to parse threshold as number: {e}"))
+                        })?;
                     if threshold < 1 {
                         return Err(WebError::new("Threshold cannot be lower than 1"));
                     }
@@ -602,16 +614,19 @@ pub fn Deck() -> impl IntoView {
                         kind: req::IncludedSourceKind::Word,
                     });
                 }
-                if include_kanji.get().unwrap().checked() {
-                    let threshold =
-                        kanji_threshold
-                            .get()
-                            .unwrap()
-                            .value()
-                            .parse()
-                            .map_err(|e| {
-                                WebError::new(format!("Failed to parse threshold as number: {e}"))
-                            })?;
+                if include_kanji
+                    .get()
+                    .expect("failed to get include_kanji")
+                    .checked()
+                {
+                    let threshold = kanji_threshold
+                        .get()
+                        .expect("failed to get kanji_threshold")
+                        .value()
+                        .parse()
+                        .map_err(|e| {
+                            WebError::new(format!("Failed to parse threshold as number: {e}"))
+                        })?;
                     if threshold < 1 {
                         return Err(WebError::new("Threshold cannot be lower than 1"));
                     }
@@ -670,9 +685,22 @@ pub fn Deck() -> impl IntoView {
             .map(|s| {
                 let include_words = NodeRef::<Input>::new();
                 let word_threshold = NodeRef::<Input>::new();
-                let (words_checked, word_threshold_val) = deck.sources.iter().find(|ds| ds.id == s.id).filter(|ds| matches!(ds.kind, res::DeckSourceKind::Word)).map(|ds| (true, ds.threshold)).unwrap_or((false, 1));
-
-                let (kanji_checked, kanji_threshold_val) = deck.sources.iter().find(|ds| ds.id == s.id).filter(|ds| matches!(ds.kind, res::DeckSourceKind::Kanji)).map(|ds| (true, ds.threshold)).unwrap_or((false, 1));
+                let (words_checked, word_threshold_val) =
+                    deck
+                        .sources
+                        .iter()
+                        .find(|ds| ds.id == s.id)
+                        .filter(|ds| matches!(ds.kind, res::DeckSourceKind::Word))
+                        .map(|ds| (true, ds.threshold))
+                        .unwrap_or((false, 1));
+                let (kanji_checked, kanji_threshold_val) =
+                    deck
+                        .sources
+                        .iter()
+                        .find(|ds| ds.id == s.id)
+                        .filter(|ds| matches!(ds.kind, res::DeckSourceKind::Kanji))
+                        .map(|ds| (true, ds.threshold))
+                        .unwrap_or((false, 1));
                 let include_kanji = NodeRef::<Input>::new();
                 let kanji_threshold = NodeRef::<Input>::new();
 
@@ -893,8 +921,11 @@ pub fn Login() -> impl IntoView {
     let password_ref = NodeRef::<Input>::new();
     let submission_act = Action::new(move |&()| {
         tracing::info!("Logging in");
-        let email = email_ref.get().unwrap().value();
-        let password = password_ref.get().unwrap().value();
+        let email = email_ref.get().expect("failed to get email_ref").value();
+        let password = password_ref
+            .get()
+            .expect("failed to get password_ref")
+            .value();
         let client = get_client();
         async move {
             if email.is_empty() {
@@ -927,7 +958,7 @@ pub fn Login() -> impl IntoView {
 
     Effect::new(move |_| {
         if let Some(email_ref) = email_ref.get() {
-            email_ref.focus().unwrap();
+            email_ref.focus().expect("failed to get email_ref");
         }
     });
 
@@ -966,9 +997,15 @@ pub fn Register() -> impl IntoView {
     let repeat_password_ref = NodeRef::<Input>::new();
     let submit = Action::new(move |&()| {
         tracing::info!("Registering");
-        let email = email_ref.get().unwrap().value();
-        let password = password_ref.get().unwrap().value();
-        let repeat_password = repeat_password_ref.get().unwrap().value();
+        let email = email_ref.get().expect("failed to get email_ref").value();
+        let password = password_ref
+            .get()
+            .expect("failed to get password_ref")
+            .value();
+        let repeat_password = repeat_password_ref
+            .get()
+            .expect("failed to get repeat_password_ref")
+            .value();
         let client = get_client();
         async move {
             if email.is_empty() {
@@ -1003,7 +1040,7 @@ pub fn Register() -> impl IntoView {
 
     Effect::new(move |_| {
         if let Some(email_ref) = email_ref.get() {
-            email_ref.focus().unwrap();
+            email_ref.focus().expect("failed to get email_ref");
         }
     });
 

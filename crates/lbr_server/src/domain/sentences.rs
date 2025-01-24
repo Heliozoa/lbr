@@ -15,6 +15,8 @@ pub fn segment_sentence(
     sentence: &str,
     ichiran_seq_to_word_id: &HashMap<i32, i32>,
 ) -> eyre::Result<Vec<ichiran_types::Segment>> {
+    tracing::info!("Segmenting sentence '{sentence}'");
+
     // get individual words from sentence with ichiran
     let segments = match ichiran.segment(sentence) {
         Ok(segments) => segments,
@@ -26,6 +28,8 @@ pub fn segment_sentence(
         }
     };
     let segmented_sentence = lbr::core::to_lbr_segments(sentence, segments, ichiran_seq_to_word_id);
+
+    tracing::info!("Finished segmenting sentence '{sentence}': {segmented_sentence:#?}");
     Ok(segmented_sentence)
 }
 

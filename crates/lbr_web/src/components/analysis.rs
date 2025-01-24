@@ -153,13 +153,26 @@ impl Form {
                         for (component_seq, component) in
                             interpretation.components.iter().enumerate()
                         {
-                            interpretation_idx += segmented_sentence.sentence[interpretation_idx..]
+                            if let Some(interp_idx_in_sentence) = segmented_sentence.sentence
+                                [interpretation_idx..]
                                 .find(&component.word)
-                                .unwrap();
+                            {
+                                interpretation_idx += interp_idx_in_sentence;
+                            } else {
+                                // ichiran sometimes returns words in a different form than in the actual sentence, e.g.
+                                // the segmentation of '五千円札何枚残ってるー？' will contain 'いる' even though it's abbreviated
+                                // to just 'る' in the sentence
+                                tracing::warn!(
+                                    "Failed to find word '{}' in sentence section '{}'",
+                                    component.word,
+                                    &segmented_sentence.sentence[interpretation_idx..]
+                                );
+                                continue;
+                            }
                             let idx_end = interpretation_idx + component.word.len();
                             if let Some(word_id) = component.word_id {
                                 let status: Status = if ignored_words.contains(&word_id) {
-                                    tracing::info!("ignoring for some reason");
+                                    tracing::info!("ignoring word '{}'", component.word);
                                     Status::Ignore
                                 } else if pre_emptively_accept_next {
                                     // pre-emptively accept the first interpretation (should have the highest score)
