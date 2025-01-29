@@ -42,6 +42,9 @@ impl KanjiCard {
         let similar_kanji = format!("<ul>{similar_kanji}</ul>");
 
         KanjiFields {
+            id: self.id,
+            id_str: self.id.to_string(),
+            count: self.kanji_words.to_string(),
             kanji,
             name,
             example_source_word,
@@ -74,17 +77,24 @@ pub struct Kanji {
 /// Wrapper for the fields of an Anki card to make handling them in a typesafe way easier.
 #[derive(Debug)]
 pub struct KanjiFields {
-    pub kanji: String,
-    pub name: Option<String>,
-    pub example_source_word: String,
-    pub example_source_word_translation: String,
-    pub similar_kanji: String,
+    id: i32,
+    id_str: String,
+    count: String,
+    kanji: String,
+    name: Option<String>,
+    example_source_word: String,
+    example_source_word_translation: String,
+    similar_kanji: String,
 }
 
 impl KanjiFields {
     // keep in sync with `to_fields`
     fn fields() -> Vec<Field> {
         vec![
+            Field::new("id"),
+            // the count should be the 1th field
+            // as this is used by the model as the sort field
+            Field::new("count"),
             Field::new("kanji"),
             Field::new("name"),
             Field::new("example-source-word"),
@@ -96,6 +106,8 @@ impl KanjiFields {
     // keep in sync with `fields`
     fn to_fields(&self) -> Vec<&str> {
         vec![
+            &self.id_str,
+            &self.count,
             &self.kanji,
             &self.name.as_deref().unwrap_or(""),
             &self.example_source_word,
@@ -136,8 +148,10 @@ pub fn create_model() -> Model {
 </div>
 "#,
         )];
-    Model::new(LBR_KANJI_ANKI_MODEL_ID, "lbr-kanji", fields, templates).css(
-        r#"
+    Model::new(LBR_KANJI_ANKI_MODEL_ID, "lbr-kanji", fields, templates)
+        .sort_field_index(1)
+        .css(
+            r#"
 .card {
     text-align: center;
     background-color: Linen;
@@ -155,5 +169,5 @@ pub fn create_model() -> Model {
     text-align: left;
 }
 "#,
-    )
+        )
 }

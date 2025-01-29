@@ -45,9 +45,13 @@ impl WordCard {
             sentence_idx = sentence_word_start;
 
             // check if this sentence word is the word on the card
-            let in_word = self.word_range.start == sentence_idx;
-            if in_word {
-                sentence.push_str(r#"<span id=highlighted>"#);
+            let in_study_word = self.word_range.start == sentence_idx;
+            if in_study_word {
+                sentence.push_str("<span id=highlighted>");
+            } else {
+                // all elements are wrapped in spans which are styled so that
+                // word breaks do not happen within words unless absolutely necessary
+                sentence.push_str("<span>");
             }
 
             // process furigana in order of appearance
@@ -79,10 +83,7 @@ impl WordCard {
                 }
                 sentence_idx = sw_idx_end;
             }
-
-            if in_word {
-                sentence.push_str("</span>");
-            }
+            sentence.push_str("</span>");
 
             // close out the word with a "word break opportunity" so that when line breaks are needed
             // they are placed after words instead of in the middle
@@ -121,6 +122,8 @@ impl WordCard {
         };
 
         WordFields {
+            id: self.id,
+            id_str: self.id.to_string(),
             count,
             sentence,
             word,
@@ -133,7 +136,14 @@ impl WordCard {
         let word_id = self.id;
         let guid = format!("lbr-word-{word_id}");
         let fields = self.into_fields();
-        Note::new_with_options(model.clone(), fields.to_fields(), None, None, Some(&guid)).unwrap()
+        Note::new_with_options(
+            model.clone(),
+            fields.to_fields(),
+            Some(true),
+            None,
+            Some(&guid),
+        )
+        .unwrap()
     }
 }
 
@@ -169,6 +179,8 @@ pub struct WordKanji {
 /// Wrapper for the fields of an Anki card to make handling them in a typesafe way easier.
 #[derive(Debug)]
 pub struct WordFields {
+    id: i32,
+    id_str: String,
     count: String,
     sentence: String,
     word: String,
@@ -180,6 +192,9 @@ impl WordFields {
     // keep in sync with `to_fields`
     fn fields() -> Vec<Field> {
         vec![
+            Field::new("id"),
+            // count should be the 1th field
+            // as the model sets this as the sort field
             Field::new("count"),
             Field::new("sentence"),
             Field::new("word"),
@@ -191,6 +206,7 @@ impl WordFields {
     // keep in sync with `fields`
     fn to_fields(&self) -> Vec<&str> {
         vec![
+            &self.id_str,
             &self.count,
             &self.sentence,
             &self.word,
@@ -234,8 +250,10 @@ pub fn create_model() -> Model {
 </div>
 "#,
         )];
-    Model::new(LBR_WORD_ANKI_MODEL_ID, "lbr-word", fields, templates).css(
-        r#"
+    Model::new(LBR_WORD_ANKI_MODEL_ID, "lbr-word", fields, templates)
+        .sort_field_index(1)
+        .css(
+            r#"
 .card {
     text-align: center;
     background-color: Linen;
@@ -260,8 +278,11 @@ ruby rt {
 #answer ruby rt {
     visibility: visible;
 }
+span {
+    display: inline-block
+}
 "#,
-    )
+        )
 }
 
 #[cfg(test)]
