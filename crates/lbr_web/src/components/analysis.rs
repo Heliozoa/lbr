@@ -493,28 +493,47 @@ fn InterpretationView(
         .into_iter()
         .enumerate()
         .map(|(component_seq, component)| {
-            let unknown_or_ignored = match component.word_id {
+            let unknown_or_ignored = !form.seqs_to_component.contains_key(&(
+                phrase_seq,
+                interpretation_seq,
+                component_seq,
+            )) || match component.word_id {
                 Some(word_id) => ignored_words.contains(&word_id),
                 None => true,
             };
             if unknown_or_ignored {
-                view! {
+                return view! {
                     <div>{format!("{} (ignored)", component.word)}</div>
                 }
-                .into_any()
-            } else {
-                view! {
-                    <ComponentView
-                        show_reading={interpretation.reading_hiragana != component.reading_hiragana}
-                        component
-                        form=form.clone()
-                        phrase_seq
-                        interpretation_seq
-                        component_seq
-                    />
-                }
-                .into_any()
+                .into_any();
             }
+
+            // if there was some issue processing the component, there may be signals missing from the form
+            // in this case we'll just skip it as ignored for now...
+            let Some((read, write)) = form
+                .seqs_to_component
+                .get(&(phrase_seq, interpretation_seq, component_seq))
+                .copied()
+            else {
+                return view! {
+                    <div>{format!("{} (skipped)", component.word)}</div>
+                }
+                .into_any();
+            };
+
+            view! {
+                <ComponentView
+                    show_reading={interpretation.reading_hiragana != component.reading_hiragana}
+                    component
+                    form=form.clone()
+                    read
+                    write
+                    phrase_seq
+                    interpretation_seq
+                    component_seq
+                />
+            }
+            .into_any()
         })
         .collect_view();
     view! {
@@ -531,6 +550,8 @@ fn ComponentView(
     show_reading: bool,
     component: res::WordInfo,
     form: Form,
+    read: ReadSignal<Component>,
+    write: WriteSignal<Component>,
     phrase_seq: usize,
     interpretation_seq: usize,
     component_seq: usize,
@@ -544,11 +565,6 @@ fn ComponentView(
         view! { <span>{component.reading_hiragana.clone()}</span>
         <br/> }
     });
-    let (read, write) = form
-        .seqs_to_component
-        .get(&(phrase_seq, interpretation_seq, component_seq))
-        .copied()
-        .unwrap();
     let phrase_to_components = form.phrase_to_components.clone();
 
     let witc = form.word_id_to_components.clone();
