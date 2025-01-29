@@ -39,7 +39,14 @@ pub fn map_to_db_furigana(
     reading: &str,
     kanji_to_readings: &HashMap<String, Vec<String>>,
 ) -> eyre::Result<Vec<Furigana>> {
-    let furigana = furigana::map(word, reading, kanji_to_readings)
+    let furigana = furigana::map(word, reading, kanji_to_readings);
+    let furigana = if furigana.is_empty() {
+        tracing::warn!("Failed to map furigana accurately for '{word}' with reading '{reading}', using naive mapping");
+        furigana::map_naive(word, reading)
+    } else {
+        furigana
+    };
+    let furigana = furigana
         .into_iter()
         .max_by_key(|f| f.accuracy)
         .map(furigana_to_db_furigana)
