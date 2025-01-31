@@ -66,7 +66,6 @@ After setup is finished, you can start the dev server with `scripts/watch.nu` (o
 
 
 ## Development
-
 ### Logging
 Setting the logging level for the backend is done with the `RUST_LOG` environment variable. For the frontend, the `WASM_LOG` environment variable is used. The levels available are the usual `trace`, `debug`, `info`, `warn` and `error`.
 
@@ -108,3 +107,7 @@ pg_dump --no-owner --dbname=postgres://lbr:lbr@localhost/lbr | psql <lbr-connect
 where the connection strings are databases at something like [Amazon RDS](https://aws.amazon.com/rds/) for example.
 
 If the database host requires SNI, such as with Neon, you can add `:use-ssl :full` to end of the `ICHIRAN_CONNECTION` list.
+
+
+## Updating
+The `./scripts/maintain.nu` script automates the process of updating the data used in the project. It updates the project's databases with the latest data from `./crates/jadata/data`, ichiran, KANJIDIC, kradfile, JMdict and JmdictFurigana.

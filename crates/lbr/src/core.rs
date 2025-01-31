@@ -1,7 +1,7 @@
 //! Contains functionality related to lbr_core.
 
 use lbr_core::ichiran_types as it;
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Range};
 
 /// Converts ichiran segments to lbr's format.
 ///
@@ -45,7 +45,8 @@ fn process_word(
         match alternative {
             ichiran::Alternative::WordInfo(info) => {
                 let score = info.score;
-                let reading_hiragana = info.kana.clone();
+                // replace zero width spaces
+                let reading_hiragana = replace_invisible_characters(&info.kana);
                 let component = to_lbr_word_info(info, ichiran_seq_to_word_id);
                 word_in_text = Some(component.word.clone());
                 components.push(component);
@@ -57,7 +58,8 @@ fn process_word(
             }
             ichiran::Alternative::CompoundWordInfo(info) => {
                 word_in_text = Some(info.text);
-                let reading_hiragana = info.kana.clone();
+                // replace zero width spaces
+                let reading_hiragana = replace_invisible_characters(&info.kana);
                 for component in info.components {
                     let component = to_lbr_word_info(component, ichiran_seq_to_word_id);
                     components.push(component);
@@ -73,22 +75,23 @@ fn process_word(
 
     // handle other segment between this and the previous word segment
     let word_in_text = word_in_text.unwrap();
-    let word_start_idx = match text[*idx..].find(&word_in_text) {
-        Some(word_start_idx) => word_start_idx,
-        None => {
-            tracing::warn!(
-                "Failed to find word '{word_in_text}' from ichiran in text '{}'",
-                &text[*idx..]
-            );
-            return;
-        }
-    };
+    let (word_start_idx, length_in_target) =
+        match lbr_core::find_jp_equivalent(&text[*idx..], &word_in_text) {
+            Some(res) => res,
+            None => {
+                tracing::warn!(
+                    "Failed to find word '{word_in_text}' from ichiran in text '{}'",
+                    &text[*idx..]
+                );
+                return;
+            }
+        };
     if word_start_idx != 0 {
         let other = text[*idx..*idx + word_start_idx].to_string();
         segments.push(it::Segment::Other(other));
         *idx += word_start_idx;
     }
-    *idx += word_in_text.len();
+    *idx += length_in_target;
 
     segments.push(it::Segment::Phrase {
         phrase: word_in_text,
@@ -104,9 +107,11 @@ fn to_lbr_word_info(
     let word_id = info
         .seq
         .and_then(|seq| ichiran_seq_to_word_id.get(&seq).copied());
+    // replace zero width spaces
+    let reading_hiragana = replace_invisible_characters(&info.kana);
     it::WordInfo {
         word: info.text,
-        reading_hiragana: info.kana,
+        reading_hiragana,
         word_id,
         meanings: info
             .gloss
@@ -125,5 +130,38 @@ fn to_lbr_word_info(
                 meaning_info: None,
             }))
             .collect(),
+    }
+}
+
+fn replace_invisible_characters(s: &str) -> String {
+    s.replace("\u{200b}", "").replace("\u{200c}", "")
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn finds_regular() {
+        let res = find_jp_equivalent("abcdefg", "def");
+        assert_eq!(res, Some((3, 3)));
+    }
+
+    #[test]
+    fn fails_to_find() {
+        let res = find_jp_equivalent("abcdefg", "z");
+        assert_eq!(res, None);
+    }
+
+    #[test]
+    fn finds_kana_equivalent() {
+        let res = find_jp_equivalent("そろそろ１０時間ですね", "デス");
+        assert_eq!(res, Some((24, 6)));
+    }
+
+    #[test]
+    fn finds_width_equivalent() {
+        let res = find_jp_equivalent("そろそろ１０時間ですね", "10");
+        assert_eq!(res, Some((12, 6)));
     }
 }

@@ -917,9 +917,9 @@ dependencies = [
 
 [[package]]
 name = "furigana"
-version = "0.1.2"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53256a82debd67c785768d2fb2bc500dc8c21fb354a0d1fe522ca88d77d7d069"
+checksum = "f5bd17e367cfe0e842165a7b7274cc086cf6efa0feb3c822cd28e8c03143f613"
 
 [[package]]
 name = "futures"
@@ -1690,6 +1690,7 @@ dependencies = [
  "eyre",
  "futures-util",
  "lbr_api",
+ "lbr_core",
  "leptos",
  "leptos_meta",
  "leptos_router",

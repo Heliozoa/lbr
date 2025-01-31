@@ -13,6 +13,7 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+lbr_core.workspace = true
 lbr_api.workspace = true
 
 chrono = { version = "0.4.26", default-features = false, features = [

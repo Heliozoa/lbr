@@ -143,9 +143,12 @@ impl Form {
                     phrase,
                     interpretations,
                 } => {
-                    phrase_idx += segmented_sentence.sentence[phrase_idx..]
-                        .find(phrase.as_str())
-                        .unwrap();
+                    let (idx_in_text, len_in_text) = lbr_core::find_jp_equivalent(
+                        &segmented_sentence.sentence[phrase_idx..],
+                        phrase.as_str(),
+                    )
+                    .unwrap();
+                    phrase_idx += idx_in_text;
                     let mut pre_emptively_accept_next = true;
                     for (interpretation_seq, interpretation) in interpretations.iter().enumerate() {
                         let mut interpretation_idx = phrase_idx;
@@ -153,12 +156,12 @@ impl Form {
                         for (component_seq, component) in
                             interpretation.components.iter().enumerate()
                         {
-                            if let Some(interp_idx_in_sentence) = segmented_sentence.sentence
-                                [interpretation_idx..]
-                                .find(&component.word)
-                            {
-                                interpretation_idx += interp_idx_in_sentence;
-                            } else {
+                            let Some((interp_idx_in_sentence, interp_len_in_sentence)) =
+                                lbr_core::find_jp_equivalent(
+                                    &segmented_sentence.sentence[interpretation_idx..],
+                                    &component.word,
+                                )
+                            else {
                                 // ichiran sometimes returns words in a different form than in the actual sentence, e.g.
                                 // the segmentation of '五千円札何枚残ってるー？' will contain 'いる' even though it's abbreviated
                                 // to just 'る' in the sentence
@@ -168,8 +171,9 @@ impl Form {
                                     &segmented_sentence.sentence[interpretation_idx..]
                                 );
                                 continue;
-                            }
-                            let idx_end = interpretation_idx + component.word.len();
+                            };
+                            interpretation_idx += interp_idx_in_sentence;
+                            let idx_end = interpretation_idx + interp_len_in_sentence;
                             if let Some(word_id) = component.word_id {
                                 let status: Status = if ignored_words.contains(&word_id) {
                                     tracing::info!("ignoring word '{}'", component.word);
@@ -208,7 +212,7 @@ impl Form {
                         }
                         pre_emptively_accept_next = false;
                     }
-                    phrase_idx += phrase.len();
+                    phrase_idx += len_in_text;
                 }
                 res::Segment::Other(other) => {
                     phrase_idx += other.len();
