@@ -75,7 +75,7 @@ pub fn SegmentedParagraphView(source_id: i32, paragraph: res::SegmentedParagraph
             };
             view! {
                 <div class=class>
-                    <SegmentedSentenceView source_id sentence_id=None segmented_sentence ignored_words={ignored_words.clone()} on_successful_accept=Arc::new(move || {
+                    <SegmentedSentenceView source_id sentence_id=None sentence={segmented_sentence.sentence} segments={segmented_sentence.segments} ignored_words={ignored_words.clone()} on_successful_accept=Arc::new(move || {
                         completed_sentences.update(|cs| {
                             cs.insert(idx);
                         });
@@ -129,25 +129,23 @@ struct Form {
 }
 
 impl Form {
-    fn init(segmented_sentence: &res::SegmentedSentence, ignored_words: &HashSet<i32>) -> Self {
+    fn init(sentence: &str, segments: &[res::Segment], ignored_words: &HashSet<i32>) -> Self {
         let mut word_id_to_components: WordIdToComponents = HashMap::new();
         let mut phrase_to_components: PhraseToComponents = HashMap::new();
         let mut seqs_to_component: SeqsToComponent = HashMap::new();
         tracing::debug!("ignored words {ignored_words:#?}");
 
         let mut phrase_idx = 0;
-        for (phrase_seq, segment) in segmented_sentence.segments.iter().enumerate() {
+        for (phrase_seq, segment) in segments.iter().enumerate() {
             let mut phrase_components = Vec::new();
             match segment {
                 res::Segment::Phrase {
                     phrase,
                     interpretations,
                 } => {
-                    let (idx_in_text, len_in_text) = lbr_core::find_jp_equivalent(
-                        &segmented_sentence.sentence[phrase_idx..],
-                        phrase.as_str(),
-                    )
-                    .unwrap();
+                    let (idx_in_text, len_in_text) =
+                        lbr_core::find_jp_equivalent(&sentence[phrase_idx..], phrase.as_str())
+                            .unwrap();
                     phrase_idx += idx_in_text;
                     let mut pre_emptively_accept_next = true;
                     for (interpretation_seq, interpretation) in interpretations.iter().enumerate() {
@@ -158,7 +156,7 @@ impl Form {
                         {
                             let Some((interp_idx_in_sentence, interp_len_in_sentence)) =
                                 lbr_core::find_jp_equivalent(
-                                    &segmented_sentence.sentence[interpretation_idx..],
+                                    &sentence[interpretation_idx..],
                                     &component.word,
                                 )
                             else {
@@ -168,7 +166,7 @@ impl Form {
                                 tracing::warn!(
                                     "Failed to find word '{}' in sentence section '{}'",
                                     component.word,
-                                    &segmented_sentence.sentence[interpretation_idx..]
+                                    &sentence[interpretation_idx..]
                                 );
                                 continue;
                             };
@@ -235,11 +233,12 @@ impl Form {
 pub fn SegmentedSentenceView(
     source_id: i32,
     sentence_id: Option<i32>,
-    segmented_sentence: res::SegmentedSentence,
+    sentence: String,
+    segments: Vec<res::Segment>,
     ignored_words: Arc<HashSet<i32>>,
     on_successful_accept: Arc<dyn Fn() + Send + Sync>,
 ) -> impl IntoView {
-    let form = Form::init(&segmented_sentence, &ignored_words);
+    let form = Form::init(&sentence, &segments, &ignored_words);
 
     let submit = Action::new(move |sentence: &req::SegmentedSentence| {
         let client = get_client();
@@ -300,7 +299,7 @@ pub fn SegmentedSentenceView(
             }
         }
         let segmented_sentence = req::SegmentedSentence {
-            sentence: segmented_sentence.sentence.clone(),
+            sentence: sentence.clone(),
             words,
             ignore_words,
         };
@@ -309,7 +308,7 @@ pub fn SegmentedSentenceView(
 
     // show each segment with interpretations
     let mut unknown_or_ignored_storage = String::new();
-    let sentence_segments = segmented_sentence.segments.into_iter().enumerate().filter_map(|(phrase_seq, s)| {
+    let sentence_segments = segments.into_iter().enumerate().filter_map(|(phrase_seq, s)| {
         match s {
             res::Segment::Phrase {
                 phrase,

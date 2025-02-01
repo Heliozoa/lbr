@@ -144,7 +144,7 @@ fn update_kanji(
         .context("Failed to delete kanji readings")?;
 
     for kanji in &kd2.character {
-        tracing::info!("Processing kanji {}", kanji.literal);
+        tracing::debug!("Processing kanji {}", kanji.literal);
 
         let existing_kanji = existing_kanji.get(&kanji.literal).copied();
         let name = kn.kanji_names.get(&kanji.literal);
@@ -317,7 +317,7 @@ fn update_words(
             .ent_seq
             .parse::<i32>()
             .context("Failed to parse jmdict seq")?;
-        tracing::info!("Processing entry {}", jmdict_id);
+        tracing::debug!("Processing entry {}", jmdict_id);
 
         // few things to consider here:
         // a word may not have any kanji entries, in which case the readings are the written forms
@@ -330,11 +330,12 @@ fn update_words(
             translations: Vec<&'a str>,
         }
         // skip search only forms
-        for k_ele in entry
-            .k_ele
-            .iter()
-            .filter(|k_ele| k_ele.ke_inf.iter().all(|ke_inf| ke_inf != "sK"))
-        {
+        for k_ele in entry.k_ele.iter().filter(|k_ele| {
+            k_ele
+                .ke_inf
+                .iter()
+                .all(|ke_inf| ke_inf != "search-only kanji form")
+        }) {
             // only include reading elements that do not exclude the kanji element
             for r_ele in entry
                 .r_ele
@@ -383,15 +384,20 @@ fn update_words(
                 });
             }
         }
+        if entry.k_ele.iter().any(|k| k.keb == "お握り") {
+            tracing::info!("{:#?}", entry.k_ele);
+            tracing::info!("{:#?}", entry.r_ele);
+        }
         // check for rare kanji elements
-        for k_ele in entry
-            .k_ele
-            .iter()
-            .filter(|k_ele| k_ele.ke_inf.iter().any(|ke_inf| ke_inf == "rK"))
-        {
+        for k_ele in entry.k_ele.iter().filter(|k_ele| {
+            k_ele
+                .ke_inf
+                .iter()
+                .any(|ke_inf| ke_inf == "rarely used kanji form")
+        }) {
             // add all reading elements that apply to this kanji element as their own words as well
             for r_ele in &entry.r_ele {
-                let word = &k_ele.keb;
+                let word = &r_ele.reb;
                 let reading = &r_ele.reb;
                 let translations = entry
                     .sense
@@ -412,7 +418,11 @@ fn update_words(
         }
         // check for translations usually in kana
         for sense in &entry.sense {
-            if sense.s_inf.iter().any(|s_inf| s_inf == "uk") {
+            if sense
+                .misc
+                .iter()
+                .any(|misc| misc == "word usually written using kana alone")
+            {
                 for r_ele in &entry.r_ele {
                     let word = &r_ele.reb;
                     let reading = &r_ele.reb;
@@ -439,7 +449,7 @@ fn update_words(
             let word = new_word.word;
             let reading = new_word.reading;
             let translations = &new_word.translations;
-            tracing::info!("Processing word {} ({})", word, reading);
+            tracing::debug!("Processing word {} ({})", word, reading);
 
             let furigana = furigana.get(&(word, reading)).cloned().unwrap_or_default();
 

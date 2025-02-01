@@ -58,7 +58,7 @@ pub struct LbrStateCore {
     pub ichiran_pool: LbrPool,
     pub ichiran_cli: IchiranCli,
     pub kanji_to_readings: HashMap<String, Vec<String>>,
-    pub ichiran_seq_to_word_id: HashMap<i32, i32>,
+    pub ichiran_word_to_id: HashMap<(i32, String), i32>,
     pub private_cookie_key: Key,
     pub sessions: SessionCache,
     pub leptos_options: LeptosOptions,
@@ -232,7 +232,7 @@ pub async fn router_from_vars(
         .await
         .wrap_err("Failed to generate kanji to readings mapping")??
     };
-    let ichiran_seq_to_word_id = if cfg!(debug_assertions) {
+    let ichiran_word_to_id = if cfg!(debug_assertions) {
         match tokio::fs::File::open("./data/ichiran_seq_to_word_id.bitcode").await {
             Ok(mut file) => {
                 let mut buf = Vec::new();
@@ -245,7 +245,7 @@ pub async fn router_from_vars(
                 let ichiran_seq_to_word_id = tokio::task::spawn_blocking(move || {
                     let mut lbr_conn = lbr_pool.get()?;
                     let mut ichiran_conn = ichiran_pool.get()?;
-                    let istw = domain::ichiran::get_ichiran_seq_to_word_id(
+                    let istw = domain::ichiran::get_ichiran_word_to_word_id(
                         &mut lbr_conn,
                         &mut ichiran_conn,
                     )?;
@@ -269,7 +269,7 @@ pub async fn router_from_vars(
             let mut lbr_conn = lbr_pool.get()?;
             let mut ichiran_conn = ichiran_pool.get()?;
             let istw =
-                domain::ichiran::get_ichiran_seq_to_word_id(&mut lbr_conn, &mut ichiran_conn)?;
+                domain::ichiran::get_ichiran_word_to_word_id(&mut lbr_conn, &mut ichiran_conn)?;
             EyreResult::Ok(istw)
         })
         .await??
@@ -289,7 +289,7 @@ pub async fn router_from_vars(
         ichiran_pool,
         ichiran_cli,
         kanji_to_readings,
-        ichiran_seq_to_word_id,
+        ichiran_word_to_id,
         private_cookie_key,
         sessions,
         leptos_options,

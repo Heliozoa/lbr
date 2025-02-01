@@ -44,7 +44,7 @@ pub async fn segment(
                     sentences::process_sentence(
                         &state.ichiran_cli,
                         sentence.to_string(),
-                        &state.ichiran_seq_to_word_id,
+                        &state.ichiran_word_to_id,
                     )
                 });
                 handles.push(segmented_sentence);

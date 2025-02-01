@@ -15,7 +15,7 @@ fn main() -> eyre::Result<()> {
     let mut ichiran_conn = PgConnection::establish(&ichiran_database_url)?;
 
     let ichiran_seq_to_word_id =
-        lbr_server::domain::ichiran::get_ichiran_seq_to_word_id(&mut lbr_conn, &mut ichiran_conn)?;
+        lbr_server::domain::ichiran::get_ichiran_word_to_word_id(&mut lbr_conn, &mut ichiran_conn)?;
     let contents = bitcode::encode(&ichiran_seq_to_word_id);
     std::fs::write("./data/ichiran_seq_to_word_id.bitcode", contents)?;
     Ok(())

@@ -122,6 +122,7 @@ pub struct ExSrce {
 }
 
 fn make_config() -> ParserConfig {
+    // todo: try using a giant enum for these instead of strings
     ParserConfig::new()
         .add_entity("bra", "Brazilian")
         .add_entity("hob", "Hokkaido-ben")

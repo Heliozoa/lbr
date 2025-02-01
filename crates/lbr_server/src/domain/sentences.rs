@@ -13,7 +13,7 @@ use std::collections::{HashMap, HashSet};
 pub fn segment_sentence(
     ichiran: &IchiranCli,
     sentence: &str,
-    ichiran_seq_to_word_id: &HashMap<i32, i32>,
+    ichiran_seq_to_word_id: &HashMap<(i32, String), i32>,
 ) -> eyre::Result<Vec<ichiran_types::Segment>> {
     tracing::info!("Segmenting sentence '{sentence}'");
 
@@ -37,10 +37,10 @@ pub fn segment_sentence(
 pub fn process_sentence(
     ichiran_cli: &IchiranCli,
     sentence: String,
-    ichiran_seq_to_word_id: &HashMap<i32, i32>,
-) -> eyre::Result<res::SegmentedSentence> {
+    ichiran_seq_to_word_id: &HashMap<(i32, String), i32>,
+) -> eyre::Result<res::SegmentedParagraphSentence> {
     let segments = segment_sentence(ichiran_cli, &sentence, ichiran_seq_to_word_id)?;
-    Ok(res::SegmentedSentence { sentence, segments })
+    Ok(res::SegmentedParagraphSentence { sentence, segments })
 }
 
 pub struct NewSentenceWords<'a> {

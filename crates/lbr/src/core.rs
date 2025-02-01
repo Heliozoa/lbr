@@ -10,7 +10,7 @@ use std::{collections::HashMap, ops::Range};
 pub fn to_lbr_segments(
     text: &str,
     ichiran_segments: Vec<ichiran::Segment>,
-    ichiran_seq_to_word_id: &HashMap<i32, i32>,
+    ichiran_seq_to_word_id: &HashMap<(i32, String), i32>,
 ) -> Vec<it::Segment> {
     let mut segments = vec![];
     let mut idx = 0;
@@ -35,7 +35,7 @@ fn process_word(
     text: &str,
     word: ichiran::Word,
     idx: &mut usize,
-    ichiran_seq_to_word_id: &HashMap<i32, i32>,
+    ichiran_seq_to_word_id: &HashMap<(i32, String), i32>,
 ) {
     // handle word
     let mut word_in_text = None;
@@ -101,12 +101,27 @@ fn process_word(
 
 fn to_lbr_word_info(
     info: ichiran::WordInfo,
-    ichiran_seq_to_word_id: &HashMap<i32, i32>,
+    ichiran_seq_to_word_id: &HashMap<(i32, String), i32>,
 ) -> it::WordInfo {
     // we convert the ichiran seqs to our word ids here so we don't have to worry about them later
-    let word_id = info
-        .seq
-        .and_then(|seq| ichiran_seq_to_word_id.get(&seq).copied());
+    let word_id = if let Some(seq) = dbg!(info.seq) {
+        if let Some(reading) = dbg!(info
+            .conj
+            .first()
+            .and_then(|c| c.reading.as_ref())
+            .and_then(|r| r.split_whitespace().next()))
+        {
+            dbg!(ichiran_seq_to_word_id
+                .get(&(seq, reading.to_string()))
+                .copied())
+        } else {
+            dbg!(ichiran_seq_to_word_id
+                .get(&(seq, info.text.clone()))
+                .copied())
+        }
+    } else {
+        None
+    };
     // replace zero width spaces
     let reading_hiragana = replace_invisible_characters(&info.kana);
     it::WordInfo {

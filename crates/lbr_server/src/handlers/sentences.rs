@@ -3,8 +3,11 @@
 use super::prelude::*;
 use crate::{
     domain::sentences::{self, NewSentenceWords},
+    queries,
     utils::database,
 };
+use lbr_api::response::SegmentedSentence;
+use std::collections::HashSet;
 
 // handlers
 
@@ -154,12 +157,30 @@ pub async fn segment(
             .filter(s::id.eq(id))
             .select(s::sentence)
             .get_result::<String>(&mut conn)?;
-        let segmented_sentence = sentences::process_sentence(
-            &state.ichiran_cli,
-            sentence,
-            &state.ichiran_seq_to_word_id,
-        )?;
-        EyreResult::Ok(segmented_sentence)
+        let segmented_sentence =
+            sentences::process_sentence(&state.ichiran_cli, sentence, &state.ichiran_word_to_id)?;
+        let mut word_ids = HashSet::new();
+        for seg in &segmented_sentence.segments {
+            if let lbr_core::ichiran_types::Segment::Phrase {
+                phrase,
+                interpretations,
+            } = seg
+            {
+                for interp in interpretations {
+                    for comp in &interp.components {
+                        if let Some(word_id) = comp.word_id {
+                            word_ids.insert(word_id);
+                        }
+                    }
+                }
+            }
+        }
+        let ignored_word_ids = queries::ignored_words(&mut conn, user.user_id)?;
+        EyreResult::Ok(SegmentedSentence {
+            sentence: segmented_sentence.sentence,
+            segments: segmented_sentence.segments,
+            ignored_words: word_ids.intersection(&ignored_word_ids).copied().collect(),
+        })
     })
     .await??;
 

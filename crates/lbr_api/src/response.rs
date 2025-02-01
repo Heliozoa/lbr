@@ -94,12 +94,19 @@ pub struct Furigana {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SegmentedParagraph {
-    pub sentences: Vec<SegmentedSentence>,
+    pub sentences: Vec<SegmentedParagraphSentence>,
     pub ignored_words: HashSet<i32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SegmentedParagraphSentence {
+    pub sentence: String,
+    pub segments: Vec<Segment>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SegmentedSentence {
     pub sentence: String,
     pub segments: Vec<Segment>,
+    pub ignored_words: HashSet<i32>,
 }

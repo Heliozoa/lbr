@@ -420,7 +420,7 @@ pub fn SourceSentence() -> impl IntoView {
             reanalyse_act.value().set(None);
         });
         view! {
-            <SegmentedSentenceView source_id sentence_id=Some(sentence_id) segmented_sentence ignored_words={Arc::new(std::collections::HashSet::new())} on_successful_accept=on_successful_accept />
+            <SegmentedSentenceView source_id sentence_id=Some(sentence_id) sentence={segmented_sentence.sentence} segments={segmented_sentence.segments} ignored_words={Arc::new(segmented_sentence.ignored_words)} on_successful_accept=on_successful_accept />
         }
     };
     let analysis_view =
