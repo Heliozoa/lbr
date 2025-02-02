@@ -13,7 +13,7 @@ use std::collections::{HashMap, HashSet};
 pub fn segment_sentence(
     ichiran: &IchiranCli,
     sentence: &str,
-    ichiran_seq_to_word_id: &HashMap<(i32, String), i32>,
+    ichiran_word_to_id: &HashMap<(i32, String, String), i32>,
 ) -> eyre::Result<Vec<ichiran_types::Segment>> {
     tracing::info!("Segmenting sentence '{sentence}'");
 
@@ -27,7 +27,7 @@ pub fn segment_sentence(
             return Err(err).wrap_err_with(|| format!("Failed to segment sentence '{sentence}'"));
         }
     };
-    let segmented_sentence = lbr::core::to_lbr_segments(sentence, segments, ichiran_seq_to_word_id);
+    let segmented_sentence = lbr::core::to_lbr_segments(sentence, segments, ichiran_word_to_id);
 
     tracing::info!("Finished segmenting sentence '{sentence}': {segmented_sentence:#?}");
     Ok(segmented_sentence)
@@ -37,9 +37,9 @@ pub fn segment_sentence(
 pub fn process_sentence(
     ichiran_cli: &IchiranCli,
     sentence: String,
-    ichiran_seq_to_word_id: &HashMap<(i32, String), i32>,
+    ichiran_word_to_id: &HashMap<(i32, String, String), i32>,
 ) -> eyre::Result<res::SegmentedParagraphSentence> {
-    let segments = segment_sentence(ichiran_cli, &sentence, ichiran_seq_to_word_id)?;
+    let segments = segment_sentence(ichiran_cli, &sentence, ichiran_word_to_id)?;
     Ok(res::SegmentedParagraphSentence { sentence, segments })
 }
 

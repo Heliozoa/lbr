@@ -58,7 +58,7 @@ pub struct LbrStateCore {
     pub ichiran_pool: LbrPool,
     pub ichiran_cli: IchiranCli,
     pub kanji_to_readings: HashMap<String, Vec<String>>,
-    pub ichiran_word_to_id: HashMap<(i32, String), i32>,
+    pub ichiran_word_to_id: HashMap<(i32, String, String), i32>,
     pub private_cookie_key: Key,
     pub sessions: SessionCache,
     pub leptos_options: LeptosOptions,
@@ -233,7 +233,7 @@ pub async fn router_from_vars(
         .wrap_err("Failed to generate kanji to readings mapping")??
     };
     let ichiran_word_to_id = if cfg!(debug_assertions) {
-        match tokio::fs::File::open("./data/ichiran_seq_to_word_id.bitcode").await {
+        match tokio::fs::File::open("./data/ichiran_word_to_id.bitcode").await {
             Ok(mut file) => {
                 let mut buf = Vec::new();
                 file.read_to_end(&mut buf).await?;

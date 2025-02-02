@@ -1,7 +1,7 @@
 //! Contains functionality related to lbr_core.
 
 use lbr_core::ichiran_types as it;
-use std::{collections::HashMap, ops::Range};
+use std::collections::HashMap;
 
 /// Converts ichiran segments to lbr's format.
 ///
@@ -10,7 +10,7 @@ use std::{collections::HashMap, ops::Range};
 pub fn to_lbr_segments(
     text: &str,
     ichiran_segments: Vec<ichiran::Segment>,
-    ichiran_seq_to_word_id: &HashMap<(i32, String), i32>,
+    ichiran_word_to_id: &HashMap<(i32, String, String), i32>,
 ) -> Vec<it::Segment> {
     let mut segments = vec![];
     let mut idx = 0;
@@ -18,7 +18,7 @@ pub fn to_lbr_segments(
         if let ichiran::Segment::Words(words) = segment {
             for word_segment in words {
                 for word in word_segment.words {
-                    process_word(&mut segments, text, word, &mut idx, ichiran_seq_to_word_id);
+                    process_word(&mut segments, text, word, &mut idx, ichiran_word_to_id);
                 }
             }
         }
@@ -35,7 +35,7 @@ fn process_word(
     text: &str,
     word: ichiran::Word,
     idx: &mut usize,
-    ichiran_seq_to_word_id: &HashMap<(i32, String), i32>,
+    ichiran_word_to_id: &HashMap<(i32, String, String), i32>,
 ) {
     // handle word
     let mut word_in_text = None;
@@ -47,7 +47,7 @@ fn process_word(
                 let score = info.score;
                 // replace zero width spaces
                 let reading_hiragana = replace_invisible_characters(&info.kana);
-                let component = to_lbr_word_info(info, ichiran_seq_to_word_id);
+                let component = to_lbr_word_info(info, ichiran_word_to_id);
                 word_in_text = Some(component.word.clone());
                 components.push(component);
                 interpretations.push(it::Interpretation {
@@ -61,7 +61,7 @@ fn process_word(
                 // replace zero width spaces
                 let reading_hiragana = replace_invisible_characters(&info.kana);
                 for component in info.components {
-                    let component = to_lbr_word_info(component, ichiran_seq_to_word_id);
+                    let component = to_lbr_word_info(component, ichiran_word_to_id);
                     components.push(component);
                 }
                 interpretations.push(it::Interpretation {
@@ -101,23 +101,42 @@ fn process_word(
 
 fn to_lbr_word_info(
     info: ichiran::WordInfo,
-    ichiran_seq_to_word_id: &HashMap<(i32, String), i32>,
+    ichiran_word_to_id: &HashMap<(i32, String, String), i32>,
 ) -> it::WordInfo {
     // we convert the ichiran seqs to our word ids here so we don't have to worry about them later
     let word_id = if let Some(seq) = dbg!(info.seq) {
-        if let Some(reading) = dbg!(info
+        // ichiran's "reading" field contains the dictionary form e.g. "見る [みる]"
+        if let Some((Some(first), second)) = info
+            // get first conjunction
             .conj
             .first()
-            .and_then(|c| c.reading.as_ref())
-            .and_then(|r| r.split_whitespace().next()))
+            // get reading from conjunction or from via if there is none
+            .and_then(|c| {
+                c.reading
+                    .as_ref()
+                    .or_else(|| c.via.first().and_then(|v| v.reading.as_ref()))
+            })
+            .map(|r| r.split_whitespace())
+            .map(|mut ws| (ws.next(), ws.next()))
         {
-            dbg!(ichiran_seq_to_word_id
-                .get(&(seq, reading.to_string()))
+            let dictionary_form = first.to_string();
+            let reading = second
+                .map(|s| s.replace("【", "").replace("】", ""))
+                .unwrap_or_else(|| dictionary_form.clone());
+            dbg!(ichiran_word_to_id
+                .get(&(seq, dictionary_form, reading))
                 .copied())
         } else {
-            dbg!(ichiran_seq_to_word_id
-                .get(&(seq, info.text.clone()))
-                .copied())
+            // if we can't find the dictionary form, we'll try with the word in text...
+            ichiran_word_to_id
+                .get(&(seq, info.text.clone(), info.kana.clone()))
+                .copied()
+                .or_else(|| {
+                    // lastly we'll try with the reading
+                    ichiran_word_to_id
+                        .get(&(seq, info.kana.clone(), info.kana.clone()))
+                        .copied()
+                })
         }
     } else {
         None
