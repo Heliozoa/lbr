@@ -23,7 +23,6 @@ pub fn get_ichiran_word_to_word_id(
         .into_iter()
         .collect::<HashMap<_, _>>();
     let conj_seq_via_to_from_vec = si::conjugation::table
-        .filter(si::conjugation::via.is_null())
         .select((
             si::conjugation::seq,
             si::conjugation::via,
