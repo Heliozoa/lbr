@@ -42,14 +42,18 @@ impl KanjiCard {
         let similar_kanji = format!("<ul>{similar_kanji}</ul>");
 
         KanjiFields {
-            id: self.id,
-            id_str: self.id.to_string(),
+            id: self.id.to_string(),
             count: self.kanji_words.to_string(),
             kanji,
             name,
             example_source_word,
             example_source_word_translation,
             similar_kanji,
+            generated_at: std::time::UNIX_EPOCH
+                .elapsed()
+                .unwrap()
+                .as_secs()
+                .to_string(),
         }
     }
 
@@ -77,14 +81,14 @@ pub struct Kanji {
 /// Wrapper for the fields of an Anki card to make handling them in a typesafe way easier.
 #[derive(Debug)]
 pub struct KanjiFields {
-    id: i32,
-    id_str: String,
+    id: String,
     count: String,
     kanji: String,
     name: Option<String>,
     example_source_word: String,
     example_source_word_translation: String,
     similar_kanji: String,
+    generated_at: String,
 }
 
 impl KanjiFields {
@@ -97,22 +101,24 @@ impl KanjiFields {
             Field::new("count"),
             Field::new("kanji"),
             Field::new("name"),
-            Field::new("example-source-word"),
-            Field::new("example-source-word-translation"),
-            Field::new("similar-kanji"),
+            Field::new("example_source_word"),
+            Field::new("example_source_word_translation"),
+            Field::new("similar_kanji"),
+            Field::new("generated_at"),
         ]
     }
 
     // keep in sync with `fields`
     fn to_fields(&self) -> Vec<&str> {
         vec![
-            &self.id_str,
+            &self.id,
             &self.count,
             &self.kanji,
             &self.name.as_deref().unwrap_or(""),
             &self.example_source_word,
             &self.example_source_word_translation,
             &self.similar_kanji,
+            &self.generated_at,
         ]
     }
 }
@@ -161,7 +167,7 @@ pub fn create_model() -> Model {
     color: red;
 }
 #kanji {
-    font-size: 4rem;
+    font-size: 2rem;
 }
 #translation, #example {
     font-size: 2rem;

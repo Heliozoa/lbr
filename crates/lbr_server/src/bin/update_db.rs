@@ -306,12 +306,13 @@ fn update_words(
     tracing::info!("Updating words");
     let furigana = process_furigana(jmdict_furigana);
     let existing_words = w::table
-        .select((w::jmdict_id, w::word, w::id))
-        .get_results::<(i32, String, i32)>(conn)?;
+        .inner_join(wr::table.on(w::id.eq(wr::word_id)))
+        .select((w::jmdict_id, w::id, w::word, wr::reading))
+        .get_results::<(i32, i32, String, String)>(conn)?;
     let existing_words = existing_words
         .iter()
-        .map(|(jmdict_id, word, id)| ((*jmdict_id, word.as_str()), *id))
-        .collect::<HashMap<(i32, &str), i32>>();
+        .map(|(jmdict_id, id, word, reading)| ((*jmdict_id, word.as_str(), reading.as_str()), *id))
+        .collect::<HashMap<(i32, &str, &str), i32>>();
     for entry in &jmdict.entry {
         let jmdict_id = entry
             .ent_seq
@@ -361,33 +362,33 @@ fn update_words(
                 });
             }
         }
-        // check if the entry has no kanji elements
-        if entry.k_ele.is_empty() {
-            // add all reading elements as their own words as well
-            for r_ele in &entry.r_ele {
-                let word = &r_ele.reb;
-                let reading = &r_ele.reb;
-                let translations = entry
-                    .sense
-                    .iter()
-                    .filter(|s| s.stagk.is_empty())
-                    .filter(|s| s.stagr.is_empty() || s.stagr.contains(reading))
-                    .flat_map(|s| s.gloss.iter())
-                    .filter(|g| g.lang.is_none())
-                    .map(|g| g.value.as_str())
-                    .collect::<Vec<_>>();
-                let entry = new_words.entry(&r_ele.reb).or_default();
-                entry.push(NewWord {
-                    word,
-                    reading,
-                    translations,
-                });
-            }
+        // all reading elements with no stagk restriction as their own words as well
+        // previously this was only done for words with no kanji elements,
+        // but there are too many words like 時 that are often spelled like とき with kana
+        // with no indication of this in JMdict. although doing this will result in many words
+        // that might not be considered real because they are in reality never spelled using kana,
+        // their existence in the db shouldn't be harmful. if needed we can later tag these "derived" words
+        // in the db so we can tell them apart from the ones that exist in JMdict
+        for r_ele in &entry.r_ele {
+            let word = &r_ele.reb;
+            let reading = &r_ele.reb;
+            let translations = entry
+                .sense
+                .iter()
+                .filter(|s| s.stagk.is_empty())
+                .filter(|s| s.stagr.is_empty() || s.stagr.contains(reading))
+                .flat_map(|s| s.gloss.iter())
+                .filter(|g| g.lang.is_none())
+                .map(|g| g.value.as_str())
+                .collect::<Vec<_>>();
+            let entry = new_words.entry(&r_ele.reb).or_default();
+            entry.push(NewWord {
+                word,
+                reading,
+                translations,
+            });
         }
-        if entry.k_ele.iter().any(|k| k.keb == "お握り") {
-            tracing::info!("{:#?}", entry.k_ele);
-            tracing::info!("{:#?}", entry.r_ele);
-        }
+
         // check for rare kanji elements
         for k_ele in entry.k_ele.iter().filter(|k_ele| {
             k_ele
@@ -396,7 +397,11 @@ fn update_words(
                 .any(|ke_inf| ke_inf == "rarely used kanji form")
         }) {
             // add all reading elements that apply to this kanji element as their own words as well
-            for r_ele in &entry.r_ele {
+            for r_ele in entry
+                .r_ele
+                .iter()
+                .filter(|r_ele| r_ele.re_inf.is_empty() || r_ele.re_inf.contains(&k_ele.keb))
+            {
                 let word = &r_ele.reb;
                 let reading = &r_ele.reb;
                 let translations = entry
@@ -453,7 +458,7 @@ fn update_words(
 
             let furigana = furigana.get(&(word, reading)).cloned().unwrap_or_default();
 
-            let existing_word = existing_words.get(&(jmdict_id, word)).copied();
+            let existing_word = existing_words.get(&(jmdict_id, word, reading)).copied();
             if existing_word.is_some() {
                 // nothing to do here
             } else {

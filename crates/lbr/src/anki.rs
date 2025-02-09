@@ -40,10 +40,12 @@ pub fn create_deck(name: &str, id: i64, mut cards: Vec<Card>) -> Package {
     let kanji_model = kanji::create_model();
     cards.sort();
     for card in cards {
+        tracing::info!("creating card");
         match card {
             Card::Word(card) => deck.add_note(card.into_note(&word_model)),
             Card::Kanji(card) => deck.add_note(card.into_note(&kanji_model)),
         }
+        tracing::info!("created card");
     }
     Package::new(vec![deck], Vec::new()).expect("Failed to create package")
 }

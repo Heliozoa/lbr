@@ -77,7 +77,9 @@ pub struct SentenceDetails {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SentenceWord {
-    pub reading: Option<String>,
+    pub word: String,
+    pub reading: String,
+    pub sentence_word_reading: Option<String>,
     pub idx_start: i32,
     pub idx_end: i32,
     pub furigana: Vec<Furigana>,

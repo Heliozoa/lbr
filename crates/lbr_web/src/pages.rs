@@ -445,17 +445,19 @@ pub fn SourceSentence() -> impl IntoView {
     // sentence
     let sentence_content = move |sentence: res::SentenceDetails| {
         let mut words = sentence.words;
-        words.sort_by_key(|v| v.idx_start);
+        words.sort_unstable_by_key(|v| v.idx_start);
         let words = words
             .into_iter()
             .map(|sw| {
-                let word =
+                let word = format!("{} ({})", sw.word, sw.reading);
+                let word_in_sentence =
                     sentence.sentence[sw.idx_start as usize..sw.idx_end as usize].to_string();
                 let translations = sw.translations.join(", ");
-                if let Some(reading) = sw.reading {
+                if let Some(sentence_word_reading) = sw.sentence_word_reading {
                     view! {
                         <li>
-                            <div>{format!("{word} ({reading})")}</div>
+                            <div>{word}</div>
+                            <div>{format!("{word_in_sentence} ({sentence_word_reading})")}</div>
                             <div>{translations}</div>
                         </li>
                     }
@@ -463,6 +465,7 @@ pub fn SourceSentence() -> impl IntoView {
                     view! {
                         <li>
                             <div>{word}</div>
+                            <div>{word_in_sentence}</div>
                             <div>{translations}</div>
                         </li>
                     }

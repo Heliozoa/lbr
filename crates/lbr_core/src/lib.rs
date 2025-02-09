@@ -1,6 +1,6 @@
 //! LBR core types and functions.
 
-use std::ops::Range;
+use std::ops::RangeInclusive;
 
 pub mod ichiran_types;
 
@@ -10,10 +10,10 @@ pub mod ichiran_types;
 pub fn find_jp_equivalent(text: &str, target: &str) -> Option<(usize, usize)> {
     const UNICODE_KANA_TABLE_DISTANCE: u32 = 'ア' as u32 - 'あ' as u32;
     const UNICODE_NUM_TABLE_DISTANCE: u32 = '０' as u32 - '0' as u32;
-    const HIRAGANA_RANGE: Range<char> = '\u{3041}'..'\u{3096}';
-    const KATAKANA_RANGE: Range<char> = '\u{30A1}'..'\u{30F6}';
-    const NUM_RANGE: Range<char> = '0'..'9';
-    const FW_NUM_RANGE: Range<char> = '０'..'９';
+    const HIRAGANA_RANGE: RangeInclusive<char> = '\u{3041}'..='\u{3096}';
+    const KATAKANA_RANGE: RangeInclusive<char> = '\u{30A1}'..='\u{30F6}';
+    const NUM_RANGE: RangeInclusive<char> = '0'..='9';
+    const FW_NUM_RANGE: RangeInclusive<char> = '０'..='９';
 
     let mut text_idx = 0;
     let mut text_chars = text.chars();
@@ -73,4 +73,38 @@ pub fn find_jp_equivalent(text: &str, target: &str) -> Option<(usize, usize)> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn finds_number() {
+        panic!("{:#?}", find_jp_equivalent("今は９時です。", "9時"))
+    }
+
+    #[test]
+    fn finds_regular() {
+        let res = find_jp_equivalent("abcdefg", "def");
+        assert_eq!(res, Some((3, 3)));
+    }
+
+    #[test]
+    fn fails_to_find() {
+        let res = find_jp_equivalent("abcdefg", "z");
+        assert_eq!(res, None);
+    }
+
+    #[test]
+    fn finds_kana_equivalent() {
+        let res = find_jp_equivalent("そろそろ１０時間ですね", "デス");
+        assert_eq!(res, Some((24, 6)));
+    }
+
+    #[test]
+    fn finds_width_equivalent() {
+        let res = find_jp_equivalent("そろそろ１０時間ですね", "10");
+        assert_eq!(res, Some((12, 6)));
+    }
 }

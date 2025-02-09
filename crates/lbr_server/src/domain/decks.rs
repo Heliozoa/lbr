@@ -159,10 +159,13 @@ fn word_card_from_query(
 ) -> WordCard {
     let SentenceWordQuery {
         word_id,
+        word,
+        reading,
         sentence,
+        sentence_word_reading: _,
+        sentence_word_furigana: _,
         idx_start,
         idx_end,
-        reading,
         furigana,
         translations,
         sentence_id,
@@ -182,20 +185,22 @@ fn word_card_from_query(
 
     WordCard {
         id: word_id,
-        word: " ".to_string(),
+        word_id,
+        word,
         word_range: idx_start as usize..idx_end as usize,
-        word_furigana: db_furigana_to_anki_furigana(furigana.as_slice(), reading.as_deref()),
+        word_furigana: db_furigana_to_anki_furigana(furigana.as_slice(), Some(&reading)),
         translations: translations.into_iter().flatten().collect(),
         kanji,
         word_sentences,
         sentence: Sentence {
+            id: sentence_id,
             sentence,
             words: sentence_words
                 .iter()
                 .map(|r| SentenceWord {
                     furigana: db_furigana_to_anki_furigana(
-                        r.furigana.as_slice(),
-                        r.reading.as_deref(),
+                        r.sentence_word_furigana.as_slice(),
+                        r.sentence_word_reading.as_deref(),
                     ),
                     idx_start: r.idx_start,
                     idx_end: r.idx_end,
@@ -261,13 +266,18 @@ crate::query! {
     #[derive(Debug, Clone)]
     struct SentenceWordQuery {
         word_id: i32 = words::id,
+        word: String = words::word,
+        reading: String = word_readings::reading,
         sentence: String = sentences::sentence,
-        idx_start: i32 = sentence_words::idx_start,
-        idx_end: i32 = sentence_words::idx_end,
-        reading: Option<String> = sentence_words::reading,
+        sentence_word_reading: Option<String> = sentence_words::reading,
         // postgres doesn't support non-null constraints on array elements,
         // so these are Options even though they're never None
-        furigana: Vec<Option<database::Furigana>> = sentence_words::furigana,
+        sentence_word_furigana: Vec<Option<database::Furigana>> = sentence_words::furigana,
+        idx_start: i32 = sentence_words::idx_start,
+        idx_end: i32 = sentence_words::idx_end,
+        // postgres doesn't support non-null constraints on array elements,
+        // so these are Options even though they're never None
+        furigana: Vec<Option<database::Furigana>> = word_readings::furigana,
         // postgres doesn't support non-null constraints on array elements,
         // so these are Options even though they're never None
         translations: Vec<Option<String>> = word_readings::translations,
@@ -309,10 +319,13 @@ mod test {
         let sentence_id = 2;
         let query = SentenceWordQuery {
             word_id,
+            word: "猫".to_string(),
             sentence: "吾輩は猫である".to_string(),
+            sentence_word_reading: Some("ねこ".to_string()),
+            sentence_word_furigana: vec![],
             idx_start: 9,
             idx_end: 12,
-            reading: Some("ねこ".to_string()),
+            reading: "ねこ".to_string(),
             furigana: vec![Some(DbFurigana {
                 word_start_idx: 0,
                 word_end_idx: 3,
@@ -328,10 +341,13 @@ mod test {
             vec![
                 SentenceWordQuery {
                     word_id,
+                    word: "吾輩".to_string(),
                     sentence: "吾輩は猫である".to_string(),
+                    sentence_word_reading: Some("わがはい".to_string()),
+                    sentence_word_furigana: vec![],
                     idx_start: 0,
                     idx_end: 6,
-                    reading: Some("わがはい".to_string()),
+                    reading: "わがはい".to_string(),
                     furigana: vec![
                         Some(DbFurigana {
                             word_start_idx: 0,
@@ -351,20 +367,26 @@ mod test {
                 },
                 SentenceWordQuery {
                     word_id,
+                    word: "は".to_string(),
                     sentence: "吾輩は猫である".to_string(),
+                    sentence_word_reading: None,
+                    sentence_word_furigana: vec![],
                     idx_start: 6,
                     idx_end: 9,
-                    reading: None,
+                    reading: "は".to_string(),
                     furigana: vec![],
                     translations: vec![Some("tldr".to_string())],
                     sentence_id,
                 },
                 SentenceWordQuery {
                     word_id,
+                    word: "猫".to_string(),
                     sentence: "吾輩は猫である".to_string(),
+                    sentence_word_reading: Some("ねこ".to_string()),
+                    sentence_word_furigana: vec![],
                     idx_start: 9,
                     idx_end: 12,
-                    reading: Some("ねこ".to_string()),
+                    reading: "ねこ".to_string(),
                     furigana: vec![Some(DbFurigana {
                         word_start_idx: 0,
                         word_end_idx: 3,
@@ -376,20 +398,26 @@ mod test {
                 },
                 SentenceWordQuery {
                     word_id,
+                    word: "で".to_string(),
                     sentence: "吾輩は猫である".to_string(),
+                    sentence_word_reading: None,
+                    sentence_word_furigana: vec![],
                     idx_start: 12,
                     idx_end: 15,
-                    reading: None,
+                    reading: "で".to_string(),
                     furigana: vec![],
                     translations: vec![Some("something".to_string())],
                     sentence_id,
                 },
                 SentenceWordQuery {
                     word_id,
+                    word: "ある".to_string(),
                     sentence: "吾輩は猫である".to_string(),
+                    sentence_word_reading: None,
+                    sentence_word_furigana: vec![],
                     idx_start: 15,
                     idx_end: 18,
-                    reading: None,
+                    reading: "ある".to_string(),
                     furigana: vec![],
                     translations: vec![],
                     sentence_id,

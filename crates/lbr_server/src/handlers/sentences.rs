@@ -38,7 +38,9 @@ pub async fn get_one(
         let words = words
             .into_iter()
             .map(|sw| res::SentenceWord {
+                word: sw.word,
                 reading: sw.reading,
+                sentence_word_reading: sw.sentence_word_reading,
                 idx_start: sw.idx_start,
                 idx_end: sw.idx_end,
                 furigana: sw
@@ -157,12 +159,16 @@ pub async fn segment(
             .filter(s::id.eq(id))
             .select(s::sentence)
             .get_result::<String>(&mut conn)?;
-        let segmented_sentence =
-            sentences::process_sentence(&state.ichiran_cli, sentence, &state.ichiran_word_to_id)?;
+        let segmented_sentence = sentences::process_sentence(
+            &state.ichiran_cli,
+            sentence,
+            &state.ichiran_word_to_id,
+            &state.kanji_to_readings,
+        )?;
         let mut word_ids = HashSet::new();
         for seg in &segmented_sentence.segments {
             if let lbr_core::ichiran_types::Segment::Phrase {
-                phrase,
+                phrase: _,
                 interpretations,
             } = seg
             {
@@ -198,7 +204,9 @@ query! {
 
 query! {
     struct SentenceWord {
-        reading: Option<String> = sentence_words::reading,
+        word: String = words::word,
+        reading: String = word_readings::reading,
+        sentence_word_reading: Option<String> = sentence_words::reading,
         idx_start: i32 = sentence_words::idx_start,
         idx_end: i32 = sentence_words::idx_end,
         furigana: Vec<Option<database::Furigana>> = sentence_words::furigana,

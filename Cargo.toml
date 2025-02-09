@@ -26,8 +26,13 @@ leptos_router = "0.7.2"
 
 # [patch.crates-io]
 # ichiran = { path = "../ichiran" }
+# furigana = { path = "../furigana" }
+
 
 [profile.dev.package]
+furigana.opt-level = 3
+genanki-rs.opt-level = 3
+ichiran.opt-level = 3
 serde.opt-level = 3
 serde_json.opt-level = 3
 

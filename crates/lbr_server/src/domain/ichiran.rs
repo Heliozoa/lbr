@@ -35,6 +35,11 @@ pub fn get_ichiran_word_to_word_id(
             .entry((seq, via.is_some()))
             .or_default();
         entry.push(from);
+
+        if let Some(via) = via {
+            let entry = conj_seq_via_to_froms.entry((seq, true)).or_default();
+            entry.push(via);
+        }
     }
     let jmdict_id_to_words_vec = w::table
         .inner_join(wr::table.on(wr::word_id.eq(w::id)))

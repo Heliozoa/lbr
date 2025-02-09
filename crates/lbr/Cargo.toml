@@ -15,6 +15,7 @@ license.workspace = true
 [dependencies]
 lbr_core.workspace = true
 
+furigana = "0.1.5"
 genanki-rs = "0.4.0"
 ichiran = "0.4.0"
 serde = { version = "1.0.148", features = ["derive"] }

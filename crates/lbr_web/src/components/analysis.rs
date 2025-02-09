@@ -642,8 +642,8 @@ fn ComponentView(
         }
         write.update(|c| c.status = Status::Ignore);
     };
-    let accepted = move || matches!(read.get().status, Status::Accept { .. });
-    let accepted_reading = move || matches!(read.get().status, Status::AcceptReading { .. });
+    let accepted = move || matches!(read.get().status, Status::Accept);
+    let accepted_reading = move || matches!(read.get().status, Status::AcceptReading);
     let declined = move || matches!(read.get().status, Status::Decline);
     let ignored = move || matches!(read.get().status, Status::Ignore);
     let (reading_override, set_reading_override) = leptos::prelude::signal(String::new());
