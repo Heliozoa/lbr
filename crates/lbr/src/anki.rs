@@ -17,6 +17,15 @@ pub enum Card {
     Kanji(KanjiCard),
 }
 
+impl Card {
+    fn get(&self) -> &str {
+        match self {
+            Card::Word(wc) => &wc.word,
+            Card::Kanji(kc) => &kc.kanji,
+        }
+    }
+}
+
 impl PartialOrd for Card {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
@@ -40,12 +49,12 @@ pub fn create_deck(name: &str, id: i64, mut cards: Vec<Card>) -> Package {
     let kanji_model = kanji::create_model();
     cards.sort();
     for card in cards {
-        tracing::info!("creating card");
+        tracing::debug!("creating card {}", card.get());
         match card {
             Card::Word(card) => deck.add_note(card.into_note(&word_model)),
             Card::Kanji(card) => deck.add_note(card.into_note(&kanji_model)),
         }
-        tracing::info!("created card");
+        tracing::debug!("created card");
     }
     Package::new(vec![deck], Vec::new()).expect("Failed to create package")
 }

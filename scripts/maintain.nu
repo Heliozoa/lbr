@@ -9,7 +9,6 @@ use downloads.nu [
     dl_jmdict
     dl_kanjidic
     dl_kradfile
-    dl_jmdict_furigana
 ]
 use prepare-ichiran-db.nu [
     prepare_ichiran_db
@@ -25,7 +24,6 @@ export def main [] {
         dl_jmdict "./data/JMdict_e_examp.xml"
         dl_kanjidic "./data/kanjidic2.xml"
         dl_kradfile "./data/kradfile"
-        dl_jmdict_furigana "./data/JmdictFurigana.json"
 
         print "Updating ichiran data"
         let ichiran_database = $"\(\"($env.ICHIRAN_CONNECTION_NAME)\"\)"
@@ -41,11 +39,9 @@ export def main [] {
                 ./crates/jadata/data/kanji_names.json
                 ./crates/jadata/data/kanji_similar.json
                 ./crates/jadata/data/kanji_extra.json
-                "./data/JMdict_e_examp.xml"
-                "./data/JmdictFurigana.json")
+                "./data/JMdict_e_examp.xml")
             | complete
             | check_error
         }
-        prepare-ichiran-seq-to-word-id
     }
 }

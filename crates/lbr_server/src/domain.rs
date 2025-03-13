@@ -4,3 +4,4 @@ pub mod decks;
 pub mod ichiran;
 pub mod japanese;
 pub mod sentences;
+pub mod words;

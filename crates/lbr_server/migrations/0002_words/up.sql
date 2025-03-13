@@ -7,12 +7,9 @@ CREATE TYPE FURIGANA AS (
 CREATE TABLE words (
     id SERIAL PRIMARY KEY,
     jmdict_id INTEGER NOT NULL,
-    word TEXT NOT NULL
-);
-CREATE TABLE word_readings (
-    id SERIAL PRIMARY KEY,
-    word_id INTEGER NOT NULL REFERENCES words,
+    word TEXT NOT NULL,
     reading TEXT NOT NULL,
+    reading_standard TEXT,
     furigana FURIGANA [] NOT NULL,
     translations TEXT [] NOT NULL
 );

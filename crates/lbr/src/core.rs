@@ -1,6 +1,6 @@
 //! Contains functionality related to lbr_core.
 
-use crate::is_kanji;
+use crate::{is_kanji, standardise_reading};
 use lbr_core::ichiran_types as it;
 use std::collections::HashMap;
 
@@ -13,13 +13,17 @@ pub fn to_lbr_segments(
     ichiran_segments: Vec<ichiran::Segment>,
     ichiran_word_to_id: &HashMap<(i32, String, String), i32>,
     kanji_to_readings: &HashMap<String, Vec<String>>,
+    word_to_meanings: &HashMap<i32, Vec<String>>,
 ) -> Vec<it::Segment> {
     let mut segments = vec![];
     let mut idx = 0;
     for segment in ichiran_segments {
-        if let ichiran::Segment::Words(words) = segment {
-            for word_segment in words {
-                for word in word_segment.words {
+        if let ichiran::Segment::Segmentations(mut segmentations) = segment {
+            // todo: process alternate segmentations
+            segmentations.sort_by(|a, b| a.score.cmp(&b.score).reverse());
+            if let Some(segmentation) = segmentations.into_iter().next() {
+                tracing::info!("{segmentation:#?}");
+                for word in segmentation.words {
                     process_word(
                         &mut segments,
                         text,
@@ -27,6 +31,7 @@ pub fn to_lbr_segments(
                         &mut idx,
                         ichiran_word_to_id,
                         kanji_to_readings,
+                        word_to_meanings,
                     );
                 }
             }
@@ -46,6 +51,7 @@ fn process_word(
     idx: &mut usize,
     ichiran_word_to_id: &HashMap<(i32, String, String), i32>,
     kanji_to_readings: &HashMap<String, Vec<String>>,
+    word_to_meanings: &HashMap<i32, Vec<String>>,
 ) {
     // handle word
     let mut word_in_text = None;
@@ -57,7 +63,12 @@ fn process_word(
                 let score = info.score;
                 // replace zero width spaces
                 let reading_hiragana = replace_invisible_characters(&info.kana);
-                let component = to_lbr_word_info(info, ichiran_word_to_id, kanji_to_readings);
+                let component = to_lbr_word_info(
+                    info,
+                    ichiran_word_to_id,
+                    kanji_to_readings,
+                    word_to_meanings,
+                );
                 word_in_text = Some(component.word.clone());
                 components.push(component);
                 interpretations.push(it::Interpretation {
@@ -71,8 +82,12 @@ fn process_word(
                 // replace zero width spaces
                 let reading_hiragana = replace_invisible_characters(&info.kana);
                 for component in info.components {
-                    let component =
-                        to_lbr_word_info(component, ichiran_word_to_id, kanji_to_readings);
+                    let component = to_lbr_word_info(
+                        component,
+                        ichiran_word_to_id,
+                        kanji_to_readings,
+                        word_to_meanings,
+                    );
                     components.push(component);
                 }
                 interpretations.push(it::Interpretation {
@@ -114,6 +129,7 @@ fn to_lbr_word_info(
     info: ichiran::WordInfo,
     ichiran_word_to_id: &HashMap<(i32, String, String), i32>,
     kanji_to_readings: &HashMap<String, Vec<String>>,
+    word_to_meanings: &HashMap<i32, Vec<String>>,
 ) -> it::WordInfo {
     // we convert the ichiran seqs to our word ids here so we don't have to worry about them later
     let word_id = if let Some(seq) = info.seq {
@@ -161,27 +177,42 @@ fn to_lbr_word_info(
     };
     // replace zero width spaces
     let reading_hiragana = replace_invisible_characters(&info.kana);
+    if word_id.is_none() {
+        tracing::debug!("Failed to find word id for {} ({:?})", info.text, info.seq);
+    }
+    let meanings = word_id
+        .and_then(|wid| word_to_meanings.get(&wid))
+        .map(|v| {
+            v.iter()
+                .map(|m| it::Meaning {
+                    meaning: m.clone(),
+                    meaning_info: None,
+                })
+                .collect()
+        })
+        .unwrap_or_else(|| {
+            info.gloss
+                .into_iter()
+                .chain(info.conj.into_iter().flat_map(|c| {
+                    c.gloss
+                        .into_iter()
+                        .chain(c.via.into_iter().flat_map(|v| v.gloss))
+                }))
+                .map(|g| it::Meaning {
+                    meaning: g.gloss,
+                    meaning_info: g.info,
+                })
+                .chain(info.suffix.map(|s| it::Meaning {
+                    meaning: s,
+                    meaning_info: None,
+                }))
+                .collect()
+        });
     it::WordInfo {
         word: info.text,
         reading_hiragana,
         word_id,
-        meanings: info
-            .gloss
-            .into_iter()
-            .chain(info.conj.into_iter().flat_map(|c| {
-                c.gloss
-                    .into_iter()
-                    .chain(c.via.into_iter().flat_map(|v| v.gloss))
-            }))
-            .map(|g| it::Meaning {
-                meaning: g.gloss,
-                meaning_info: g.info,
-            })
-            .chain(info.suffix.map(|s| it::Meaning {
-                meaning: s,
-                meaning_info: None,
-            }))
-            .collect(),
+        meanings,
     }
 }
 
@@ -200,6 +231,7 @@ fn try_get_word_id(
             let dictionary_form_reading = second
                 .map(|s| s.replace("【", "").replace("】", ""))
                 .unwrap_or_else(|| first.to_string());
+            let reading_standard = standardise_reading(&dictionary_form_reading);
             let dictionary_form = if text.chars().any(is_kanji) {
                 first.to_string()
             } else {
@@ -209,11 +241,7 @@ fn try_get_word_id(
                 dictionary_form_reading.clone()
             };
             return ichiran_word_to_id
-                .get(&(
-                    seq,
-                    dictionary_form.clone(),
-                    dictionary_form_reading.clone(),
-                ))
+                .get(&(seq, dictionary_form.clone(), reading_standard.standardised))
                 .or_else(|| {
                     // sometimes the "dictionary form" we find includes numbers before the actual word,
                     // for example for ２１度, 4日 etc.
@@ -290,6 +318,7 @@ fn is_digit(c: char) -> bool {
             | '九'
             | '十'
             | '百'
+            | '千'
             | '万'
             | '億'
             | '兆'

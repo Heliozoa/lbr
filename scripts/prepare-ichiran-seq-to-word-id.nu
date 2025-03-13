@@ -5,7 +5,7 @@ use common.nu *
 export def main [] {
     initialise_logging
     timeit {
-        cargo run --bin init_ichiran_seq_to_word_id
+        cargo run --release --bin init_ichiran_word_to_id
             | complete
             | check_error
     }

@@ -10,13 +10,13 @@ pub async fn ignored_words(
     State(state): State<LbrState>,
     user: Authentication,
 ) -> LbrResult<Json<Vec<res::IgnoredWord>>> {
-    use schema::{ignored_words as iw, word_readings as wr, words as w};
+    use schema::{ignored_words as iw, words as w};
 
     let ignored_words = tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
         let user_ignored_words = iw::table.filter(iw::user_id.eq(user.user_id));
         let ignored_word_translations = user_ignored_words
-            .inner_join(wr::table.on(wr::word_id.eq(iw::word_id)))
+            .inner_join(w::table.on(w::id.eq(iw::word_id)))
             .select(IgnoredWordTranslations::as_select())
             .get_results(&mut conn)?;
         let ignored_word_written_forms = user_ignored_words
@@ -24,7 +24,7 @@ pub async fn ignored_words(
             .select(IgnoredWordWrittenForm::as_select())
             .get_results(&mut conn)?;
         let ignored_word_readings = user_ignored_words
-            .inner_join(wr::table.on(wr::word_id.eq(iw::word_id)))
+            .inner_join(w::table.on(w::id.eq(iw::word_id)))
             .select(IgnoredWordReading::as_select())
             .get_results(&mut conn)?;
 
@@ -97,7 +97,7 @@ query! {
     #[derive(Debug)]
     struct IgnoredWordTranslations {
         word_id: i32 = ignored_words::word_id,
-        translations: Vec<Option<String>> = word_readings::translations,
+        translations: Vec<Option<String>> = words::translations,
     }
 }
 
@@ -113,6 +113,6 @@ query! {
     #[derive(Debug)]
     struct IgnoredWordReading {
         word_id: i32 = ignored_words::word_id,
-        reading: String = word_readings::reading,
+        reading: String = words::reading,
     }
 }

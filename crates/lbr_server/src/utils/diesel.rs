@@ -178,6 +178,44 @@ macro_rules! query {
     };
 }
 
+/// Helper macro for implementing Queryable and Selectable and ensures the implementations match.
+///
+/// ```
+/// query! {
+///     #[derive(Debug, Serialize)]
+///     pub struct PostSmall {
+///         pub id: i32 = posts::id,
+///         pub thumbnail: String = posts::thumbnail_filename,
+///         pub title: String = posts::title,
+///         pub user_id: i32 = users::id,
+///         pub username: String = users::display_name,
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! newquery {
+    (
+        $(#[ $attr:meta ])*
+        $v:vis $kw:ident $name:ident {
+            $(
+                $fv:vis $field:ident: $t:ty = $selection:expr
+            ),* $(,)?
+        }
+    ) => {
+        $(#[ $attr ])*
+        #[derive(::diesel::Queryable)]
+        #[derive(::diesel::Selectable)]
+        #[diesel(table_name = $crate::schema::users)]
+        #[diesel(check_for_backend(::diesel::pg::Pg))]
+        $v $kw $name {
+            $(
+                #[diesel(select_expression = $crate::schema :: $selection)]
+                $fv $field: $t
+            ),*
+        }
+    };
+}
+
 pub trait PostgresChunks<T> {
     fn pg_chunks(&self) -> Chunks<'_, T>;
 }

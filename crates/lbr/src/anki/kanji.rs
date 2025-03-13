@@ -147,7 +147,6 @@ pub fn create_model() -> Model {
     <div id=example>
         {{furigana:example-source-word}}
     </div>
-    <br/>
     <div id=translation>
         {{example-source-word-translation}}
     </div>

@@ -110,4 +110,4 @@ If the database host requires SNI, such as with Neon, you can add `:use-ssl :ful
 
 
 ## Updating
-The `./scripts/maintain.nu` script automates the process of updating the data used in the project. It updates the project's databases with the latest data from `./crates/jadata/data`, ichiran, KANJIDIC, kradfile, JMdict and JmdictFurigana.
+The `./scripts/maintain.nu` script automates the process of updating the data used in the project. It updates the project's databases with the latest data from `./crates/jadata/data`, ichiran, KANJIDIC, kradfile and JMdict.

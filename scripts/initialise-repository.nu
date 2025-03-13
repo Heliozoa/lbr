@@ -38,13 +38,11 @@ def main [] {
     let jmdictdb_path = input_default "JMdict download path" "./data/jmdictdb"
     let kanjidic_path = input_default "KANJIDIC2 download path" "./data/kanjidic2.xml"
     let kradfile_path = input_default "KRADFILE download path" "./data/kradfile"
-    let jmdict_furigana_path = input_default "JmdictFurigana download path" "./data/JmdictFurigana.json"
 
     dl_ichiran_dump $ichiran_dump_path
     dl_jmdict $jmdict_path
     dl_kanjidic $kanjidic_path
     dl_kradfile $kradfile_path
-    dl_jmdict_furigana $jmdict_furigana_path
 
     let ichiran_database_name = prepare_ichiran_db_name_prompt
     let ichiran_database_user = prepare_ichiran_db_user_prompt

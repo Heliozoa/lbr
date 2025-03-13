@@ -115,20 +115,14 @@ diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::Furigana;
 
-    word_readings (id) {
-        id -> Int4,
-        word_id -> Int4,
-        reading -> Text,
-        furigana -> Array<Nullable<Furigana>>,
-        translations -> Array<Nullable<Text>>,
-    }
-}
-
-diesel::table! {
     words (id) {
         id -> Int4,
         jmdict_id -> Int4,
         word -> Text,
+        reading -> Text,
+        reading_standard -> Text,
+        translations -> Array<Nullable<Text>>,
+        furigana -> Array<Nullable<Furigana>>,
     }
 }
 
@@ -144,7 +138,6 @@ diesel::joinable!(sentences -> sources (source_id));
 diesel::joinable!(sources -> users (user_id));
 diesel::joinable!(word_kanji -> kanji (kanji_id));
 diesel::joinable!(word_kanji -> words (word_id));
-diesel::joinable!(word_readings -> words (word_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     deck_sources,
@@ -158,6 +151,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     sources,
     users,
     word_kanji,
-    word_readings,
     words,
 );

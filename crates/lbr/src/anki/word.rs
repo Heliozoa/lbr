@@ -99,6 +99,9 @@ impl WordCard {
         let mut word = String::with_capacity(self.word.len() * 4);
         let mut word_idx = 0;
         for furigana in &self.word_furigana {
+            if sentence_idx == 416 {
+                println!("{furigana:#?}");
+            }
             if word_idx < furigana.range.start {
                 write!(word, "{}[ ]", &self.word[word_idx..furigana.range.start]).unwrap();
             }
@@ -116,21 +119,22 @@ impl WordCard {
         }
 
         // translation
-        let translation = self.translations.join("<br/>");
+        let mut translation = String::with_capacity(self.translations.len() * 64);
+        translation.push_str("<ul>");
+        for t in self.translations {
+            write!(&mut translation, "<li>{t}</li>").unwrap();
+        }
+        translation.push_str("</ul>");
 
         // kanji
         let mut kanji = String::with_capacity('字'.len_utf8() * self.kanji.len());
         for k in self.kanji {
             if let Some(name) = k.name {
-                write!(kanji, "{} ({})<br />", k.chara, name).unwrap();
+                write!(kanji, "<div>{} ({})</div>", k.chara, name).unwrap();
             } else {
-                write!(kanji, "{}<br />", k.chara).unwrap();
+                write!(kanji, "<div>{}</div>", k.chara).unwrap();
             }
         }
-        // empty fields cause anki to think all such cards are identical
-        if kanji.is_empty() {
-            kanji.push(' ');
-        };
 
         WordFields {
             id: self.id.to_string(),
@@ -266,12 +270,17 @@ pub fn create_model() -> Model {
     <div id=word>
         {{furigana:word}}
     </div>
-    <div id=kanji>
-        {{kanji}}
+{{#kanji}}
+    <div>
+        <div id=kanji>
+            {{kanji}}
+        </div>
     </div>
-    <br/>
-    <div id=translation>
-        {{translation}}
+{{/kanji}}
+    <div>
+        <div id=translation>
+            {{translation}}
+        </div>
     </div>
 </div>
 "#,
@@ -285,27 +294,35 @@ pub fn create_model() -> Model {
     background-color: Linen;
     font-size: 1.5rem;
 }
+span {
+    display: inline-block
+}
+
 #highlighted {
     color: red;
+}
+#sentence {
+    font-size: 2rem;
 }
 #word {
     font-size: 2rem;
 }
-#sentence, #translation, #kanji {
+#kanji {
     font-size: 2rem;
-}
-#translation, #kanji {
     display: inline-block;
     text-align: left;
 }
+#translation {
+    font-size: 1.5rem;
+    display: inline-block;
+    text-align: left;
+}
+
 ruby rt {
     visibility: hidden;
 }
 #answer ruby rt {
     visibility: visible;
-}
-span {
-    display: inline-block
 }
 "#,
         )

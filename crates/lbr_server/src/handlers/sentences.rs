@@ -17,9 +17,7 @@ pub async fn get_one(
     Path(id): Path<i32>,
     user: Authentication,
 ) -> LbrResult<Json<res::SentenceDetails>> {
-    use schema::{
-        sentence_words as sw, sentences as s, sources as so, word_readings as wr, words as w,
-    };
+    use schema::{sentence_words as sw, sentences as s, sources as so, words as w};
 
     let sentence = tokio::task::spawn_blocking(move || {
         let mut conn = state.lbr_pool.get()?;
@@ -31,7 +29,6 @@ pub async fn get_one(
             .get_result(&mut conn)?;
         let words = sw::table
             .inner_join(w::table.on(sw::word_id.eq(w::id.nullable())))
-            .inner_join(wr::table.on(wr::word_id.eq(w::id)))
             .filter(sw::sentence_id.eq(id))
             .select(SentenceWord::as_select())
             .load(&mut conn)?;
@@ -164,6 +161,7 @@ pub async fn segment(
             sentence,
             &state.ichiran_word_to_id,
             &state.kanji_to_readings,
+            &state.word_to_meanings,
         )?;
         let mut word_ids = HashSet::new();
         for seg in &segmented_sentence.segments {
@@ -205,11 +203,11 @@ query! {
 query! {
     struct SentenceWord {
         word: String = words::word,
-        reading: String = word_readings::reading,
+        reading: String = words::reading,
         sentence_word_reading: Option<String> = sentence_words::reading,
         idx_start: i32 = sentence_words::idx_start,
         idx_end: i32 = sentence_words::idx_end,
         furigana: Vec<Option<database::Furigana>> = sentence_words::furigana,
-        translations: Vec<Option<String>> = word_readings::translations,
+        translations: Vec<Option<String>> = words::translations,
     }
 }

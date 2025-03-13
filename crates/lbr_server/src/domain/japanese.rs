@@ -21,7 +21,7 @@ pub fn kanji_to_readings(conn: &mut PgConnection) -> eyre::Result<HashMap<String
         kanji_to_readings
             .entry(kwr.kanji)
             .or_default()
-            .push(kwr.reading);
+            .push(kwr.reading.trim_matches('-').to_string());
     }
     Ok(kanji_to_readings)
 }

@@ -4,16 +4,13 @@ use diesel::prelude::*;
 use std::collections::HashMap;
 
 /// Returns a mapping from ichiran's words to LBR word ids.
-// maps (ichiran_seq, word_written_form) => word_id
-// e.g. (10159116, 入れる) => 115508
+// maps (ichiran_seq, word_written_form, standardised_reading) => word_id
+// e.g. (10159116, 入れる, いれる) => 115508
 pub fn get_ichiran_word_to_word_id(
     lbr_conn: &mut PgConnection,
     ichiran_conn: &mut PgConnection,
 ) -> eyre::Result<HashMap<(i32, String, String), i32>> {
-    use crate::{
-        schema::{word_readings as wr, words as w},
-        schema_ichiran as si,
-    };
+    use crate::{schema::words as w, schema_ichiran as si};
 
     tracing::info!("Building a mapping from ichiran words to ids");
 
@@ -42,16 +39,15 @@ pub fn get_ichiran_word_to_word_id(
         }
     }
     let jmdict_id_to_words_vec = w::table
-        .inner_join(wr::table.on(wr::word_id.eq(w::id)))
-        .select((w::jmdict_id, w::id, w::word, wr::reading))
+        .select((w::jmdict_id, w::id, w::word, w::reading_standard))
         .get_results::<(i32, i32, String, String)>(lbr_conn)?;
     let mut jmdict_id_to_words = HashMap::<i32, Vec<(i32, String, String)>>::new();
+    let mut ichiran_word_to_word_id = HashMap::new();
     for (jmdict, id, word, reading) in jmdict_id_to_words_vec {
         let entry = jmdict_id_to_words.entry(jmdict).or_default();
         entry.push((id, word, reading));
     }
 
-    let mut ichiran_word_to_word_id = HashMap::new();
     for ichiran_seq in ichiran_seqs.keys() {
         get_roots(
             &mut ichiran_word_to_word_id,
@@ -74,19 +70,6 @@ fn get_roots(
     conj_seq_via_to_froms: &HashMap<(i32, bool), Vec<i32>>,
     jmdict_id_to_words: &HashMap<i32, Vec<(i32, String, String)>>,
 ) {
-    if ichiran_seq_to_root
-        .get(&current_seq)
-        .copied()
-        .unwrap_or_default()
-    {
-        // is root, add words to map
-        if let Some(words) = jmdict_id_to_words.get(&current_seq) {
-            for (id, word, reading) in words {
-                ichiran_word_to_word_id.insert((starting_seq, word.clone(), reading.clone()), *id);
-            }
-        }
-    }
-
     // prefer non-via conjugations if any
     if let Some(nexts) = conj_seq_via_to_froms.get(&(current_seq, false)) {
         for next in nexts {
@@ -109,6 +92,23 @@ fn get_roots(
                 conj_seq_via_to_froms,
                 jmdict_id_to_words,
             );
+        }
+    } else {
+        // there are root words that also have further conjugations, e.g.
+        // 思い is a root word i.e. the word "thought", but it is also a conjugation of "思う"
+        // by having this in the else branch, we are only considering "true" root words
+        if ichiran_seq_to_root
+            .get(&current_seq)
+            .copied()
+            .unwrap_or_default()
+        {
+            // is root, add words to map
+            if let Some(words) = jmdict_id_to_words.get(&current_seq) {
+                for (id, word, reading) in words {
+                    ichiran_word_to_word_id
+                        .insert((starting_seq, word.clone(), reading.clone()), *id);
+                }
+            }
         }
     }
 }

@@ -25,7 +25,7 @@ leptos_meta = "0.7.2"
 leptos_router = "0.7.2"
 
 # [patch.crates-io]
-# ichiran = { path = "../ichiran" }
+# ichiran = { path = "../ichiran-rs" }
 # furigana = { path = "../furigana" }
 
 

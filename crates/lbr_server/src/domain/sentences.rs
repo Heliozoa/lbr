@@ -15,11 +15,12 @@ pub fn segment_sentence(
     sentence: &str,
     ichiran_word_to_id: &HashMap<(i32, String, String), i32>,
     kanji_to_readings: &HashMap<String, Vec<String>>,
+    word_to_meanings: &HashMap<i32, Vec<String>>,
 ) -> eyre::Result<Vec<ichiran_types::Segment>> {
     tracing::info!("Segmenting sentence '{sentence}'");
 
     // get individual words from sentence with ichiran
-    let segments = match ichiran.segment(sentence) {
+    let segments = match ichiran.segment(sentence, Some(4)) {
         Ok(segments) => segments,
         Err(err) => {
             if let IchiranError::IchiranError { stdout, stderr } = &err {
@@ -28,10 +29,16 @@ pub fn segment_sentence(
             return Err(err).wrap_err_with(|| format!("Failed to segment sentence '{sentence}'"));
         }
     };
-    let segmented_sentence =
-        lbr::core::to_lbr_segments(sentence, segments, ichiran_word_to_id, kanji_to_readings);
+    let segmented_sentence = lbr::core::to_lbr_segments(
+        sentence,
+        segments,
+        ichiran_word_to_id,
+        kanji_to_readings,
+        word_to_meanings,
+    );
 
-    tracing::info!("Finished segmenting sentence '{sentence}': {segmented_sentence:#?}");
+    tracing::info!("Finished segmenting sentence '{sentence}'");
+    tracing::debug!("Segmented sentence: {segmented_sentence:#?}");
     Ok(segmented_sentence)
 }
 
@@ -41,12 +48,14 @@ pub fn process_sentence(
     sentence: String,
     ichiran_word_to_id: &HashMap<(i32, String, String), i32>,
     kanji_to_readings: &HashMap<String, Vec<String>>,
+    word_to_meanings: &HashMap<i32, Vec<String>>,
 ) -> eyre::Result<res::SegmentedParagraphSentence> {
     let segments = segment_sentence(
         ichiran_cli,
         &sentence,
         ichiran_word_to_id,
         kanji_to_readings,
+        word_to_meanings,
     )?;
     Ok(res::SegmentedParagraphSentence { sentence, segments })
 }

@@ -58,6 +58,7 @@ pub struct LbrStateCore {
     pub ichiran_pool: LbrPool,
     pub ichiran_cli: IchiranCli,
     pub kanji_to_readings: HashMap<String, Vec<String>>,
+    pub word_to_meanings: HashMap<i32, Vec<String>>,
     pub ichiran_word_to_id: HashMap<(i32, String, String), i32>,
     pub private_cookie_key: Key,
     pub sessions: SessionCache,
@@ -274,6 +275,37 @@ pub async fn router_from_vars(
         })
         .await??
     };
+    let word_to_meanings = if cfg!(debug_assertions) {
+        match tokio::fs::File::open("./data/word_to_meanings.bitcode").await {
+            Ok(mut file) => {
+                let mut buf = Vec::new();
+                file.read_to_end(&mut buf).await?;
+                bitcode::decode(&buf)?
+            }
+            Err(_) => {
+                let lbr_pool = lbr_pool.clone();
+                let word_to_meanings = tokio::task::spawn_blocking(move || {
+                    let mut conn = lbr_pool.get()?;
+                    let istw = domain::words::get_word_to_meanings(&mut conn)?;
+                    EyreResult::Ok(istw)
+                })
+                .await??;
+                let word_to_meanings_bitcode = bitcode::encode(&word_to_meanings);
+                tokio::fs::create_dir_all("./data").await?;
+                tokio::fs::write("./data/word_to_meanings.bitcode", word_to_meanings_bitcode)
+                    .await?;
+                word_to_meanings
+            }
+        }
+    } else {
+        let lbr_pool = lbr_pool.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut conn = lbr_pool.get()?;
+            let istw = domain::words::get_word_to_meanings(&mut conn)?;
+            EyreResult::Ok(istw)
+        })
+        .await??
+    };
 
     let private_cookie_key = Key::from(private_cookie_password.as_bytes());
     let sessions = Cache::builder()
@@ -289,6 +321,7 @@ pub async fn router_from_vars(
         ichiran_pool,
         ichiran_cli,
         kanji_to_readings,
+        word_to_meanings,
         ichiran_word_to_id,
         private_cookie_key,
         sessions,

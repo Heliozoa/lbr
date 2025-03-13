@@ -31,30 +31,18 @@ pub fn find_jp_equivalent(text: &str, target: &str) -> Option<(usize, usize)> {
                 continue;
             }
 
-            if HIRAGANA_RANGE.contains(&left) {
-                if left as u32 == (right as u32).saturating_sub(UNICODE_KANA_TABLE_DISTANCE) {
-                    // kana equivalent
-                    target_length_in_text += left.len_utf8();
-                    continue;
-                }
-            } else if KATAKANA_RANGE.contains(&left) {
-                if left as u32 == (right as u32).saturating_add(UNICODE_KANA_TABLE_DISTANCE) {
-                    // kana equivalent
-                    target_length_in_text += left.len_utf8();
-                    continue;
-                }
-            } else if NUM_RANGE.contains(&left) {
-                if left as u32 == (right as u32).saturating_sub(UNICODE_NUM_TABLE_DISTANCE) {
-                    // width equivalent
-                    target_length_in_text += left.len_utf8();
-                    continue;
-                }
-            } else if FW_NUM_RANGE.contains(&left) {
-                if left as u32 == (right as u32).saturating_add(UNICODE_NUM_TABLE_DISTANCE) {
-                    // width equivalent
-                    target_length_in_text += left.len_utf8();
-                    continue;
-                }
+            let hiragana_equivalent = HIRAGANA_RANGE.contains(&left)
+                && left as u32 == (right as u32).saturating_sub(UNICODE_KANA_TABLE_DISTANCE);
+            let katakana_equivalent = KATAKANA_RANGE.contains(&left)
+                && left as u32 == (right as u32).saturating_add(UNICODE_KANA_TABLE_DISTANCE);
+            let num_equivalent = NUM_RANGE.contains(&left)
+                && left as u32 == (right as u32).saturating_sub(UNICODE_NUM_TABLE_DISTANCE);
+            let fw_equivalent = FW_NUM_RANGE.contains(&left)
+                && left as u32 == (right as u32).saturating_add(UNICODE_NUM_TABLE_DISTANCE);
+            if hiragana_equivalent || katakana_equivalent || num_equivalent || fw_equivalent {
+                // kana equivalent
+                target_length_in_text += left.len_utf8();
+                continue;
             }
 
             mismatch = true;
@@ -81,7 +69,11 @@ mod test {
 
     #[test]
     fn finds_number() {
-        panic!("{:#?}", find_jp_equivalent("今は９時です。", "9時"))
+        let res = find_jp_equivalent("今は９時です。", "9時");
+        assert_eq!(res, Some((6, 6)));
+
+        let res = find_jp_equivalent("今日は４日です。", "4日");
+        assert_eq!(res, Some((9, 6)));
     }
 
     #[test]

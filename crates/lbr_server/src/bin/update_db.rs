@@ -1,15 +1,14 @@
 use diesel::prelude::*;
-use eyre::Context;
+use eyre::{Context, ContextCompat};
 use jadata::{
-    jmdict::JMdict,
-    jmdict_furigana::JmdictFurigana,
+    jmdict::{Entry, JMdict},
     kanji_extra::{ExtraKanji, KanjiExtra},
     kanji_names::KanjiNames,
     kanji_similar::KanjiSimilar,
     kanjidic::Kanjidic2,
     kradfile::Kradfile,
 };
-use lbr_server::utils::database::Furigana;
+use lbr_server::domain;
 use std::{
     collections::{HashMap, HashSet},
     fs::File,
@@ -63,20 +62,13 @@ fn main() -> eyre::Result<()> {
     let jmdict: JMdict =
         serde_xml_rs::from_reader(BufReader::new(jmdict)).context("Failed to deserialize data")?;
 
-    let jmdict_furigana = &args[7];
-    tracing::info!("Opening {jmdict_furigana}");
-    let jmdict_furigana = File::open(jmdict_furigana).context("Failed to open file")?;
-    tracing::info!("Deserializing");
-    let jmdict_furigana: JmdictFurigana = serde_json::from_reader(BufReader::new(jmdict_furigana))
-        .context("Failed to deserialize data")?;
-
     tracing::info!("Updating extra kanji");
     update_kanji_extra(&kd2, &jmdict, &mut ke, ke_path)?;
 
     conn.transaction(|conn| {
         tracing::info!("Starting transaction");
         update_kanji(conn, &kd2, &ke, &kf, &kn, &ks).context("Failed to update kanji")?;
-        update_words(conn, &jmdict, &jmdict_furigana).context("Failed to update words")?;
+        update_words(conn, &jmdict).context("Failed to update words")?;
         eyre::Ok(())
     })?;
     tracing::info!("Finished transaction");
@@ -296,23 +288,25 @@ fn update_kanji(
     Ok(())
 }
 
-fn update_words(
-    conn: &mut PgConnection,
-    jmdict: &JMdict,
-    jmdict_furigana: &JmdictFurigana,
-) -> eyre::Result<()> {
-    use lbr_server::schema::{kanji as k, word_kanji as wk, word_readings as wr, words as w};
+fn update_words(conn: &mut PgConnection, jmdict: &JMdict) -> eyre::Result<()> {
+    use lbr_server::schema::{kanji as k, word_kanji as wk, words as w};
+
+    let kanji_to_readings = domain::japanese::kanji_to_readings(conn)?;
 
     tracing::info!("Updating words");
-    let furigana = process_furigana(jmdict_furigana);
     let existing_words = w::table
-        .inner_join(wr::table.on(w::id.eq(wr::word_id)))
-        .select((w::jmdict_id, w::id, w::word, wr::reading))
+        .select((w::jmdict_id, w::id, w::word, w::reading_standard))
         .get_results::<(i32, i32, String, String)>(conn)?;
+    // (jmdict_id, word, standardised reading) => id
     let existing_words = existing_words
         .iter()
         .map(|(jmdict_id, id, word, reading)| ((*jmdict_id, word.as_str(), reading.as_str()), *id))
         .collect::<HashMap<(i32, &str, &str), i32>>();
+    let kanji_map = k::table
+        .select((k::chara, k::id))
+        .get_results::<(String, i32)>(conn)?
+        .into_iter()
+        .collect::<HashMap<_, _>>();
     for entry in &jmdict.entry {
         let jmdict_id = entry
             .ent_seq
@@ -324,17 +318,12 @@ fn update_words(
         // a word may not have any kanji entries, in which case the readings are the written forms
         // a kanji entry may be marked as rare, if all kanji entries are rare we should again treat the readings as the written forms
         // a meaning of a word can be marked as "usually kana", these should also get their own entries with the reading as the written form
-        let mut new_words = HashMap::<&str, Vec<NewWord>>::new();
-        struct NewWord<'a> {
-            word: &'a str,
-            reading: &'a str,
-            translations: Vec<&'a str>,
-        }
-        // skip search only forms
+        let mut new_words = NewWords::new();
         for k_ele in entry.k_ele.iter().filter(|k_ele| {
             k_ele
                 .ke_inf
                 .iter()
+                // skip search only forms
                 .all(|ke_inf| ke_inf != "search-only kanji form")
         }) {
             // only include reading elements that do not exclude the kanji element
@@ -345,145 +334,70 @@ fn update_words(
             {
                 let word = &k_ele.keb;
                 let reading = &r_ele.reb;
-                let translations = entry
-                    .sense
-                    .iter()
-                    .filter(|s| s.stagk.is_empty() || s.stagk.contains(word))
-                    .filter(|s| s.stagr.is_empty() || s.stagr.contains(reading))
-                    .flat_map(|s| s.gloss.iter())
-                    .filter(|g| g.lang.is_none())
-                    .map(|g| g.value.as_str())
-                    .collect::<Vec<_>>();
-                let entry = new_words.entry(&k_ele.keb).or_default();
-                entry.push(NewWord {
-                    word,
-                    reading,
-                    translations,
-                });
+                let translations = translations_from_entry(entry, Some(word), reading);
+                new_words.insert_new(jmdict_id, word, reading, translations);
             }
         }
-        // all reading elements with no stagk restriction as their own words as well
+        // adds all reading elements as their own words as well
         // previously this was only done for words with no kanji elements,
         // but there are too many words like 時 that are often spelled like とき with kana
         // with no indication of this in JMdict. although doing this will result in many words
         // that might not be considered real because they are in reality never spelled using kana,
-        // their existence in the db shouldn't be harmful. if needed we can later tag these "derived" words
+        // their existence in the db shouldn't be harmful. if needed we can later tag these "extra" words
         // in the db so we can tell them apart from the ones that exist in JMdict
         for r_ele in &entry.r_ele {
             let word = &r_ele.reb;
             let reading = &r_ele.reb;
-            let translations = entry
-                .sense
-                .iter()
-                .filter(|s| s.stagk.is_empty())
-                .filter(|s| s.stagr.is_empty() || s.stagr.contains(reading))
-                .flat_map(|s| s.gloss.iter())
-                .filter(|g| g.lang.is_none())
-                .map(|g| g.value.as_str())
-                .collect::<Vec<_>>();
-            let entry = new_words.entry(&r_ele.reb).or_default();
-            entry.push(NewWord {
+            let translations = translations_from_entry(entry, None, reading);
+            new_words.insert_new(jmdict_id, word, reading, translations);
+        }
+
+        for (key, val) in new_words.new_words {
+            let NewWordKey {
+                jmdict_id,
                 word,
+                standardised_reading,
+            } = key;
+            let NewWordVal {
                 reading,
+                hiragana_reading,
                 translations,
-            });
-        }
+            } = val;
+            tracing::debug!("Processing word {jmdict_id} {word} ({reading})");
 
-        // check for rare kanji elements
-        for k_ele in entry.k_ele.iter().filter(|k_ele| {
-            k_ele
-                .ke_inf
-                .iter()
-                .any(|ke_inf| ke_inf == "rarely used kanji form")
-        }) {
-            // add all reading elements that apply to this kanji element as their own words as well
-            for r_ele in entry
-                .r_ele
-                .iter()
-                .filter(|r_ele| r_ele.re_inf.is_empty() || r_ele.re_inf.contains(&k_ele.keb))
-            {
-                let word = &r_ele.reb;
-                let reading = &r_ele.reb;
-                let translations = entry
-                    .sense
-                    .iter()
-                    .filter(|s| s.stagk.is_empty() || s.stagk.contains(word))
-                    .filter(|s| s.stagr.is_empty() || s.stagr.contains(reading))
-                    .flat_map(|s| s.gloss.iter())
-                    .filter(|g| g.lang.is_none())
-                    .map(|g| g.value.as_str())
-                    .collect::<Vec<_>>();
-                let entry = new_words.entry(&r_ele.reb).or_default();
-                entry.push(NewWord {
-                    word,
-                    reading,
-                    translations,
-                });
-            }
-        }
-        // check for translations usually in kana
-        for sense in &entry.sense {
-            if sense
-                .misc
-                .iter()
-                .any(|misc| misc == "word usually written using kana alone")
-            {
-                for r_ele in &entry.r_ele {
-                    let word = &r_ele.reb;
-                    let reading = &r_ele.reb;
-                    let translations = entry
-                        .sense
-                        .iter()
-                        .filter(|s| s.stagk.is_empty() || s.stagk.contains(word))
-                        .filter(|s| s.stagr.is_empty() || s.stagr.contains(reading))
-                        .flat_map(|s| s.gloss.iter())
-                        .filter(|g| g.lang.is_none())
-                        .map(|g| g.value.as_str())
-                        .collect::<Vec<_>>();
-                    let entry = new_words.entry(&r_ele.reb).or_default();
-                    entry.push(NewWord {
-                        word,
-                        reading,
-                        translations,
-                    });
-                }
-            }
-        }
+            let furigana =
+                domain::japanese::map_to_db_furigana(&word, &reading, &kanji_to_readings)?;
 
-        for new_word in new_words.values().flatten() {
-            let word = new_word.word;
-            let reading = new_word.reading;
-            let translations = &new_word.translations;
-            tracing::debug!("Processing word {} ({})", word, reading);
-
-            let furigana = furigana.get(&(word, reading)).cloned().unwrap_or_default();
-
-            let existing_word = existing_words.get(&(jmdict_id, word, reading)).copied();
-            if existing_word.is_some() {
-                // nothing to do here
+            let existing_word = existing_words
+                .get(&(jmdict_id, &word, &standardised_reading))
+                .copied();
+            if let Some(id) = existing_word {
+                // update translations
+                // this takes a very, very long time...
+                diesel::update(w::table.filter(w::id.eq(id)))
+                    .set((w::translations.eq(translations), w::furigana.eq(furigana)))
+                    .execute(conn)?;
             } else {
                 // create new
                 let word_id = diesel::insert_into(w::table)
-                    .values((w::jmdict_id.eq(jmdict_id), w::word.eq(word)))
+                    .values((
+                        w::jmdict_id.eq(jmdict_id),
+                        w::word.eq(&word),
+                        w::reading.eq(&hiragana_reading),
+                        w::reading_standard.eq(&standardised_reading),
+                        w::furigana.eq(&furigana),
+                        w::translations.eq(&translations),
+                    ))
                     .returning(w::id)
                     .get_result::<i32>(conn)
                     .context("Failed to create new word")?;
-                // for new words, we also insert the word kanji and readings
-                diesel::insert_into(wr::table)
-                    .values((
-                        wr::word_id.eq(word_id),
-                        wr::reading.eq(reading),
-                        wr::furigana.eq(furigana),
-                        wr::translations.eq(translations),
-                    ))
-                    .execute(conn)?;
+                // for new words, we also insert the word kanji
                 let mut word_kanji = Vec::new();
-                for kanji in lbr::kanji_from_word(word) {
-                    let kanji_id = k::table
-                        .filter(k::chara.eq(kanji))
-                        .select(k::id)
-                        .get_result::<i32>(conn)
-                        .with_context(|| format!("Failed to fetch kanji {kanji}"))?;
+                for kanji in lbr::kanji_from_word(&word) {
+                    let kanji_id = kanji_map
+                        .get(kanji)
+                        .copied()
+                        .wrap_err_with(|| format!("Failed to find kanji {kanji}"))?;
                     word_kanji.push((wk::word_id.eq(word_id), wk::kanji_id.eq(kanji_id)));
                 }
                 diesel::insert_into(wk::table)
@@ -498,33 +412,77 @@ fn update_words(
     Ok(())
 }
 
-// (word, reading) -> furigana
-fn process_furigana(furigana: &JmdictFurigana) -> HashMap<(&str, &str), Vec<Furigana>> {
-    furigana
+#[derive(Hash, PartialEq, Eq)]
+struct NewWordKey {
+    jmdict_id: i32,
+    word: String,
+    standardised_reading: String,
+}
+
+#[derive(Hash, PartialEq, Eq)]
+struct NewWordVal {
+    reading: String,
+    hiragana_reading: String,
+    translations: Vec<String>,
+}
+
+struct NewWords {
+    new_words: HashMap<NewWordKey, NewWordVal>,
+}
+
+impl NewWords {
+    fn new() -> Self {
+        Self {
+            new_words: HashMap::new(),
+        }
+    }
+
+    fn insert_new(&mut self, jmdict_id: i32, word: &str, reading: &str, translations: Vec<String>) {
+        let word = word.to_owned();
+        let reading = reading.to_owned();
+        let sr = lbr::standardise_reading(&reading);
+        self.new_words.insert(
+            NewWordKey {
+                jmdict_id,
+                word,
+                standardised_reading: sr.standardised,
+            },
+            NewWordVal {
+                reading,
+                hiragana_reading: sr.hiragana,
+                translations,
+            },
+        );
+    }
+}
+
+fn translations_from_entry(entry: &Entry, word: Option<&str>, reading: &str) -> Vec<String> {
+    entry
+        .sense
         .iter()
-        .map(|f| {
-            let key = (f.text.as_str(), f.reading.as_str());
-            let mut word_start_idx = 0;
-            let mut reading_start_idx = 0;
-            let mut furigana = vec![];
-            for ruby in &f.furigana {
-                let word_end_idx = word_start_idx + ruby.ruby.len() as i32;
-                if let Some(rt) = &ruby.rt {
-                    let reading_end_idx = reading_start_idx + rt.len() as i32;
-                    furigana.push(Furigana {
-                        word_start_idx,
-                        word_end_idx,
-                        reading_start_idx,
-                        reading_end_idx,
-                    });
-                    reading_start_idx = reading_end_idx;
-                } else {
-                    // no rt means the section of the word and the reading are the same,
-                    reading_start_idx += ruby.ruby.len() as i32;
-                }
-                word_start_idx = word_end_idx;
-            }
-            (key, furigana)
+        .filter(|s| {
+            s.stagk.is_empty()
+                ||
+                // with no word, we can ignore stagk
+                word
+                    .map(|w| s.stagk.iter().any(|stagk| stagk == w))
+                    .unwrap_or(true)
         })
-        .collect()
+        .filter(|s| s.stagr.is_empty() || s.stagr.iter().any(|stagr| stagr == reading))
+        .map(|s| {
+            let sense_meanings = s
+                .gloss
+                .iter()
+                .filter(|g| g.lang.is_none())
+                .map(|g| g.value.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            if s.s_inf.is_empty() {
+                sense_meanings
+            } else {
+                format!("{} [{}]", sense_meanings, s.s_inf.join(", "))
+            }
+        })
+        .collect::<Vec<_>>()
 }

@@ -6,8 +6,8 @@ use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
-    tracing_subscriber::fmt::init();
     dotenvy::dotenv().ok();
+    tracing_subscriber::fmt::init();
 
     let server_url = env::var("SERVER_URL")
         .wrap_err("Missing SERVER_URL")?

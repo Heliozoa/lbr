@@ -46,6 +46,7 @@ pub async fn segment(
                         sentence.to_string(),
                         &state.ichiran_word_to_id,
                         &state.kanji_to_readings,
+                        &state.word_to_meanings,
                     )
                 });
                 handles.push(segmented_sentence);

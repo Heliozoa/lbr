@@ -16,16 +16,13 @@ fn main() -> eyre::Result<()> {
 }
 
 fn print_common_unnamed_kanji(lbr_conn: &mut PgConnection) -> eyre::Result<()> {
-    use lbr_server::schema::{
-        kanji as k, sentence_words as sw, word_kanji as wk, word_readings as wr, words as w,
-    };
+    use lbr_server::schema::{kanji as k, sentence_words as sw, word_kanji as wk, words as w};
 
     let mut kanji_words: HashMap<String, Vec<(String, String, String)>> = HashMap::new();
     k::table
         .inner_join(wk::table.on(wk::kanji_id.eq(k::id)))
         .inner_join(w::table.on(w::id.eq(wk::word_id)))
-        .inner_join(wr::table.on(wr::word_id.eq(w::id)))
-        .select((k::chara, k::meanings, w::word, wr::translations))
+        .select((k::chara, k::meanings, w::word, w::translations))
         .get_results::<(String, Vec<Option<String>>, String, Vec<Option<String>>)>(lbr_conn)?
         .into_iter()
         .for_each(|(k, km, w, t)| {

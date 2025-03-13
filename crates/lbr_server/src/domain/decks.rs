@@ -4,7 +4,7 @@ use crate::utils::database::{self, DeckSourceKind};
 use diesel::prelude::*;
 use itertools::Itertools;
 use lbr::anki::{self, Card, KanjiCard, Package, Sentence, SentenceWord, WordCard, WordKanji};
-use rand::seq::SliceRandom;
+use rand::seq::IndexedRandom;
 use std::collections::HashMap;
 
 /// Generates an Anki deck for the given deck id.
@@ -39,7 +39,7 @@ fn get_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Card>> {
 fn get_word_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<WordCard>> {
     use crate::schema::{
         deck_sources as ds, kanji as k, sentence_words as sw, sentences as s, word_kanji as wk,
-        word_readings as wr, words as w,
+        words as w,
     };
 
     // get all sentence words for the deck
@@ -54,14 +54,14 @@ fn get_word_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Wor
         .inner_join(s::table.on(s::source_id.eq(ds::source_id)))
         // get all words related to the sentences
         .inner_join(sw::table.on(sw::sentence_id.eq(s::id)))
-        .inner_join(w::table.on(w::id.nullable().eq(sw::word_id)))
-        .inner_join(wr::table.on(wr::word_id.eq(w::id)))
+        // left joins because some sentence words are not associated with any word (reading only)
+        .left_join(w::table.on(w::id.nullable().eq(sw::word_id)))
         .select(SentenceWordQuery::as_select())
         .load(conn)?;
 
     let sentence_word_word_ids = sentence_words
         .iter()
-        .map(|sw| sw.word_id)
+        .filter_map(|sw| sw.word_id)
         .collect::<Vec<_>>();
     // get all kanji related to the sentences
     let kanji: Vec<KanjiQuery> = w::table
@@ -78,23 +78,21 @@ fn get_word_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Wor
         .collect::<HashMap<_, _>>();
     let sentence_words_by_word_id = sentence_words
         .iter()
-        .cloned()
-        .into_group_map_by(|r| r.word_id);
-    let sentence_words_by_sentence = sentence_words
-        .into_iter()
-        .into_group_map_by(|r| r.sentence_id);
+        .filter_map(|sw| sw.word_id.map(|wi| (wi, sw)))
+        .into_group_map();
+    let sentence_words_by_sentence = sentence_words.iter().into_group_map_by(|r| r.sentence_id);
 
     let mut cards = Vec::new();
     for (_, word_sentences) in sentence_words_by_word_id {
         // for each word, choose random sentence
-        let sentence = word_sentences
-            .choose(&mut rand::thread_rng())
-            .cloned()
+        let sentence = word_sentences.choose(&mut rand::rng()).cloned().unwrap();
+        let sentence_words = sentence_words_by_sentence
+            .get(&sentence.sentence_id)
             .unwrap();
 
         let card = word_card_from_query(
             sentence,
-            &sentence_words_by_sentence,
+            sentence_words,
             &kanji_names_by_kanji,
             word_sentences.len(),
         );
@@ -106,7 +104,7 @@ fn get_word_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Wor
 fn get_kanji_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<KanjiCard>> {
     use crate::schema::{
         deck_sources as ds, kanji as k, kanji_similar as ks, sentence_words as sw, sentences as s,
-        word_kanji as wk, word_readings as wr, words as w,
+        word_kanji as wk, words as w,
     };
 
     // get all words from kanji sources for the deck
@@ -118,7 +116,6 @@ fn get_kanji_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Ka
         // get all words related to the sentences
         .inner_join(sw::table.on(sw::sentence_id.eq(s::id)))
         .inner_join(w::table.on(w::id.nullable().eq(sw::word_id)))
-        .inner_join(wr::table.on(wr::word_id.eq(w::id)))
         // get all kanji related to the words
         .inner_join(wk::table.on(wk::word_id.eq(w::id)))
         .inner_join(k::table.on(k::id.eq(wk::kanji_id)))
@@ -141,7 +138,7 @@ fn get_kanji_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Ka
     let mut cards = Vec::new();
     for (kanji_id, words) in source_words_by_kanji_id {
         // for each kanji, choose random example word
-        let word = words.choose(&mut rand::thread_rng()).cloned().unwrap();
+        let word = words.choose(&mut rand::rng()).cloned().unwrap();
         let similar_kanji = kanji_id_to_similar_kanji
             .remove(&kanji_id)
             .unwrap_or_default();
@@ -152,8 +149,8 @@ fn get_kanji_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Ka
 }
 
 fn word_card_from_query(
-    word: SentenceWordQuery,
-    sentence_words_by_sentence: &HashMap<i32, Vec<SentenceWordQuery>>,
+    word: &SentenceWordQuery,
+    sentence_words: &[&SentenceWordQuery],
     kanji_names_by_kanji: &HashMap<String, Option<String>>,
     word_sentences: usize,
 ) -> WordCard {
@@ -169,10 +166,9 @@ fn word_card_from_query(
         furigana,
         translations,
         sentence_id,
-    } = word;
+    } = word.clone();
 
     let word_in_sentence = &sentence[idx_start as usize..idx_end as usize];
-    let sentence_words = sentence_words_by_sentence.get(&sentence_id).unwrap();
     let kanji = lbr::kanji_from_word(word_in_sentence)
         .map(|k| WordKanji {
             name: kanji_names_by_kanji
@@ -184,12 +180,15 @@ fn word_card_from_query(
         .collect();
 
     WordCard {
-        id: word_id,
-        word_id,
-        word,
+        id: word_id.unwrap(),
+        word_id: word_id.unwrap(),
+        word: word.unwrap(),
         word_range: idx_start as usize..idx_end as usize,
-        word_furigana: db_furigana_to_anki_furigana(furigana.as_slice(), Some(&reading)),
-        translations: translations.into_iter().flatten().collect(),
+        word_furigana: db_furigana_to_anki_furigana(
+            furigana.unwrap().as_slice(),
+            Some(&reading.unwrap()),
+        ),
+        translations: translations.unwrap().into_iter().flatten().collect(),
         kanji,
         word_sentences,
         sentence: Sentence {
@@ -262,12 +261,22 @@ crate::query! {
     }
 }
 
-crate::query! {
+crate::newquery! {
     #[derive(Debug, Clone)]
     struct SentenceWordQuery {
-        word_id: i32 = words::id,
-        word: String = words::word,
-        reading: String = word_readings::reading,
+        // word info, some sentence words don't have database words associated with them
+        word_id: Option<i32> = words::id.nullable(),
+        word: Option<String> = words::word.nullable(),
+        reading: Option<String> = words::reading.nullable(),
+        // postgres doesn't support non-null constraints on array elements,
+        // so these are Options even though they're never None
+        furigana: Option<Vec<Option<database::Furigana>>> = words::furigana.nullable(),
+        // postgres doesn't support non-null constraints on array elements,
+        // so these are Options even though they're never None
+        translations: Option<Vec<Option<String>>> = words::translations.nullable(),
+
+        // sentence info
+        sentence_id: i32 = sentences::id,
         sentence: String = sentences::sentence,
         sentence_word_reading: Option<String> = sentence_words::reading,
         // postgres doesn't support non-null constraints on array elements,
@@ -275,13 +284,6 @@ crate::query! {
         sentence_word_furigana: Vec<Option<database::Furigana>> = sentence_words::furigana,
         idx_start: i32 = sentence_words::idx_start,
         idx_end: i32 = sentence_words::idx_end,
-        // postgres doesn't support non-null constraints on array elements,
-        // so these are Options even though they're never None
-        furigana: Vec<Option<database::Furigana>> = word_readings::furigana,
-        // postgres doesn't support non-null constraints on array elements,
-        // so these are Options even though they're never None
-        translations: Vec<Option<String>> = word_readings::translations,
-        sentence_id: i32 = sentences::id,
     }
 }
 
@@ -294,7 +296,7 @@ crate::query! {
         written_form: String = words::word,
         // postgres doesn't support non-null constraints on array elements,
         // so these are Options even though they're never None
-        translations: Vec<Option<String>> = word_readings::translations,
+        translations: Vec<Option<String>> = words::translations,
     }
 }
 
@@ -315,121 +317,117 @@ mod test {
 
     #[test]
     fn makes_word_card_from_query() {
-        let word_id = 1;
+        let word_id = Some(1);
         let sentence_id = 2;
         let query = SentenceWordQuery {
             word_id,
-            word: "猫".to_string(),
+            word: Some("猫".to_string()),
             sentence: "吾輩は猫である".to_string(),
             sentence_word_reading: Some("ねこ".to_string()),
             sentence_word_furigana: vec![],
             idx_start: 9,
             idx_end: 12,
-            reading: "ねこ".to_string(),
-            furigana: vec![Some(DbFurigana {
+            reading: Some("ねこ".to_string()),
+            furigana: Some(vec![Some(DbFurigana {
                 word_start_idx: 0,
                 word_end_idx: 3,
                 reading_start_idx: 0,
                 reading_end_idx: 6,
-            })],
-            translations: vec![Some("Cat".to_string())],
+            })]),
+            translations: Some(vec![Some("Cat".to_string())]),
             sentence_id,
         };
-        let mut sentence_words_by_sentence = HashMap::new();
-        sentence_words_by_sentence.insert(
-            sentence_id,
-            vec![
-                SentenceWordQuery {
-                    word_id,
-                    word: "吾輩".to_string(),
-                    sentence: "吾輩は猫である".to_string(),
-                    sentence_word_reading: Some("わがはい".to_string()),
-                    sentence_word_furigana: vec![],
-                    idx_start: 0,
-                    idx_end: 6,
-                    reading: "わがはい".to_string(),
-                    furigana: vec![
-                        Some(DbFurigana {
-                            word_start_idx: 0,
-                            word_end_idx: 3,
-                            reading_start_idx: 0,
-                            reading_end_idx: 6,
-                        }),
-                        Some(DbFurigana {
-                            word_start_idx: 3,
-                            word_end_idx: 6,
-                            reading_start_idx: 6,
-                            reading_end_idx: 12,
-                        }),
-                    ],
-                    translations: vec![Some("I".to_string())],
-                    sentence_id,
-                },
-                SentenceWordQuery {
-                    word_id,
-                    word: "は".to_string(),
-                    sentence: "吾輩は猫である".to_string(),
-                    sentence_word_reading: None,
-                    sentence_word_furigana: vec![],
-                    idx_start: 6,
-                    idx_end: 9,
-                    reading: "は".to_string(),
-                    furigana: vec![],
-                    translations: vec![Some("tldr".to_string())],
-                    sentence_id,
-                },
-                SentenceWordQuery {
-                    word_id,
-                    word: "猫".to_string(),
-                    sentence: "吾輩は猫である".to_string(),
-                    sentence_word_reading: Some("ねこ".to_string()),
-                    sentence_word_furigana: vec![],
-                    idx_start: 9,
-                    idx_end: 12,
-                    reading: "ねこ".to_string(),
-                    furigana: vec![Some(DbFurigana {
+        let qs = vec![
+            SentenceWordQuery {
+                word_id,
+                word: Some("吾輩".to_string()),
+                sentence: "吾輩は猫である".to_string(),
+                sentence_word_reading: Some("わがはい".to_string()),
+                sentence_word_furigana: vec![],
+                idx_start: 0,
+                idx_end: 6,
+                reading: Some("わがはい".to_string()),
+                furigana: Some(vec![
+                    Some(DbFurigana {
                         word_start_idx: 0,
                         word_end_idx: 3,
                         reading_start_idx: 0,
                         reading_end_idx: 6,
-                    })],
-                    translations: vec![Some("Cat".to_string())],
-                    sentence_id,
-                },
-                SentenceWordQuery {
-                    word_id,
-                    word: "で".to_string(),
-                    sentence: "吾輩は猫である".to_string(),
-                    sentence_word_reading: None,
-                    sentence_word_furigana: vec![],
-                    idx_start: 12,
-                    idx_end: 15,
-                    reading: "で".to_string(),
-                    furigana: vec![],
-                    translations: vec![Some("something".to_string())],
-                    sentence_id,
-                },
-                SentenceWordQuery {
-                    word_id,
-                    word: "ある".to_string(),
-                    sentence: "吾輩は猫である".to_string(),
-                    sentence_word_reading: None,
-                    sentence_word_furigana: vec![],
-                    idx_start: 15,
-                    idx_end: 18,
-                    reading: "ある".to_string(),
-                    furigana: vec![],
-                    translations: vec![],
-                    sentence_id,
-                },
-            ],
-        );
+                    }),
+                    Some(DbFurigana {
+                        word_start_idx: 3,
+                        word_end_idx: 6,
+                        reading_start_idx: 6,
+                        reading_end_idx: 12,
+                    }),
+                ]),
+                translations: Some(vec![Some("I".to_string())]),
+                sentence_id,
+            },
+            SentenceWordQuery {
+                word_id,
+                word: Some("は".to_string()),
+                sentence: "吾輩は猫である".to_string(),
+                sentence_word_reading: None,
+                sentence_word_furigana: vec![],
+                idx_start: 6,
+                idx_end: 9,
+                reading: Some("は".to_string()),
+                furigana: Some(vec![]),
+                translations: Some(vec![Some("tldr".to_string())]),
+                sentence_id,
+            },
+            SentenceWordQuery {
+                word_id,
+                word: Some("猫".to_string()),
+                sentence: "吾輩は猫である".to_string(),
+                sentence_word_reading: Some("ねこ".to_string()),
+                sentence_word_furigana: vec![],
+                idx_start: 9,
+                idx_end: 12,
+                reading: Some("ねこ".to_string()),
+                furigana: Some(vec![Some(DbFurigana {
+                    word_start_idx: 0,
+                    word_end_idx: 3,
+                    reading_start_idx: 0,
+                    reading_end_idx: 6,
+                })]),
+                translations: Some(vec![Some("Cat".to_string())]),
+                sentence_id,
+            },
+            SentenceWordQuery {
+                word_id,
+                word: Some("で".to_string()),
+                sentence: "吾輩は猫である".to_string(),
+                sentence_word_reading: None,
+                sentence_word_furigana: vec![],
+                idx_start: 12,
+                idx_end: 15,
+                reading: Some("で".to_string()),
+                furigana: Some(vec![]),
+                translations: Some(vec![Some("something".to_string())]),
+                sentence_id,
+            },
+            SentenceWordQuery {
+                word_id,
+                word: Some("ある".to_string()),
+                sentence: "吾輩は猫である".to_string(),
+                sentence_word_reading: None,
+                sentence_word_furigana: vec![],
+                idx_start: 15,
+                idx_end: 18,
+                reading: Some("ある".to_string()),
+                furigana: Some(vec![]),
+                translations: Some(vec![]),
+                sentence_id,
+            },
+        ];
 
         let mut kanji_names_by_kanji = HashMap::new();
         kanji_names_by_kanji.insert("猫".to_string(), Some("cat".to_string()));
 
-        let card =
-            word_card_from_query(query, &sentence_words_by_sentence, &kanji_names_by_kanji, 1);
+        let qs = qs.iter().collect::<Vec<_>>();
+        let card = word_card_from_query(&query, &qs, &kanji_names_by_kanji, 1);
         assert_eq!(card.sentence.words[0].furigana[0].furigana, "わが");
     }
 

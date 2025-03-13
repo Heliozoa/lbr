@@ -32,13 +32,13 @@ diesel = { version = "2.1.0", features = ["postgres", "chrono", "r2d2"] }
 dotenvy = "0.15.7"
 eyre = "0.6.8"
 furigana = "0.1.5"
-ichiran = "0.4.0"
+ichiran = "0.6.0"
 itertools = "0.14.0"
 leptos = { workspace = true, features = ["ssr"] }
 leptos_axum.workspace = true
 leptos_meta = { workspace = true, features = ["ssr"] }
 moka = { version = "0.12.1", features = ["future"] }
-rand = "0.8.5"
+rand = "0.9.0"
 serde = "1.0.164"
 serde-xml-rs = "0.6.0"
 serde_json = "1.0.97"

@@ -12,7 +12,9 @@ export def env-vars []: nothing -> record {
 }
 
 export def initialise_logging [] {
-    $env.RUST_LOG = "info"
+    let logging_level = "warn"
+    print $"Setting logging level ($logging_level)"
+    $env.RUST_LOG = $logging_level
 }
 
 export def input_default [prompt: string, default: string]: nothing -> string {
