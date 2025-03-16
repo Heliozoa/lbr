@@ -59,7 +59,11 @@ pub async fn login(
 }
 
 #[instrument]
-pub async fn current(user: Option<Authentication>) -> LbrResult<Json<Option<i32>>> {
+#[axum::debug_handler]
+pub async fn current(
+    State(_state): State<LbrState>,
+    user: Option<Authentication>,
+) -> LbrResult<Json<Option<i32>>> {
     Ok(Json(user.map(|u| u.user_id)))
 }
 

@@ -21,7 +21,7 @@ lbr_core.workspace = true
 lbr_web = { workspace = true, features = ["ssr"] }
 
 argon2 = "0.5.0"
-axum = "0.7.2"
+axum = { version = "0.8.1", features = ["macros"] }
 bitcode = "0.6.0"
 chrono = { version = "0.4.26", default-features = false, features = [
   "std",
@@ -46,7 +46,7 @@ tempfile = "3.6.0"
 tokio = { version = "1.28.2", features = ["full"] }
 tokio-util = { version = "0.7.8", features = ["io"] }
 tower = { version = "0.5.1", features = ["util"] }
-tower-cookies = { version = "0.10.0", features = ["signed"] }
+tower-cookies = { version = "0.11.0", features = ["signed"] }
 tower-http = { version = "0.6.1", features = ["cors", "fs"] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.17"

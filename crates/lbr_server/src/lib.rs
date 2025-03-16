@@ -91,7 +91,7 @@ pub async fn router(state: LbrState) -> Router<()> {
                     Router::new()
                         .route("/", get(sources::get_all).post(sources::insert))
                         .nest(
-                            "/:id",
+                            "/{id}",
                             Router::new()
                                 .route(
                                     "/",
@@ -108,7 +108,7 @@ pub async fn router(state: LbrState) -> Router<()> {
                     Router::new()
                         .route("/", get(decks::get_all).post(decks::insert))
                         .nest(
-                            "/:id",
+                            "/{id}",
                             Router::new()
                                 .route(
                                     "/",
@@ -116,13 +116,13 @@ pub async fn router(state: LbrState) -> Router<()> {
                                         .post(decks::update)
                                         .delete(decks::delete),
                                 )
-                                .route("/generate/:filename", get(decks::generate)),
+                                .route("/generate/{filename}", get(decks::generate)),
                         ),
                 )
                 .nest(
                     "/sentences",
                     Router::new().nest(
-                        "/:id",
+                        "/{id}",
                         Router::new()
                             .route(
                                 "/",
@@ -139,7 +139,7 @@ pub async fn router(state: LbrState) -> Router<()> {
                         "/ignored",
                         Router::new()
                             .route("/", get(words::ignored_words))
-                            .route("/:id", delete(words::delete_ignored_word)),
+                            .route("/{id}", delete(words::delete_ignored_word)),
                     ),
                 )
                 .route("/segment", post(segment::segment))

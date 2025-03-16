@@ -6,8 +6,7 @@ use argon2::{
     Argon2,
 };
 use axum::{
-    async_trait,
-    extract::FromRequestParts,
+    extract::{FromRequestParts, OptionalFromRequestParts},
     http::{request::Parts, StatusCode},
     RequestPartsExt,
 };
@@ -120,7 +119,6 @@ impl Debug for Authentication {
     }
 }
 
-#[async_trait]
 impl FromRequestParts<LbrState> for Authentication {
     type Rejection = (StatusCode, &'static str);
 
@@ -152,6 +150,20 @@ impl FromRequestParts<LbrState> for Authentication {
                 })
             }
         }
+    }
+}
+
+impl OptionalFromRequestParts<LbrState> for Authentication {
+    type Rejection = (StatusCode, &'static str);
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &LbrState,
+    ) -> Result<Option<Self>, Self::Rejection> {
+        let auth = <Self as FromRequestParts<LbrState>>::from_request_parts(parts, state)
+            .await
+            .ok();
+        Ok(auth)
     }
 }
 
