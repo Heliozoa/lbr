@@ -5,7 +5,7 @@ use diesel::prelude::*;
 use itertools::Itertools;
 use lbr::anki::{self, Card, KanjiCard, Package, Sentence, SentenceWord, WordCard, WordKanji};
 use rand::seq::IndexedRandom;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Generates an Anki deck for the given deck id.
 pub fn gen_deck(
@@ -13,9 +13,10 @@ pub fn gen_deck(
     name: &str,
     deck_id: i32,
     anki_deck_id: i64,
+    user_id: i32,
 ) -> eyre::Result<Package> {
     tracing::info!("Creating cards");
-    let cards = get_cards(conn, deck_id)?;
+    let cards = get_cards(conn, user_id, deck_id)?;
 
     tracing::info!("Creating deck");
     let package = lbr::anki::create_deck(name, anki_deck_id, cards);
@@ -24,8 +25,8 @@ pub fn gen_deck(
     Ok(package)
 }
 
-fn get_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Card>> {
-    let word_cards = get_word_cards(conn, deck_id)?;
+fn get_cards(conn: &mut PgConnection, user_id: i32, deck_id: i32) -> eyre::Result<Vec<Card>> {
+    let word_cards = get_word_cards(conn, user_id, deck_id)?;
     let kanji_cards = get_kanji_cards(conn, deck_id)?;
     let cards = word_cards
         .into_iter()
@@ -36,11 +37,22 @@ fn get_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Card>> {
     Ok(cards)
 }
 
-fn get_word_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<WordCard>> {
+fn get_word_cards(
+    conn: &mut PgConnection,
+    user_id: i32,
+    deck_id: i32,
+) -> eyre::Result<Vec<WordCard>> {
     use crate::schema::{
-        deck_sources as ds, kanji as k, sentence_words as sw, sentences as s, word_kanji as wk,
-        words as w,
+        deck_sources as ds, ignored_words as iw, kanji as k, sentence_words as sw, sentences as s,
+        word_kanji as wk, words as w,
     };
+
+    let ignored_words = iw::table
+        .filter(iw::user_id.eq(user_id))
+        .select(iw::word_id)
+        .get_results::<i32>(conn)?
+        .into_iter()
+        .collect::<HashSet<_>>();
 
     // get all sentence words for the deck
     let sentence_words: Vec<SentenceWordQuery> = ds::table
@@ -62,6 +74,7 @@ fn get_word_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Wor
     let sentence_word_word_ids = sentence_words
         .iter()
         .filter_map(|sw| sw.word_id)
+        .filter(|wi| !ignored_words.contains(wi))
         .collect::<Vec<_>>();
     // get all kanji related to the sentences
     let kanji: Vec<KanjiQuery> = w::table

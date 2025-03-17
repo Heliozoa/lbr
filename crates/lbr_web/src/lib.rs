@@ -18,6 +18,7 @@ pub fn App() -> impl IntoView {
     tracing::info!("Rendering app");
 
     context::initialise_context();
+    leptos_meta::provide_meta_context();
 
     let fallback = move |errors: ArcRwSignal<Errors>| {
         errors

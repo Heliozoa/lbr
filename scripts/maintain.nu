@@ -36,9 +36,9 @@ export def main [] {
             (cargo run --release --bin update_db --
                 "./data/kanjidic2.xml"
                 "./data/kradfile"
-                ./crates/jadata/data/kanji_names.json
-                ./crates/jadata/data/kanji_similar.json
-                ./crates/jadata/data/kanji_extra.json
+                "./crates/jadata/data/kanji_names.json"
+                "./crates/jadata/data/kanji_similar.json"
+                "./crates/jadata/data/kanji_extra.json"
                 "./data/JMdict_e_examp.xml")
             | complete
             | check_error

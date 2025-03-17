@@ -188,6 +188,7 @@ fn update_kanji(
             .unwrap_or_default()
             .iter()
             .flat_map(|rmg| &rmg.reading)
+            .filter(|r| r.r_type == "ja_on" || r.r_type == "ja_kun")
         {
             let (reading, okurigana) = reading
                 .value
@@ -198,6 +199,20 @@ fn update_kanji(
                 kr::kanji_id.eq(kanji_id),
                 kr::reading.eq(reading),
                 kr::okurigana.eq(okurigana),
+                kr::nanori.eq(false),
+            ));
+        }
+        for nanori in kanji
+            .reading_meaning
+            .as_ref()
+            .map(|rm| rm.nanori.as_slice())
+            .unwrap_or_default()
+        {
+            new_kanji_readings.push((
+                kr::kanji_id.eq(kanji_id),
+                kr::reading.eq(nanori.as_str()),
+                kr::okurigana.eq(None),
+                kr::nanori.eq(true),
             ));
         }
         for chunk in new_kanji_readings.chunks(255) {
@@ -294,11 +309,11 @@ fn update_words(conn: &mut PgConnection, jmdict: &JMdict) -> eyre::Result<()> {
     let kanji_to_readings = domain::japanese::kanji_to_readings(conn)?;
 
     tracing::info!("Updating words");
-    let existing_words = w::table
+    let existing_words_vec = w::table
         .select((w::jmdict_id, w::id, w::word, w::reading_standard))
         .get_results::<(i32, i32, String, String)>(conn)?;
     // (jmdict_id, word, standardised reading) => id
-    let existing_words = existing_words
+    let existing_words = existing_words_vec
         .iter()
         .map(|(jmdict_id, id, word, reading)| ((*jmdict_id, word.as_str(), reading.as_str()), *id))
         .collect::<HashMap<(i32, &str, &str), i32>>();
@@ -307,37 +322,45 @@ fn update_words(conn: &mut PgConnection, jmdict: &JMdict) -> eyre::Result<()> {
         .get_results::<(String, i32)>(conn)?
         .into_iter()
         .collect::<HashMap<_, _>>();
+
+    let mut words_in_db = HashSet::new();
     for entry in &jmdict.entry {
         let jmdict_id = entry
             .ent_seq
             .parse::<i32>()
             .context("Failed to parse jmdict seq")?;
-        tracing::debug!("Processing entry {}", jmdict_id);
+        tracing::trace!("Processing entry {}", jmdict_id);
 
-        // few things to consider here:
-        // a word may not have any kanji entries, in which case the readings are the written forms
-        // a kanji entry may be marked as rare, if all kanji entries are rare we should again treat the readings as the written forms
-        // a meaning of a word can be marked as "usually kana", these should also get their own entries with the reading as the written form
-        let mut new_words = NewWords::new();
-        for k_ele in entry.k_ele.iter().filter(|k_ele| {
-            k_ele
-                .ke_inf
-                .iter()
-                // skip search only forms
-                .all(|ke_inf| ke_inf != "search-only kanji form")
-        }) {
+        // previously we did more filtering here such as excluding search-only kanji forms
+        // but since they actually appear in text we should include all of them
+        let mut jmdict_words = JmdictWords::new();
+        for k_ele in &entry.k_ele {
             // only include reading elements that do not exclude the kanji element
-            for r_ele in entry
+            let valid_reading_elements = entry
                 .r_ele
                 .iter()
-                .filter(|r_ele| r_ele.re_restr.iter().all(|restr| restr != &k_ele.keb))
-            {
+                .filter(|r_ele| r_ele.re_restr.is_empty() || r_ele.re_restr.contains(&k_ele.keb))
+                .collect::<Vec<_>>();
+            if valid_reading_elements.is_empty() {
+                // some kanji elements like search-only kanji forms do not have any valid reading element associated with them...
+                // in those cases, we will simply try out every single one and accept any that have a valid furigana mapping
+                for r_ele in &entry.r_ele {
+                    if !furigana::map(&k_ele.keb, &r_ele.reb, &kanji_to_readings).is_empty() {
+                        let word = &k_ele.keb;
+                        let reading = &r_ele.reb;
+                        let translations = translations_from_entry(entry, Some(word), reading);
+                        jmdict_words.insert_new(jmdict_id, word, reading, translations);
+                    }
+                }
+            }
+            for r_ele in valid_reading_elements {
                 let word = &k_ele.keb;
                 let reading = &r_ele.reb;
                 let translations = translations_from_entry(entry, Some(word), reading);
-                new_words.insert_new(jmdict_id, word, reading, translations);
+                jmdict_words.insert_new(jmdict_id, word, reading, translations);
             }
         }
+
         // adds all reading elements as their own words as well
         // previously this was only done for words with no kanji elements,
         // but there are too many words like 時 that are often spelled like とき with kana
@@ -349,35 +372,39 @@ fn update_words(conn: &mut PgConnection, jmdict: &JMdict) -> eyre::Result<()> {
             let word = &r_ele.reb;
             let reading = &r_ele.reb;
             let translations = translations_from_entry(entry, None, reading);
-            new_words.insert_new(jmdict_id, word, reading, translations);
+            jmdict_words.insert_new(jmdict_id, word, reading, translations);
         }
 
-        for (key, val) in new_words.new_words {
-            let NewWordKey {
+        for (key, val) in jmdict_words.jmdict_words {
+            let JmdictWordKey {
                 jmdict_id,
                 word,
                 standardised_reading,
             } = key;
-            let NewWordVal {
+            let JmdictWordVal {
                 reading,
                 hiragana_reading,
                 translations,
             } = val;
-            tracing::debug!("Processing word {jmdict_id} {word} ({reading})");
-
             let furigana =
-                domain::japanese::map_to_db_furigana(&word, &reading, &kanji_to_readings)?;
-
+                match domain::japanese::map_to_db_furigana(&word, &reading, &kanji_to_readings) {
+                    Ok(furigana) => furigana,
+                    Err(err) => {
+                        tracing::error!("Failed to map furigana {err}");
+                        Vec::new()
+                    }
+                };
             let existing_word = existing_words
                 .get(&(jmdict_id, &word, &standardised_reading))
                 .copied();
             if let Some(id) = existing_word {
-                // update translations
-                // this takes a very, very long time...
+                // update existing record
                 diesel::update(w::table.filter(w::id.eq(id)))
                     .set((w::translations.eq(translations), w::furigana.eq(furigana)))
                     .execute(conn)?;
+                words_in_db.insert(id);
             } else {
+                tracing::debug!("Creating {jmdict_id} {word} ({hiragana_reading})");
                 // create new
                 let word_id = diesel::insert_into(w::table)
                     .values((
@@ -408,32 +435,54 @@ fn update_words(conn: &mut PgConnection, jmdict: &JMdict) -> eyre::Result<()> {
             }
         }
     }
+    let existing_word_ids = existing_words_vec
+        .iter()
+        .map(|a| (a.1, a))
+        .collect::<HashMap<_, _>>();
+    for (existing_word_id, etc) in existing_word_ids {
+        if etc.0 != 1207560 {
+            //continue;
+        }
+        if !words_in_db.contains(&existing_word_id) {
+            tracing::error!(
+                "word in db {existing_word_id} {} {} not found while processing jmdict",
+                etc.2,
+                etc.3
+            );
+            diesel::delete(wk::table)
+                .filter(wk::word_id.eq(existing_word_id))
+                .execute(conn)?;
+            diesel::delete(w::table)
+                .filter(w::id.eq(existing_word_id))
+                .execute(conn)?;
+        }
+    }
 
     Ok(())
 }
 
 #[derive(Hash, PartialEq, Eq)]
-struct NewWordKey {
+struct JmdictWordKey {
     jmdict_id: i32,
     word: String,
     standardised_reading: String,
 }
 
 #[derive(Hash, PartialEq, Eq)]
-struct NewWordVal {
+struct JmdictWordVal {
     reading: String,
     hiragana_reading: String,
     translations: Vec<String>,
 }
 
-struct NewWords {
-    new_words: HashMap<NewWordKey, NewWordVal>,
+struct JmdictWords {
+    jmdict_words: HashMap<JmdictWordKey, JmdictWordVal>,
 }
 
-impl NewWords {
+impl JmdictWords {
     fn new() -> Self {
         Self {
-            new_words: HashMap::new(),
+            jmdict_words: HashMap::new(),
         }
     }
 
@@ -441,13 +490,13 @@ impl NewWords {
         let word = word.to_owned();
         let reading = reading.to_owned();
         let sr = lbr::standardise_reading(&reading);
-        self.new_words.insert(
-            NewWordKey {
+        self.jmdict_words.insert(
+            JmdictWordKey {
                 jmdict_id,
                 word,
                 standardised_reading: sr.standardised,
             },
-            NewWordVal {
+            JmdictWordVal {
                 reading,
                 hiragana_reading: sr.hiragana,
                 translations,

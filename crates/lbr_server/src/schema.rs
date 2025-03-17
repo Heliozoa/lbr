@@ -54,6 +54,7 @@ diesel::table! {
         kanji_id -> Int4,
         reading -> Text,
         okurigana -> Nullable<Text>,
+        nanori -> Bool,
     }
 }
 

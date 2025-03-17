@@ -201,7 +201,7 @@ pub async fn generate(
             .filter(d::id.eq(id).and(d::user_id.eq(user_id)))
             .get_result(&mut conn)?;
 
-        let mut deck = decks::gen_deck(&mut conn, &deck.name, deck.id, deck.anki_deck_id)?;
+        let mut deck = decks::gen_deck(&mut conn, &deck.name, deck.id, deck.anki_deck_id, user_id)?;
         let mut buf = Cursor::new(Vec::new());
         deck.write(&mut buf)?;
         EyreResult::Ok(buf)

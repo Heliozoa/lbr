@@ -3,7 +3,7 @@
 
 export def env-vars []: nothing -> record {
     open .env  
-        |lines 
+        | lines
         | split column '#'
         | get column1 
         | parse "{key}={value}"
@@ -12,7 +12,7 @@ export def env-vars []: nothing -> record {
 }
 
 export def initialise_logging [] {
-    let logging_level = "warn"
+    let logging_level = "debug"
     print $"Setting logging level ($logging_level)"
     $env.RUST_LOG = $logging_level
 }

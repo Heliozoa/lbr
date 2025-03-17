@@ -958,9 +958,9 @@ dependencies = [
 
 [[package]]
 name = "furigana"
-version = "0.1.8"
+version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92ac3a9bcccb139a8fb12934d483830322e54d7370b9ad0b885b2bbc6d3a57cf"
+checksum = "617d31e216ba9dce165c8c8828ba9a79b8956b22fcf7bf6f78a8114432c9211c"
 
 [[package]]
 name = "futures"

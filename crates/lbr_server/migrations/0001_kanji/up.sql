@@ -9,7 +9,8 @@ CREATE TABLE kanji_readings (
     id SERIAL PRIMARY KEY,
     kanji_id INTEGER NOT NULL REFERENCES kanji,
     reading TEXT NOT NULL,
-    okurigana TEXT
+    okurigana TEXT,
+    nanori BOOLEAN NOT NULL
 );
 CREATE TABLE kanji_similar (
     lower_kanji_id INTEGER NOT NULL REFERENCES kanji,
