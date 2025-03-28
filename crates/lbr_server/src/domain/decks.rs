@@ -132,6 +132,7 @@ fn get_kanji_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Ka
         // get all kanji related to the words
         .inner_join(wk::table.on(wk::word_id.eq(w::id)))
         .inner_join(k::table.on(k::id.eq(wk::kanji_id)))
+        .filter(k::name.is_not_null())
         .select(KanjiWordQuery::as_select())
         .load(conn)?;
     let kanji_ids = kanji_words.iter().map(|kw| kw.kanji_id).collect::<Vec<_>>();
@@ -254,7 +255,7 @@ fn kanji_card_from_query(
     KanjiCard {
         id: kanji.kanji_id,
         kanji: kanji.kanji,
-        name: kanji.kanji_name,
+        name: kanji.kanji_name.unwrap_or_default(),
         example_source_word: anki::KanjiWord {
             word: kanji.written_form,
             translations: kanji.translations.into_iter().flatten().collect(),

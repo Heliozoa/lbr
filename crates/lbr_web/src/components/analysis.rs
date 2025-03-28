@@ -496,15 +496,21 @@ fn InterpretationView(
         .into_iter()
         .enumerate()
         .map(|(component_seq, component)| {
-            let unknown_or_ignored = !form.seqs_to_component.contains_key(&(
+            let unknown = !form.seqs_to_component.contains_key(&(
                 phrase_seq,
                 interpretation_seq,
                 component_seq,
-            )) || match component.word_id {
-                Some(word_id) => ignored_words.contains(&word_id),
-                None => true,
-            };
-            if unknown_or_ignored {
+            ));
+            let ignored = component
+                .word_id
+                .map(|wid| ignored_words.contains(&wid))
+                .unwrap_or_default();
+            if unknown {
+                return view! {
+                    <div>{format!("{} (unknown)", component.word)}</div>
+                }
+                .into_any();
+            } else if ignored {
                 return view! {
                     <div>{format!("{} (ignored)", component.word)}</div>
                 }

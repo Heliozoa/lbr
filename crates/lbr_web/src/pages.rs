@@ -241,12 +241,12 @@ pub fn Source() -> impl IntoView {
 }
 
 #[derive(Debug, Clone, PartialEq, Params)]
-pub struct SentencesParams {
+pub struct SourceSentencesParams {
     source_id: Option<i32>,
 }
 #[component]
 pub fn SourceSentences() -> impl IntoView {
-    let SentencesParams { source_id } = utils::params()?;
+    let SourceSentencesParams { source_id } = utils::params()?;
     let source_id = source_id.expect("failed to get source_id");
     tracing::info!("Rendering SourceSentences {source_id}");
 
@@ -260,7 +260,7 @@ pub fn SourceSentences() -> impl IntoView {
             .map(|s| {
                 view! {
                     <li>
-                        <A href=format!("/source/{source_id}/sentence/{}", s.id)>{s.sentence}</A>
+                        <A href=format!("/sentence/{}", s.id)>{s.sentence}</A>
                     </li>
                 }
             })
@@ -376,19 +376,14 @@ pub fn SourceAddSentences() -> impl IntoView {
 }
 
 #[derive(Debug, Clone, PartialEq, Params)]
-pub struct SourceSentenceParams {
-    source_id: Option<i32>,
+pub struct SentenceParams {
     sentence_id: Option<i32>,
 }
 #[component]
-pub fn SourceSentence() -> impl IntoView {
-    let SourceSentenceParams {
-        source_id,
-        sentence_id,
-    } = utils::params()?;
-    let source_id = source_id.expect("failed to get source_id");
+pub fn Sentence() -> impl IntoView {
+    let SentenceParams { sentence_id } = utils::params()?;
     let sentence_id = sentence_id.expect("failed to get sentence_id");
-    tracing::info!("Rendering Sentence {source_id} {sentence_id}");
+    tracing::info!("Rendering Sentence {sentence_id}");
 
     let sentence_res = utils::logged_in_resource!(get_sentence(sentence_id));
 
@@ -396,7 +391,7 @@ pub fn SourceSentence() -> impl IntoView {
         let client = get_client();
         async move { SendWrapper::new(client.segment_sentence(sentence_id)).await }
     });
-    let delete_act = Action::new(move |&()| {
+    let delete_act = Action::new(move |&source_id| {
         let confirmed = leptos::prelude::window()
             .confirm_with_message("Are you sure you want to delete this sentence?")
             .map_err(WebError::from_js);
@@ -419,9 +414,23 @@ pub fn SourceSentence() -> impl IntoView {
             // todo sentence_res.refetch();
             reanalyse_act.value().set(None);
         });
-        view! {
-            <SegmentedSentenceView source_id sentence_id=Some(sentence_id) sentence={segmented_sentence.sentence} segments={segmented_sentence.segments} ignored_words={Arc::new(segmented_sentence.ignored_words)} on_successful_accept=on_successful_accept />
-        }
+        sentence_res
+            .get()
+            .map(|sr| sr.ok())
+            .flatten()
+            .flatten()
+            .map(|sd| {
+                view! {
+                    <SegmentedSentenceView
+                        source_id={sd.source_id}
+                        sentence_id=Some(sentence_id)
+                        sentence={segmented_sentence.sentence}
+                        segments={segmented_sentence.segments}
+                        ignored_words={Arc::new(segmented_sentence.ignored_words)}
+                        on_successful_accept=on_successful_accept
+                    />
+                }
+            })
     };
     let analysis_view =
         move |segmented: Option<res::SegmentedSentence>| segmented.map(analysis_content);
@@ -491,7 +500,7 @@ pub fn SourceSentence() -> impl IntoView {
                 </div>
             </div>
             <div class="block">
-                <button class="button is-danger" on:click=move |_ev| { delete_act.dispatch(()); }>
+                <button class="button is-danger" on:click=move |_ev| { delete_act.dispatch({sentence.source_id}); }>
                     "Delete sentence"
                 </button>
                 <ActionView action=delete_act/>

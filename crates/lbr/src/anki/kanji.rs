@@ -6,7 +6,7 @@ use genanki_rs::{Field, Model, Note, Template};
 pub struct KanjiCard {
     pub id: i32,
     pub kanji: String,
-    pub name: Option<String>,
+    pub name: String,
     pub example_source_word: KanjiWord,
     pub similar_kanji: Vec<Kanji>,
     pub kanji_words: usize,
@@ -84,7 +84,7 @@ pub struct KanjiFields {
     id: String,
     count: String,
     kanji: String,
-    name: Option<String>,
+    name: String,
     example_source_word: String,
     example_source_word_translation: String,
     similar_kanji: String,
@@ -114,7 +114,7 @@ impl KanjiFields {
             &self.id,
             &self.count,
             &self.kanji,
-            &self.name.as_deref().unwrap_or(""),
+            &self.name,
             &self.example_source_word,
             &self.example_source_word_translation,
             &self.similar_kanji,
@@ -145,10 +145,10 @@ pub fn create_model() -> Model {
     <hr>
 
     <div id=example>
-        {{furigana:example-source-word}}
+        {{furigana:example_source_word}}
     </div>
     <div id=translation>
-        {{example-source-word-translation}}
+        {{example_source_word_translation}}
     </div>
 </div>
 "#,

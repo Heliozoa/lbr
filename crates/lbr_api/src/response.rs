@@ -71,6 +71,7 @@ pub struct Sentence {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SentenceDetails {
     pub id: i32,
+    pub source_id: i32,
     pub sentence: String,
     pub words: Vec<SentenceWord>,
 }

@@ -41,7 +41,9 @@ pub async fn segment(
                     continue;
                 }
                 let segmented_sentence = scope.spawn(|| {
+                    let mut conn = state.lbr_pool.get()?;
                     sentences::process_sentence(
+                        &mut conn,
                         &state.ichiran_cli,
                         sentence.to_string(),
                         &state.ichiran_word_to_id,

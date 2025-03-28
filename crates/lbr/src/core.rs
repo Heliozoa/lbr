@@ -2,7 +2,7 @@
 
 use crate::{is_kanji, standardise_reading};
 use lbr_core::ichiran_types as it;
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Not};
 
 /// Converts ichiran segments to lbr's format.
 ///
@@ -22,7 +22,7 @@ pub fn to_lbr_segments(
             // todo: process alternate segmentations
             segmentations.sort_by(|a, b| a.score.cmp(&b.score).reverse());
             if let Some(segmentation) = segmentations.into_iter().next() {
-                tracing::info!("{segmentation:#?}");
+                tracing::trace!("Segmented {segmentation:#?}");
                 for word in segmentation.words {
                     process_word(
                         &mut segments,
@@ -178,7 +178,7 @@ fn to_lbr_word_info(
     // replace zero width spaces
     let reading_hiragana = replace_invisible_characters(&info.kana);
     if word_id.is_none() {
-        tracing::debug!("Failed to find word id for {} ({:?})", info.text, info.seq);
+        tracing::debug!("Failed to find word id for {info:#?}");
     }
     let meanings = word_id
         .and_then(|wid| word_to_meanings.get(&wid))
@@ -240,9 +240,18 @@ fn try_get_word_id(
                 // this is not a waterproof solution but should work well enough
                 dictionary_form_reading.clone()
             };
+            tracing::info!(
+                "trying {} {} {}",
+                seq,
+                dictionary_form,
+                reading_standard.standardised,
+            );
             return ichiran_word_to_id
                 .get(&(seq, dictionary_form.clone(), reading_standard.standardised))
                 .or_else(|| {
+                    if dictionary_form.chars().any(is_digit).not() {
+                        return None;
+                    }
                     // sometimes the "dictionary form" we find includes numbers before the actual word,
                     // for example for ２１度, 4日 etc.
                     // so if we fail to find the word we'll try to remove the numbers and try again...
@@ -268,6 +277,53 @@ fn try_get_word_id(
                         }
                     }
 
+                    tracing::info!(
+                        "trying {} {} {}",
+                        seq,
+                        dictionary_form_without_numbers,
+                        reading_without_numbers,
+                    );
+                    ichiran_word_to_id.get(&(
+                        seq,
+                        dictionary_form_without_numbers,
+                        reading_without_numbers,
+                    ))
+                })
+                .or_else(|| {
+                    if !dictionary_form.ends_with("目") && !dictionary_form.ends_with("間") {
+                        return None;
+                    }
+                    // same as above but without 目 and 間 at the end to account for 人目 and　年間...
+                    let mut dictionary_form_without_numbers = String::new();
+                    let mut reading_without_numbers = String::new();
+                    if let Some(segmentation) = furigana::map(
+                        &dictionary_form,
+                        &dictionary_form_reading,
+                        kanji_to_readings,
+                    )
+                    .iter()
+                    .max_by_key(|f| f.accuracy)
+                    {
+                        for furigana in segmentation
+                            .furigana
+                            .iter()
+                            // skip digit sections
+                            .skip_while(|f| f.segment.chars().all(is_digit))
+                            .take_while(|f| f.segment != "目")
+                            .take_while(|f| f.segment != "間")
+                        {
+                            dictionary_form_without_numbers.push_str(furigana.segment);
+                            reading_without_numbers
+                                .push_str(furigana.furigana.unwrap_or(furigana.segment));
+                        }
+                    }
+
+                    tracing::info!(
+                        "trying {} {} {}",
+                        seq,
+                        dictionary_form_without_numbers,
+                        reading_without_numbers,
+                    );
                     ichiran_word_to_id.get(&(
                         seq,
                         dictionary_form_without_numbers,

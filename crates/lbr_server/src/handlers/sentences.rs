@@ -56,6 +56,7 @@ pub async fn get_one(
             .collect();
         let sentence = res::SentenceDetails {
             id: sentence.id,
+            source_id: sentence.source_id,
             sentence: sentence.sentence,
             words,
         };
@@ -157,6 +158,7 @@ pub async fn segment(
             .select(s::sentence)
             .get_result::<String>(&mut conn)?;
         let segmented_sentence = sentences::process_sentence(
+            &mut conn,
             &state.ichiran_cli,
             sentence,
             &state.ichiran_word_to_id,
@@ -196,6 +198,7 @@ pub async fn segment(
 query! {
     struct Sentence {
         id: i32 = sentences::id,
+        source_id: i32 = sentences::source_id,
         sentence: String = sentences::sentence,
     }
 }

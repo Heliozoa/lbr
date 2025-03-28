@@ -82,6 +82,18 @@ fn get_roots(
                 jmdict_id_to_words,
             );
         }
+        if let Some(nexts) = conj_seq_via_to_froms.get(&(current_seq, true)) {
+            for next in nexts {
+                get_roots(
+                    ichiran_word_to_word_id,
+                    starting_seq,
+                    *next,
+                    ichiran_seq_to_root,
+                    conj_seq_via_to_froms,
+                    jmdict_id_to_words,
+                );
+            }
+        }
     } else if let Some(nexts) = conj_seq_via_to_froms.get(&(current_seq, true)) {
         for next in nexts {
             get_roots(
@@ -93,20 +105,20 @@ fn get_roots(
                 jmdict_id_to_words,
             );
         }
-    } else {
-        // there are root words that also have further conjugations, e.g.
-        // 思い is a root word i.e. the word "thought", but it is also a conjugation of "思う"
-        // by having this in the else branch, we are only considering "true" root words
-        if ichiran_seq_to_root
-            .get(&current_seq)
-            .copied()
-            .unwrap_or_default()
-        {
-            // is root, add words to map
-            if let Some(words) = jmdict_id_to_words.get(&current_seq) {
-                for (id, word, reading) in words {
-                    ichiran_word_to_word_id
-                        .insert((starting_seq, word.clone(), reading.clone()), *id);
+    }
+    // we add the words to the maps last here for a depth first search
+    // so that deeper mappings are preferred
+    if ichiran_seq_to_root
+        .get(&current_seq)
+        .copied()
+        .unwrap_or_default()
+    {
+        // is root, add words to map
+        if let Some(words) = jmdict_id_to_words.get(&current_seq) {
+            for (id, word, reading) in words {
+                let key = (starting_seq, word.clone(), reading.clone());
+                if !ichiran_word_to_word_id.contains_key(&key) {
+                    ichiran_word_to_word_id.insert(key, *id);
                 }
             }
         }

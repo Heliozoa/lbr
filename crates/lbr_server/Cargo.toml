@@ -31,7 +31,7 @@ chrono = { version = "0.4.26", default-features = false, features = [
 diesel = { version = "2.1.0", features = ["postgres", "chrono", "r2d2"] }
 dotenvy = "0.15.7"
 eyre = "0.6.8"
-furigana = "0.1.9"
+furigana = "0.1.10"
 ichiran = "0.6.0"
 itertools = "0.14.0"
 leptos = { workspace = true, features = ["ssr"] }

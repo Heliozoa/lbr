@@ -11,6 +11,7 @@ use std::collections::{HashMap, HashSet};
 
 /// Segments a sentence using ichiran.
 pub fn segment_sentence(
+    conn: &mut PgConnection,
     ichiran: &IchiranCli,
     sentence: &str,
     ichiran_word_to_id: &HashMap<(i32, String, String), i32>,
@@ -29,21 +30,53 @@ pub fn segment_sentence(
             return Err(err).wrap_err_with(|| format!("Failed to segment sentence '{sentence}'"));
         }
     };
-    let segmented_sentence = lbr::core::to_lbr_segments(
+    let mut segmented_sentence = lbr::core::to_lbr_segments(
         sentence,
         segments,
         ichiran_word_to_id,
         kanji_to_readings,
         word_to_meanings,
     );
+    // todo
+    /*
+    for s in &mut segmented_sentence {
+        if let lbr_core::ichiran_types::Segment::Phrase {
+            interpretations, ..
+        } = s
+        {
+            for i in interpretations {
+                for c in &mut i.components {
+                    if let Some(wid) = &mut c.word_id {
+                        use crate::schema::words as w;
+                        let (word, reading, translations) = w::table
+                            .filter(w::id.eq(*wid))
+                            .select((w::word, w::reading, w::translations))
+                            .get_result::<(String, String, Vec<Option<String>>)>(conn)?;
+                        let translations = translations
+                            .into_iter()
+                            .filter_map(|t| t)
+                            .map(|t| lbr_core::ichiran_types::Meaning {
+                                meaning: t,
+                                meaning_info: None,
+                            })
+                            .collect();
+                        c.word = word;
+                        c.reading_hiragana = reading;
+                        c.meanings = translations;
+                    }
+                }
+            }
+        }
+    }*/
 
     tracing::info!("Finished segmenting sentence '{sentence}'");
-    tracing::debug!("Segmented sentence: {segmented_sentence:#?}");
+    tracing::trace!("Segmented sentence: {segmented_sentence:#?}");
     Ok(segmented_sentence)
 }
 
 /// Processes a sentence into the appropriate response type.
 pub fn process_sentence(
+    conn: &mut PgConnection,
     ichiran_cli: &IchiranCli,
     sentence: String,
     ichiran_word_to_id: &HashMap<(i32, String, String), i32>,
@@ -51,6 +84,7 @@ pub fn process_sentence(
     word_to_meanings: &HashMap<i32, Vec<String>>,
 ) -> eyre::Result<res::SegmentedParagraphSentence> {
     let segments = segment_sentence(
+        conn,
         ichiran_cli,
         &sentence,
         ichiran_word_to_id,
@@ -136,3 +170,61 @@ pub fn insert_sentence_words(
     })?;
     Ok(())
 }
+
+/*
+pub struct BetterSegmentationNode {
+    pub contents: BetterSegment,
+    pub continuations: Vec<BetterSegmentationNode>,
+    pub score: i32,
+}
+
+pub enum BetterSegment {
+    Segment(),
+    Other(String),
+    Empty,
+}
+
+fn to_better_lbr_segments(mut segments: Vec<ichiran::Segment>) -> BetterSegmentationNode {
+    if let Some(segment) = segments.pop() {
+        match segment {
+            ichiran::Segment::Segmentations(mut segmentations) => {
+                // alternate segmentations, combine identical alternatives
+                let mut merged =
+                    HashMap::<(Option<i32>, String, String), Vec<ichiran::Word>>::new();
+                for segmentation in segmentations {
+                    let mut words = segmentation.words;
+                    let first_word = segmentation.words.pop().expect("empty word list");
+                    for alternative in &first_word.alternatives {
+                        match alternative {
+                            ichiran::Alternative::CompoundWordInfo(cwi) => {
+                                let first_word = segmentation.words.pop().expect("empty word list");
+                            }
+                            ichiran::Alternative::WordInfo(cwi) => {
+                                let val = merged
+                                    .entry((cwi.seq, cwi.text.clone(), cwi.reading.clone()))
+                                    .or_default();
+                                val.push(words);
+                            }
+                        }
+                    }
+                }
+                todo!()
+            }
+            ichiran::Segment::Other(other) => {
+                // text segment, take as content and move on
+                BetterSegmentationNode {
+                    contents: BetterSegment::Other(other),
+                    continuations: to_better_lbr_segments(segments),
+                    score: 0,
+                }
+            }
+        }
+    } else {
+        BetterSegmentationNode {
+            contents: BetterSegment::Empty,
+            continuations: Vec::new(),
+            score: 0,
+        }
+    }
+}
+ */

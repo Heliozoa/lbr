@@ -84,8 +84,8 @@ pub fn Content() -> impl IntoView {
                         view=SourceSentences
                     />
                     <Route
-                        path=(StaticSegment("source"), ParamSegment("source_id"), StaticSegment("sentences"), ParamSegment("sentence_id"))
-                        view=SourceSentence
+                        path=(StaticSegment("sentence"), ParamSegment("sentence_id"))
+                        view=Sentence
                     />
                     <Route
                         path=(StaticSegment("deck"), StaticSegment("new"))

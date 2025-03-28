@@ -3,7 +3,11 @@
 use diesel::prelude::*;
 use eyre::WrapErr;
 use jadata::kanji_names::KanjiNames;
-use std::{collections::HashMap, env, io::stdin};
+use std::{
+    collections::{HashMap, HashSet},
+    env,
+    io::{stdin, stdout, Write},
+};
 
 fn main() -> eyre::Result<()> {
     tracing_subscriber::fmt::init();
@@ -17,6 +21,13 @@ fn main() -> eyre::Result<()> {
 
 fn print_common_unnamed_kanji(lbr_conn: &mut PgConnection) -> eyre::Result<()> {
     use lbr_server::schema::{kanji as k, sentence_words as sw, word_kanji as wk, words as w};
+
+    let existing_names = k::table
+        .select(k::name)
+        .get_results::<Option<String>>(lbr_conn)?
+        .into_iter()
+        .flatten()
+        .collect::<HashSet<_>>();
 
     let mut kanji_words: HashMap<String, Vec<(String, String, String)>> = HashMap::new();
     k::table
@@ -32,7 +43,7 @@ fn print_common_unnamed_kanji(lbr_conn: &mut PgConnection) -> eyre::Result<()> {
             entry.push((m, w, t));
         });
 
-    let common_unnamed_kanji: Vec<(String, i64)> = k::table
+    let mut common_unnamed_kanji: Vec<(String, i64)> = k::table
         .inner_join(wk::table.on(wk::kanji_id.eq(k::id)))
         .inner_join(w::table.on(w::id.eq(wk::word_id)))
         .inner_join(sw::table.on(sw::word_id.eq(w::id.nullable())))
@@ -47,27 +58,47 @@ fn print_common_unnamed_kanji(lbr_conn: &mut PgConnection) -> eyre::Result<()> {
     let s: KanjiNames = serde_json::from_reader(file).unwrap();
 
     let mut names: HashMap<String, String> = HashMap::new();
-    for (chara, sentences) in common_unnamed_kanji
+    println!("unnamed kanji: {}", common_unnamed_kanji.len());
+    'outer: for (chara, sentences) in common_unnamed_kanji
         .into_iter()
         .filter(|c| !s.kanji_names.contains_key(&c.0))
     {
-        let kw = kanji_words
+        let mut kw = kanji_words
             .get(&chara)
             .map(Vec::as_slice)
-            .unwrap_or_default();
+            .unwrap_or_default()
+            .to_vec();
+
+        kw.sort_by_key(|w| {
+            w.1.chars()
+                .filter(|c| wana_kana::utils::is_char_kanji(*c))
+                .count()
+                * 10_000
+                + w.1.len()
+        });
 
         let meanings = kw.first().map(|t| t.0.as_str()).unwrap_or_default();
         println!("{chara} {sentences} {meanings}");
         for (_meanings, word, translations) in kw.iter().take(16) {
             println!("    {word}: {translations:?}");
         }
-        print!("input: ");
-        let mut line = String::new();
-        stdin().read_line(&mut line).unwrap();
-        if line.trim().is_empty() {
-            break;
+        loop {
+            print!("input: ");
+            stdout().flush().unwrap();
+            let mut line = String::new();
+            stdin().read_line(&mut line).unwrap();
+            if line.trim().is_empty() {
+                break 'outer;
+            }
+            let name = line.trim().to_string();
+            if existing_names.contains(&name) {
+                println!("\nalready exists");
+                continue;
+            } else {
+                names.insert(chara, name);
+                break;
+            }
         }
-        names.insert(chara, line.trim().to_string());
     }
     println!("{names:#?}");
     Ok(())

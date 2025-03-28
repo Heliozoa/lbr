@@ -307,6 +307,7 @@ fn update_words(conn: &mut PgConnection, jmdict: &JMdict) -> eyre::Result<()> {
     use lbr_server::schema::{kanji as k, word_kanji as wk, words as w};
 
     let kanji_to_readings = domain::japanese::kanji_to_readings(conn)?;
+    std::fs::write("./kanjimap", format!("{kanji_to_readings:#?}"));
 
     tracing::info!("Updating words");
     let existing_words_vec = w::table
