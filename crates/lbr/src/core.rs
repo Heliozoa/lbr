@@ -257,7 +257,7 @@ fn try_get_word_id(
                     // so if we fail to find the word we'll try to remove the numbers and try again...
                     let mut dictionary_form_without_numbers = String::new();
                     let mut reading_without_numbers = String::new();
-                    if let Some(segmentation) = furigana::map(
+                    if let Some(segmentation) = &furigana::map(
                         &dictionary_form,
                         &dictionary_form_reading,
                         kanji_to_readings,
@@ -278,7 +278,7 @@ fn try_get_word_id(
                     }
 
                     tracing::info!(
-                        "trying {} {} {}",
+                        "trying without numbers {} {} {}",
                         seq,
                         dictionary_form_without_numbers,
                         reading_without_numbers,
@@ -290,10 +290,12 @@ fn try_get_word_id(
                     ))
                 })
                 .or_else(|| {
-                    if !dictionary_form.ends_with("目") && !dictionary_form.ends_with("間") {
+                    let counters_char = &['目', '間'];
+                    let counters = &["目", "間"];
+                    if !dictionary_form.ends_with(counters_char) {
                         return None;
                     }
-                    // same as above but without 目 and 間 at the end to account for 人目 and　年間...
+                    // same as above but without the counter at the end to account for 人目 and　年間 etc...
                     let mut dictionary_form_without_numbers = String::new();
                     let mut reading_without_numbers = String::new();
                     if let Some(segmentation) = furigana::map(
@@ -309,8 +311,7 @@ fn try_get_word_id(
                             .iter()
                             // skip digit sections
                             .skip_while(|f| f.segment.chars().all(is_digit))
-                            .take_while(|f| f.segment != "目")
-                            .take_while(|f| f.segment != "間")
+                            .take_while(|f| !counters.contains(&f.segment))
                         {
                             dictionary_form_without_numbers.push_str(furigana.segment);
                             reading_without_numbers
@@ -319,7 +320,7 @@ fn try_get_word_id(
                     }
 
                     tracing::info!(
-                        "trying {} {} {}",
+                        "trying trying without numbers and counters {} {} {}",
                         seq,
                         dictionary_form_without_numbers,
                         reading_without_numbers,

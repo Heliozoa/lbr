@@ -7,7 +7,10 @@ use eyre::WrapErr;
 use ichiran::{IchiranCli, IchiranError};
 use lbr_api::{request as req, response as res};
 use lbr_core::ichiran_types;
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    ops::RangeInclusive,
+};
 
 /// Segments a sentence using ichiran.
 pub fn segment_sentence(
@@ -179,7 +182,11 @@ pub struct BetterSegmentationNode {
 }
 
 pub enum BetterSegment {
-    Segment(),
+    Word {
+        id: i32,
+        range: RangeInclusive<usize>,
+        reading: String,
+    },
     Other(String),
     Empty,
 }
@@ -188,22 +195,22 @@ fn to_better_lbr_segments(mut segments: Vec<ichiran::Segment>) -> BetterSegmenta
     if let Some(segment) = segments.pop() {
         match segment {
             ichiran::Segment::Segmentations(mut segmentations) => {
-                // alternate segmentations, combine identical alternatives
-                let mut merged =
-                    HashMap::<(Option<i32>, String, String), Vec<ichiran::Word>>::new();
+                // list of alternate segmentations
                 for segmentation in segmentations {
-                    let mut words = segmentation.words;
-                    let first_word = segmentation.words.pop().expect("empty word list");
-                    for alternative in &first_word.alternatives {
-                        match alternative {
-                            ichiran::Alternative::CompoundWordInfo(cwi) => {
-                                let first_word = segmentation.words.pop().expect("empty word list");
-                            }
-                            ichiran::Alternative::WordInfo(cwi) => {
-                                let val = merged
-                                    .entry((cwi.seq, cwi.text.clone(), cwi.reading.clone()))
-                                    .or_default();
-                                val.push(words);
+                    // words in the segmentation
+                    for word in segmentation.words {
+                        // alternative interpretations for the word
+                        for alternative in word.alternatives {
+                            match alternative {
+                                ichiran::Alternative::WordInfo(wi) => {
+                                    //
+                                }
+                                ichiran::Alternative::CompoundWordInfo(cwi) => {
+                                    // components of compound word
+                                    for component in cwi.components {
+                                        //
+                                    }
+                                }
                             }
                         }
                     }
@@ -227,4 +234,5 @@ fn to_better_lbr_segments(mut segments: Vec<ichiran::Segment>) -> BetterSegmenta
         }
     }
 }
+
  */

@@ -48,9 +48,11 @@ pub fn Navbar() -> impl IntoView {
         </nav>
         <ErrorBoundary fallback={utils::errors_fallback}>
             <Suspense fallback={move || view!  {}}>
-                <div>{move || logout_action.value().get().map(|o| o.unwrap_or_default()).unwrap_or_default().then(|| {
-                    view! { <Redirect path="/" /> }
-                })}</div>
+                //<div>
+                    {move || logout_action.value().get().map(|o| o.unwrap_or_default()).unwrap_or_default().then(|| {
+                        view! { <Redirect path="/" /> }
+                    })}
+                //</div>
             </Suspense>
         </ErrorBoundary>
     }
@@ -161,7 +163,9 @@ where
 {
     view! {
         <ErrorBoundary fallback={utils::errors_fallback}>
-            <div>{move || action.value()}</div>
+            <div>
+                {move || action.value().get()}
+            </div>
         </ErrorBoundary>
     }
 }

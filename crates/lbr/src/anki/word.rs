@@ -319,10 +319,10 @@ span {
 }
 
 ruby rt {
-    visibility: hidden;
+    display: none;
 }
 #answer ruby rt {
-    visibility: visible;
+    display: revert;
 }
 "#,
         )

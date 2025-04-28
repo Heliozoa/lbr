@@ -19,12 +19,12 @@ lbr_frontend = { path = "./crates/lbr_frontend" }
 lbr_server = { path = "./crates/lbr_server" }
 lbr_web = { path = "./crates/lbr_web" }
 
-leptos = { version = "0.8.0-beta", features = ["nightly"] }
-leptos_axum = "0.8.0-beta"
-leptos_meta = "0.8.0-beta"
-leptos_router = { version = "0.8.0-beta", features = ["nightly"] }
+leptos = { version = "=0.8.0-rc3", features = ["nightly"] }
+leptos_axum = "=0.8.0-rc3"
+leptos_meta = "=0.8.0-rc3"
+leptos_router = { version = "=0.8.0-rc3", features = ["nightly"] }
 
-# [patch.crates-io]
+[patch.crates-io]
 # ichiran = { path = "../ichiran-rs" }
 # furigana = { path = "../furigana" }
 

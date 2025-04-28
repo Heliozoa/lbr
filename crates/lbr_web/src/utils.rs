@@ -82,7 +82,7 @@ where
     T: Params + Clone + PartialEq + 'static + Send + Sync,
 {
     leptos_router::hooks::use_params()
-        .get()
+        .get_untracked()
         .map_err(WebError::from)
 }
 

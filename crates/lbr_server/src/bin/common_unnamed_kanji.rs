@@ -22,13 +22,6 @@ fn main() -> eyre::Result<()> {
 fn print_common_unnamed_kanji(lbr_conn: &mut PgConnection) -> eyre::Result<()> {
     use lbr_server::schema::{kanji as k, sentence_words as sw, word_kanji as wk, words as w};
 
-    let existing_names = k::table
-        .select(k::name)
-        .get_results::<Option<String>>(lbr_conn)?
-        .into_iter()
-        .flatten()
-        .collect::<HashSet<_>>();
-
     let mut kanji_words: HashMap<String, Vec<(String, String, String)>> = HashMap::new();
     k::table
         .inner_join(wk::table.on(wk::kanji_id.eq(k::id)))
@@ -43,7 +36,7 @@ fn print_common_unnamed_kanji(lbr_conn: &mut PgConnection) -> eyre::Result<()> {
             entry.push((m, w, t));
         });
 
-    let mut common_unnamed_kanji: Vec<(String, i64)> = k::table
+    let mut common_unnamed_kanji_db: Vec<(String, i64)> = k::table
         .inner_join(wk::table.on(wk::kanji_id.eq(k::id)))
         .inner_join(w::table.on(w::id.eq(wk::word_id)))
         .inner_join(sw::table.on(sw::word_id.eq(w::id.nullable())))
@@ -57,12 +50,30 @@ fn print_common_unnamed_kanji(lbr_conn: &mut PgConnection) -> eyre::Result<()> {
         .unwrap();
     let s: KanjiNames = serde_json::from_reader(file).unwrap();
 
-    let mut names: HashMap<String, String> = HashMap::new();
-    println!("unnamed kanji: {}", common_unnamed_kanji.len());
-    'outer: for (chara, sentences) in common_unnamed_kanji
+    let mut dupe_check = HashSet::new();
+    for n in s.kanji_names.values() {
+        if dupe_check.contains(n) {
+            println!("dupe {n}");
+        }
+        dupe_check.insert(n);
+    }
+
+    let existing_names = k::table
+        .select(k::name)
+        .get_results::<Option<String>>(lbr_conn)?
+        .into_iter()
+        .flatten()
+        .chain(s.kanji_names.values().map(String::from))
+        .collect::<HashSet<_>>();
+
+    let common_unnamed_kanji = common_unnamed_kanji_db
         .into_iter()
         .filter(|c| !s.kanji_names.contains_key(&c.0))
-    {
+        .collect::<Vec<_>>();
+
+    let mut names: HashMap<String, String> = HashMap::new();
+    println!("unnamed kanji: {}", common_unnamed_kanji.len());
+    'outer: for (chara, sentences) in common_unnamed_kanji {
         let mut kw = kanji_words
             .get(&chara)
             .map(Vec::as_slice)
@@ -101,5 +112,11 @@ fn print_common_unnamed_kanji(lbr_conn: &mut PgConnection) -> eyre::Result<()> {
         }
     }
     println!("{names:#?}");
+    for (kanji, name) in names {
+        diesel::update(k::table)
+            .set(k::name.eq(name))
+            .filter(k::chara.eq(kanji))
+            .execute(lbr_conn)?;
+    }
     Ok(())
 }
