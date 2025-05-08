@@ -57,7 +57,7 @@ impl<'a> Iterator for SentenceSplitter<'a> {
 
         let mut at_sentence_end = false;
         let mut quote_stack = Vec::<char>::new();
-        let sentence_enders = "。？！…‥.";
+        let sentence_enders = "。？！…‥.?!";
 
         // go through each character
         for c in next_chunk.chars() {
@@ -217,5 +217,13 @@ mod test {
         let ss = SentenceSplitter::new(sentences);
         let sentences = ss.collect::<Vec<_>>();
         assert_eq!(sentences, &["おはよう。", "さようなら。"]);
+    }
+
+    #[test]
+    fn dots_followed_by_interrobang() {
+        let sentences = "「おはよう...!? さようなら。」";
+        let ss = SentenceSplitter::new(sentences);
+        let sentences = ss.collect::<Vec<_>>();
+        assert_eq!(sentences, &["おはよう...!?", "さようなら。"]);
     }
 }
