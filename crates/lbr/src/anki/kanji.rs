@@ -1,6 +1,7 @@
 //! Kanji Anki cards.
 
 use genanki_rs::{Field, Model, Note, Template};
+use std::sync::Arc;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct KanjiCard {
@@ -57,12 +58,12 @@ impl KanjiCard {
         }
     }
 
-    pub fn into_note(self, model: &Model) -> Note {
+    pub fn into_note(self, model: Arc<Model>) -> Note {
         // negate id to avoid conflicts with word ids
         let kanji_id = self.id;
         let guid = format!("lbr-kanji-{kanji_id}");
         let fields = self.into_fields();
-        Note::new_with_options(model.clone(), fields.to_fields(), None, None, Some(&guid)).unwrap()
+        Note::new_with_options(model, fields.to_fields(), None, None, Some(&guid)).unwrap()
     }
 }
 
@@ -109,16 +110,16 @@ impl KanjiFields {
     }
 
     // keep in sync with `fields`
-    fn to_fields(&self) -> Vec<&str> {
+    fn to_fields(self) -> Vec<String> {
         vec![
-            &self.id,
-            &self.count,
-            &self.kanji,
-            &self.name,
-            &self.example_source_word,
-            &self.example_source_word_translation,
-            &self.similar_kanji,
-            &self.generated_at,
+            self.id,
+            self.count,
+            self.kanji,
+            self.name,
+            self.example_source_word,
+            self.example_source_word_translation,
+            self.similar_kanji,
+            self.generated_at,
         ]
     }
 }

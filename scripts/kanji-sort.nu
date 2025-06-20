@@ -1,0 +1,1 @@
+jq --sort-keys . ./crates/jadata/data/kanji_extra.json | save ./crates/jadata/data/kanji_extra.json

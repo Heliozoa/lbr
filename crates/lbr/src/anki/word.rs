@@ -2,7 +2,7 @@
 
 use genanki_rs::{Field, Model, Note, Template};
 use serde::Deserialize;
-use std::{fmt::Write, ops::Range};
+use std::{fmt::Write, ops::Range, sync::Arc};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct WordCard {
@@ -99,9 +99,6 @@ impl WordCard {
         let mut word = String::with_capacity(self.word.len() * 4);
         let mut word_idx = 0;
         for furigana in &self.word_furigana {
-            if sentence_idx == 416 {
-                println!("{furigana:#?}");
-            }
             if word_idx < furigana.range.start {
                 write!(word, "{}[ ]", &self.word[word_idx..furigana.range.start]).unwrap();
             }
@@ -127,7 +124,7 @@ impl WordCard {
         translation.push_str("</ul>");
 
         // kanji
-        let mut kanji = String::with_capacity('字'.len_utf8() * self.kanji.len());
+        let mut kanji = String::with_capacity('字'.len_utf8() * self.kanji.len() + 32);
         for k in self.kanji {
             if let Some(name) = k.name {
                 write!(kanji, "<div>{} ({})</div>", k.chara, name).unwrap();
@@ -153,18 +150,11 @@ impl WordCard {
         }
     }
 
-    pub fn into_note(self, model: &Model) -> Note {
+    pub fn into_note(self, model: Arc<Model>) -> Note {
         let word_id = self.id;
         let guid = format!("lbr-word-{word_id}");
         let fields = self.into_fields();
-        Note::new_with_options(
-            model.clone(),
-            fields.to_fields(),
-            Some(true),
-            None,
-            Some(&guid),
-        )
-        .unwrap()
+        Note::new_with_options(model, fields.to_fields(), Some(true), None, Some(&guid)).unwrap()
     }
 }
 
@@ -231,17 +221,17 @@ impl WordFields {
     }
 
     // keep in sync with `fields`
-    fn to_fields(&self) -> Vec<&str> {
+    fn to_fields(self) -> Vec<String> {
         vec![
-            &self.id,
-            &self.count,
-            &self.word_id,
-            &self.sentence_id,
-            &self.sentence,
-            &self.word,
-            &self.translation,
-            &self.kanji,
-            &self.generated_at,
+            self.id,
+            self.count,
+            self.word_id,
+            self.sentence_id,
+            self.sentence,
+            self.word,
+            self.translation,
+            self.kanji,
+            self.generated_at,
         ]
     }
 }

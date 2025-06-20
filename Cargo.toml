@@ -27,6 +27,7 @@ leptos_router = { version = "=0.8.0-rc3", features = ["nightly"] }
 [patch.crates-io]
 # ichiran = { path = "../ichiran-rs" }
 # furigana = { path = "../furigana" }
+genanki-rs = { path = "../genanki-rs" }
 
 
 [profile.dev.package]
