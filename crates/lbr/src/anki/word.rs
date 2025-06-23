@@ -1,6 +1,6 @@
 //! Sentence word Anki cards.
 
-use genanki_rs::{Field, Model, Note, Template};
+use reanki::{Field, Model, ModelType, Note, Template};
 use serde::Deserialize;
 use std::{fmt::Write, ops::Range, sync::Arc};
 
@@ -150,11 +150,11 @@ impl WordCard {
         }
     }
 
-    pub fn into_note(self, model: Arc<Model>) -> Note {
+    pub fn into_note(self, model: Arc<Model>, template: Arc<Template>) -> Note {
         let word_id = self.id;
         let guid = format!("lbr-word-{word_id}");
         let fields = self.into_fields();
-        Note::new_with_options(model, fields.to_fields(), Some(true), None, Some(&guid)).unwrap()
+        Note::new(guid, model, vec![template], fields.to_fields())
     }
 }
 
@@ -206,17 +206,17 @@ impl WordFields {
     // keep in sync with `to_fields`
     fn fields() -> Vec<Field> {
         vec![
-            Field::new("id"),
+            Field::new("id".to_string()),
             // count should be the 1th field
             // as the model sets this as the sort field
-            Field::new("count"),
-            Field::new("word_id"),
-            Field::new("sentence_id"),
-            Field::new("sentence"),
-            Field::new("word"),
-            Field::new("translation"),
-            Field::new("kanji"),
-            Field::new("generated_at"),
+            Field::new("count".to_string()),
+            Field::new("word_id".to_string()),
+            Field::new("sentence_id".to_string()),
+            Field::new("sentence".to_string()),
+            Field::new("word".to_string()),
+            Field::new("translation".to_string()),
+            Field::new("kanji".to_string()),
+            Field::new("generated_at".to_string()),
         ]
     }
 
@@ -237,48 +237,15 @@ impl WordFields {
 }
 
 /// Globally unique anki model ID. Randomly chosen.
-const LBR_WORD_ANKI_MODEL_ID: i64 = -4236074849754614939;
+const LBR_WORD_ANKI_MODEL_ID: i32 = -2108777964;
 pub fn create_model() -> Model {
     let fields = WordFields::fields();
-    let templates = vec![Template::new("lbr-word")
-        .qfmt(
-            r#"
-<div id=sentence>
-    {{furigana:sentence}}
-</div>
-"#,
-        )
-        .afmt(
-            r#"
-<div id=answer>
-    <div id=sentence>
-        {{furigana:sentence}}
-    </div>
-
-    <hr>
-
-    <div id=word>
-        {{furigana:word}}
-    </div>
-{{#kanji}}
-    <div>
-        <div id=kanji>
-            {{kanji}}
-        </div>
-    </div>
-{{/kanji}}
-    <div>
-        <div id=translation>
-            {{translation}}
-        </div>
-    </div>
-</div>
-"#,
-        )];
-    Model::new(LBR_WORD_ANKI_MODEL_ID, "lbr-word", fields, templates)
-        .sort_field_index(1)
-        .css(
-            r#"
+    Model::new(
+        LBR_WORD_ANKI_MODEL_ID,
+        "lbr-word".to_string(),
+        fields,
+        1,
+        r#"
 .card {
     text-align: center;
     background-color: Linen;
@@ -314,8 +281,50 @@ ruby rt {
 #answer ruby rt {
     display: revert;
 }
-"#,
-        )
+"#
+        .to_string(),
+        ModelType::Standard,
+    )
+}
+
+const LBR_WORD_ANKI_TEMPLATE_ID: i32 = -911618187;
+pub fn create_template() -> Template {
+    Template::new(
+        LBR_WORD_ANKI_TEMPLATE_ID,
+        "lbr-word".to_string(),
+        r#"
+<div id=sentence>
+    {{furigana:sentence}}
+</div>
+"#
+        .to_string(),
+        r#"
+<div id=answer>
+    <div id=sentence>
+        {{furigana:sentence}}
+    </div>
+
+    <hr>
+
+    <div id=word>
+        {{furigana:word}}
+    </div>
+{{#kanji}}
+    <div>
+        <div id=kanji>
+            {{kanji}}
+        </div>
+    </div>
+{{/kanji}}
+    <div>
+        <div id=translation>
+            {{translation}}
+        </div>
+    </div>
+</div>
+"#
+        .to_string(),
+    )
 }
 
 #[cfg(test)]

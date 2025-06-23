@@ -3,18 +3,18 @@
 use crate::utils::database::{self, DeckSourceKind};
 use diesel::prelude::*;
 use itertools::Itertools;
-use lbr::anki::{self, Card, KanjiCard, Package, Sentence, SentenceWord, WordCard, WordKanji};
+use lbr::anki::{self, Card, Deck, KanjiCard, Sentence, SentenceWord, WordCard, WordKanji};
 use rand::seq::IndexedRandom;
 use std::collections::{HashMap, HashSet};
 
 /// Generates an Anki deck for the given deck id.
 pub fn gen_deck(
     conn: &mut PgConnection,
-    name: &str,
+    name: String,
     deck_id: i32,
-    anki_deck_id: i64,
+    anki_deck_id: i32,
     user_id: i32,
-) -> eyre::Result<Package> {
+) -> eyre::Result<Deck> {
     tracing::info!("Creating cards");
     let cards = get_cards(conn, user_id, deck_id)?;
 

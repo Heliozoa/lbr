@@ -1,6 +1,6 @@
 //! Kanji Anki cards.
 
-use genanki_rs::{Field, Model, Note, Template};
+use reanki::{Field, Model, Note, Template};
 use std::sync::Arc;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -58,12 +58,12 @@ impl KanjiCard {
         }
     }
 
-    pub fn into_note(self, model: Arc<Model>) -> Note {
+    pub fn into_note(self, model: Arc<Model>, template: Arc<Template>) -> Note {
         // negate id to avoid conflicts with word ids
         let kanji_id = self.id;
-        let guid = format!("lbr-kanji-{kanji_id}");
+        let guid: String = format!("lbr-kanji-{kanji_id}");
         let fields = self.into_fields();
-        Note::new_with_options(model, fields.to_fields(), None, None, Some(&guid)).unwrap()
+        Note::new(guid, model, vec![template], fields.to_fields())
     }
 }
 
@@ -96,16 +96,16 @@ impl KanjiFields {
     // keep in sync with `to_fields`
     fn fields() -> Vec<Field> {
         vec![
-            Field::new("id"),
+            Field::new("id".to_string()),
             // the count should be the 1th field
             // as this is used by the model as the sort field
-            Field::new("count"),
-            Field::new("kanji"),
-            Field::new("name"),
-            Field::new("example_source_word"),
-            Field::new("example_source_word_translation"),
-            Field::new("similar_kanji"),
-            Field::new("generated_at"),
+            Field::new("count".to_string()),
+            Field::new("kanji".to_string()),
+            Field::new("name".to_string()),
+            Field::new("example_source_word".to_string()),
+            Field::new("example_source_word_translation".to_string()),
+            Field::new("similar_kanji".to_string()),
+            Field::new("generated_at".to_string()),
         ]
     }
 
@@ -125,39 +125,15 @@ impl KanjiFields {
 }
 
 /// Globally unique anki model ID. Randomly chosen.
-const LBR_KANJI_ANKI_MODEL_ID: i64 = -1842913271028638742;
+const LBR_KANJI_ANKI_MODEL_ID: i32 = -1289186172;
 pub fn create_model() -> Model {
     let fields = KanjiFields::fields();
-    let templates = vec![Template::new("lbr-kanji")
-        .qfmt(
-            r#"
-<div id=kanji>
-    {{kanji}}
-</div>
-"#,
-        )
-        .afmt(
-            r#"
-<div id=answer>
-    <div id=name>
-        {{name}}
-    </div>
-
-    <hr>
-
-    <div id=example>
-        {{furigana:example_source_word}}
-    </div>
-    <div id=translation>
-        {{example_source_word_translation}}
-    </div>
-</div>
-"#,
-        )];
-    Model::new(LBR_KANJI_ANKI_MODEL_ID, "lbr-kanji", fields, templates)
-        .sort_field_index(1)
-        .css(
-            r#"
+    Model::new(
+        LBR_KANJI_ANKI_MODEL_ID,
+        "lbr-kanji".to_string(),
+        fields,
+        1,
+        r#"
 .card {
     text-align: center;
     background-color: Linen;
@@ -174,6 +150,39 @@ pub fn create_model() -> Model {
     display: inline-block;
     text-align: left;
 }
-"#,
-        )
+"#
+        .to_string(),
+        reanki::ModelType::Standard,
+    )
+}
+
+const LBR_KANJI_ANKI_TEMPLATE_ID: i32 = -155074387;
+pub fn create_template() -> Template {
+    Template::new(
+        LBR_KANJI_ANKI_TEMPLATE_ID,
+        "lbr-kanji".to_string(),
+        r#"
+<div id=kanji>
+    {{kanji}}
+</div>
+"#
+        .to_string(),
+        r#"
+<div id=answer>
+    <div id=name>
+        {{name}}
+    </div>
+
+    <hr>
+
+    <div id=example>
+        {{furigana:example_source_word}}
+    </div>
+    <div id=translation>
+        {{example_source_word_translation}}
+    </div>
+</div>
+"#
+        .to_string(),
+    )
 }

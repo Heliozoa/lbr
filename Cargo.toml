@@ -19,20 +19,19 @@ lbr_frontend = { path = "./crates/lbr_frontend" }
 lbr_server = { path = "./crates/lbr_server" }
 lbr_web = { path = "./crates/lbr_web" }
 
-leptos = { version = "=0.8.0-rc3", features = ["nightly"] }
-leptos_axum = "=0.8.0-rc3"
-leptos_meta = "=0.8.0-rc3"
-leptos_router = { version = "=0.8.0-rc3", features = ["nightly"] }
+leptos = { version = "0.8.2", features = ["nightly"] }
+leptos_axum = "0.8.2"
+leptos_meta = "0.8.2"
+leptos_router = { version = "0.8.2", features = ["nightly"] }
 
 [patch.crates-io]
 # ichiran = { path = "../ichiran-rs" }
 # furigana = { path = "../furigana" }
-genanki-rs = { path = "../genanki-rs" }
 
 
 [profile.dev.package]
 furigana.opt-level = 3
-genanki-rs.opt-level = 3
+reanki.opt-level = 3
 ichiran.opt-level = 3
 serde.opt-level = 3
 serde_json.opt-level = 3
