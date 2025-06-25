@@ -58,12 +58,12 @@ impl KanjiCard {
         }
     }
 
-    pub fn into_note(self, model: Arc<Model>, template: Arc<Template>) -> Note {
+    pub fn into_note(self, model: Arc<Model>, template: Arc<Template>, order: u16) -> Note {
         // negate id to avoid conflicts with word ids
         let kanji_id = self.id;
         let guid: String = format!("lbr-kanji-{kanji_id}");
         let fields = self.into_fields();
-        Note::new(guid, model, vec![template], fields.to_fields())
+        Note::new(guid, model, vec![template], fields.to_fields()).order(order)
     }
 }
 

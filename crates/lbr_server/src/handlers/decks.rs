@@ -1,7 +1,7 @@
 //! /decks
 
 use super::prelude::*;
-use crate::{domain::decks, utils::database::DeckSourceKind};
+use crate::{domain::decks, error::LbrError, utils::database::DeckSourceKind};
 use std::io::Cursor;
 
 // handlers
@@ -210,12 +210,10 @@ pub async fn generate(
         )?;
         let mut buf = Cursor::new(Vec::new());
         deck.write(&mut buf)?;
-        tracing::info!("wrote");
         EyreResult::Ok(buf)
     })
     .await??;
 
-    tracing::info!("returning data");
     Ok(deck_data.into_inner())
 }
 

@@ -3,7 +3,7 @@
 use crate::utils::database::{self, DeckSourceKind};
 use diesel::prelude::*;
 use itertools::Itertools;
-use lbr::anki::{self, Card, Deck, KanjiCard, Sentence, SentenceWord, WordCard, WordKanji};
+use lbr::anki::{self, Deck, KanjiCard, Sentence, SentenceWord, WordCard, WordKanji};
 use rand::seq::IndexedRandom;
 use std::collections::{HashMap, HashSet};
 
@@ -16,25 +16,15 @@ pub fn gen_deck(
     user_id: i32,
 ) -> eyre::Result<Deck> {
     tracing::info!("Creating cards");
-    let cards = get_cards(conn, user_id, deck_id)?;
-
-    tracing::info!("Creating deck");
-    let package = lbr::anki::create_deck(name, anki_deck_id, cards);
-
-    tracing::info!("Created deck");
-    Ok(package)
-}
-
-fn get_cards(conn: &mut PgConnection, user_id: i32, deck_id: i32) -> eyre::Result<Vec<Card>> {
     let word_cards = get_word_cards(conn, user_id, deck_id)?;
     let kanji_cards = get_kanji_cards(conn, deck_id)?;
-    let cards = word_cards
-        .into_iter()
-        .map(Card::Word)
-        .chain(kanji_cards.into_iter().map(Card::Kanji))
-        .collect::<Vec<_>>();
-    tracing::debug!("Created {} cards", cards.len());
-    Ok(cards)
+    tracing::debug!("Created {} cards", word_cards.len() + kanji_cards.len());
+
+    tracing::info!("Creating deck");
+    let package = lbr::anki::create_deck(name, anki_deck_id, word_cards, kanji_cards);
+    tracing::info!("Created deck");
+
+    Ok(package)
 }
 
 fn get_word_cards(

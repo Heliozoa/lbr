@@ -154,15 +154,59 @@ impl Form {
                         for (component_seq, component) in
                             interpretation.components.iter().enumerate()
                         {
-                            let Some((interp_idx_in_sentence, interp_len_in_sentence)) =
+                            let Some((interp_idx_in_sentence, interp_len_in_sentence, reading)) =
                                 lbr_core::find_jp_equivalent(
                                     &sentence[interpretation_idx..],
                                     &component.word,
                                 )
+                                .map(|(a, b)| (a, b, component.reading_hiragana.clone()))
+                                .or_else(|| {
+                                    // ichiran sometimes returns words in a different form than in the actual sentence, e.g.
+                                    // the segmentation of '五千円札何枚残ってるー？' will contain 'いる' even though it's abbreviated
+                                    // to just 'る' in the sentence
+                                    // as in the previous example,
+                                    // the first or last character is often chopped off in these cases
+                                    // so we'll try this...
+                                    let word_without_first =
+                                        component.word.chars().skip(1).collect::<String>();
+                                    tracing::info!(
+                                        "Trying without first character: {word_without_first}"
+                                    );
+                                    lbr_core::find_jp_equivalent(
+                                        &sentence[interpretation_idx..],
+                                        &word_without_first,
+                                    )
+                                    .map(|(a, b)| {
+                                        let reading_without_first = component
+                                            .reading_hiragana
+                                            .chars()
+                                            .skip(1)
+                                            .collect::<String>();
+                                        (a, b, reading_without_first)
+                                    })
+                                })
+                                .or_else(|| {
+                                    // and this...
+                                    let cw = &component.word;
+                                    let word_without_last =
+                                        cw.chars().take(cw.chars().count() - 1).collect::<String>();
+                                    tracing::info!(
+                                        "Trying without last character: {word_without_last}",
+                                    );
+                                    lbr_core::find_jp_equivalent(
+                                        &sentence[interpretation_idx..],
+                                        &word_without_last,
+                                    )
+                                    .map(|(a, b)| {
+                                        let rh = &component.reading_hiragana;
+                                        let reading_without_last = rh
+                                            .chars()
+                                            .take(rh.chars().count() - 1)
+                                            .collect::<String>();
+                                        (a, b, reading_without_last)
+                                    })
+                                })
                             else {
-                                // ichiran sometimes returns words in a different form than in the actual sentence, e.g.
-                                // the segmentation of '五千円札何枚残ってるー？' will contain 'いる' even though it's abbreviated
-                                // to just 'る' in the sentence
                                 tracing::warn!(
                                     "Failed to find word '{}' in sentence section '{}'",
                                     component.word,
@@ -183,10 +227,10 @@ impl Form {
                                     // pre-emptively decline the rest
                                     Status::Decline
                                 };
-                                let reading = if component.word == component.reading_hiragana {
+                                let reading = if component.word == reading {
                                     None
                                 } else {
-                                    Some(component.reading_hiragana.clone())
+                                    Some(reading)
                                 };
                                 let signal = leptos::prelude::signal(Component {
                                     idx_start: interpretation_idx,

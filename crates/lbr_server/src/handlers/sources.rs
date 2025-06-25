@@ -73,6 +73,7 @@ pub async fn get_details(
         let sentences = se::table
             .select(Sentence::as_select())
             .filter(eq!(se, source_id))
+            .order_by(se::id)
             .get_results(&mut conn)?;
         EyreResult::Ok((source, sentences))
     })

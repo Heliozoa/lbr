@@ -150,11 +150,11 @@ impl WordCard {
         }
     }
 
-    pub fn into_note(self, model: Arc<Model>, template: Arc<Template>) -> Note {
+    pub fn into_note(self, model: Arc<Model>, template: Arc<Template>, order: u16) -> Note {
         let word_id = self.id;
         let guid = format!("lbr-word-{word_id}");
         let fields = self.into_fields();
-        Note::new(guid, model, vec![template], fields.to_fields())
+        Note::new(guid, model, vec![template], fields.to_fields()).order(order)
     }
 }
 

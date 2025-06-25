@@ -21,6 +21,7 @@ where
 
 impl IntoResponse for LbrError {
     fn into_response(self) -> axum::response::Response {
+        tracing::error!("Error response: {}", self.0);
         let err = res::Error {
             message: format!("{:#?}", self.0),
         };

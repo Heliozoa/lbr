@@ -68,7 +68,7 @@ fn main() -> eyre::Result<()> {
     conn.transaction(|conn| {
         tracing::info!("Starting transaction");
         update_kanji(conn, &kd2, &ke, &kf, &kn, &ks).context("Failed to update kanji")?;
-        // update_words(conn, &jmdict).context("Failed to update words")?;
+        update_words(conn, &jmdict).context("Failed to update words")?;
         eyre::Ok(())
     })?;
     tracing::info!("Finished transaction");

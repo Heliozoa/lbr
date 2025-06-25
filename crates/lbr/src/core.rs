@@ -175,6 +175,11 @@ fn to_lbr_word_info(
     } else {
         None
     };
+
+    if word_id.is_none() {
+        tracing::warn!("Failed to find word id for {info:#?}");
+    }
+
     // replace zero width spaces
     let reading_hiragana = replace_invisible_characters(&info.kana);
     if word_id.is_none() {
