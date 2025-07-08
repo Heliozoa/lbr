@@ -7,14 +7,11 @@ use eyre::WrapErr;
 use ichiran::{IchiranCli, IchiranError};
 use lbr_api::{request as req, response as res};
 use lbr_core::ichiran_types;
-use std::{
-    collections::{HashMap, HashSet},
-    ops::RangeInclusive,
-};
+use std::collections::{HashMap, HashSet};
 
 /// Segments a sentence using ichiran.
 pub fn segment_sentence(
-    conn: &mut PgConnection,
+    _conn: &mut PgConnection,
     ichiran: &IchiranCli,
     sentence: &str,
     ichiran_word_to_id: &HashMap<(i32, String, String), i32>,
@@ -33,44 +30,13 @@ pub fn segment_sentence(
             return Err(err).wrap_err_with(|| format!("Failed to segment sentence '{sentence}'"));
         }
     };
-    let mut segmented_sentence = lbr::core::to_lbr_segments(
+    let segmented_sentence = lbr::core::to_lbr_segments(
         sentence,
         segments,
         ichiran_word_to_id,
         kanji_to_readings,
         word_to_meanings,
     );
-    // todo
-    /*
-    for s in &mut segmented_sentence {
-        if let lbr_core::ichiran_types::Segment::Phrase {
-            interpretations, ..
-        } = s
-        {
-            for i in interpretations {
-                for c in &mut i.components {
-                    if let Some(wid) = &mut c.word_id {
-                        use crate::schema::words as w;
-                        let (word, reading, translations) = w::table
-                            .filter(w::id.eq(*wid))
-                            .select((w::word, w::reading, w::translations))
-                            .get_result::<(String, String, Vec<Option<String>>)>(conn)?;
-                        let translations = translations
-                            .into_iter()
-                            .filter_map(|t| t)
-                            .map(|t| lbr_core::ichiran_types::Meaning {
-                                meaning: t,
-                                meaning_info: None,
-                            })
-                            .collect();
-                        c.word = word;
-                        c.reading_hiragana = reading;
-                        c.meanings = translations;
-                    }
-                }
-            }
-        }
-    }*/
 
     tracing::info!("Finished segmenting sentence '{sentence}'");
     tracing::trace!("Segmented sentence: {segmented_sentence:#?}");

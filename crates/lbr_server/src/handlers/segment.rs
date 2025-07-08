@@ -3,7 +3,6 @@
 use super::prelude::*;
 use crate::{domain::sentences, queries};
 use lbr::sentence_splitter::SentenceSplitter;
-use lbr_core::ichiran_types::Segment;
 use std::collections::HashSet;
 
 #[instrument]
@@ -57,16 +56,9 @@ pub async fn segment(
             for handle in handles {
                 let segmented_sentence = handle.join().expect("Failed to join thread handle")?;
                 for segment in &segmented_sentence.segments {
-                    if let Segment::Phrase {
-                        interpretations, ..
-                    } = segment
-                    {
-                        for interpretation in interpretations {
-                            for component in &interpretation.components {
-                                if let Some(word_id) = component.word_id {
-                                    word_ids.insert(word_id);
-                                }
-                            }
+                    for interpretation in &segment.interpretations {
+                        if let Some(word_id) = interpretation.word_id {
+                            word_ids.insert(word_id);
                         }
                     }
                 }

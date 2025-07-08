@@ -1,7 +1,7 @@
 //! /decks
 
 use super::prelude::*;
-use crate::{domain::decks, error::LbrError, utils::database::DeckSourceKind};
+use crate::{domain::decks, utils::database::DeckSourceKind};
 use std::io::Cursor;
 
 // handlers

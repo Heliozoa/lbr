@@ -1566,6 +1566,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.12",
  "tracing",
+ "tracing-subscriber",
  "wana_kana",
 ]
 
@@ -1650,6 +1651,7 @@ dependencies = [
  "chrono",
  "eyre",
  "futures-util",
+ "itertools 0.14.0",
  "lbr_api",
  "lbr_core",
  "leptos",

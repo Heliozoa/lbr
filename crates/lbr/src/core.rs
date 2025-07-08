@@ -1,8 +1,12 @@
 //! Contains functionality related to lbr_core.
 
 use crate::{is_kanji, standardise_reading};
-use lbr_core::ichiran_types as it;
-use std::{collections::HashMap, ops::Not};
+use ichiran::{Alternative, WordInfo};
+use lbr_core::ichiran_types::{self as it, Segment};
+use std::{
+    collections::{hash_map::Entry, HashMap},
+    ops::{Not, Range},
+};
 
 /// Converts ichiran segments to lbr's format.
 ///
@@ -15,177 +19,148 @@ pub fn to_lbr_segments(
     kanji_to_readings: &HashMap<String, Vec<String>>,
     word_to_meanings: &HashMap<i32, Vec<String>>,
 ) -> Vec<it::Segment> {
+    tracing::debug!("Processing segmentation for {text}");
+    tracing::trace!("{ichiran_segments:#?}");
+
     let mut segments = vec![];
-    let mut idx = 0;
-    for segment in ichiran_segments {
-        if let ichiran::Segment::Segmentations(mut segmentations) = segment {
-            // todo: process alternate segmentations
-            segmentations.sort_by(|a, b| a.score.cmp(&b.score).reverse());
-            if let Some(segmentation) = segmentations.into_iter().next() {
-                tracing::trace!("Segmented {segmentation:#?}");
-                for word in segmentation.words {
-                    process_word(
-                        &mut segments,
-                        text,
-                        word,
-                        &mut idx,
-                        ichiran_word_to_id,
-                        kanji_to_readings,
-                        word_to_meanings,
-                    );
+    let mut next_segment_start_idx = 0;
+    // we can merge all segmentations over a specific range into one node
+    let mut new_segments = HashMap::<Range<usize>, Segment>::new();
+    for (idx, segment) in ichiran_segments.into_iter().enumerate() {
+        let current_segment_start_idx = next_segment_start_idx;
+        tracing::trace!("processing segment {idx}");
+        match segment {
+            ichiran::Segment::Segmentations(segmentations) => {
+                for (idx, segmentation) in segmentations.into_iter().enumerate() {
+                    tracing::trace!("processing segmentation {idx}");
+                    let mut current_idx = current_segment_start_idx;
+                    for word in segmentation.words {
+                        let remaining_text = &text[current_idx..];
+                        tracing::trace!(
+                            "processing word, sidx {current_idx}, rem {remaining_text}"
+                        );
+                        let alternative_start_idx = current_idx;
+                        let mut alternative_max_idx = current_idx;
+                        for alternative in word.alternatives {
+                            current_idx = alternative_start_idx;
+                            match alternative {
+                                Alternative::WordInfo(wi) => {
+                                    if let Some(range) = process_word_info(
+                                        wi,
+                                        remaining_text,
+                                        ichiran_word_to_id,
+                                        kanji_to_readings,
+                                        word_to_meanings,
+                                        &mut new_segments,
+                                        current_idx,
+                                    ) {
+                                        alternative_max_idx = alternative_max_idx.max(range.end);
+                                        next_segment_start_idx =
+                                            next_segment_start_idx.max(range.end);
+                                    }
+                                }
+                                Alternative::CompoundWordInfo(cwi) => {
+                                    for component in cwi.components {
+                                        let remaining_text = &text[current_idx..];
+                                        if let Some(range) = process_word_info(
+                                            component,
+                                            remaining_text,
+                                            ichiran_word_to_id,
+                                            kanji_to_readings,
+                                            word_to_meanings,
+                                            &mut new_segments,
+                                            current_idx,
+                                        ) {
+                                            current_idx = range.end;
+                                            alternative_max_idx =
+                                                alternative_max_idx.max(range.end);
+                                            next_segment_start_idx =
+                                                next_segment_start_idx.max(range.end);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        current_idx = alternative_max_idx;
+                    }
                 }
+            }
+            ichiran::Segment::Other(other) => {
+                tracing::trace!("other {other}");
             }
         }
     }
-    // add the rest of the sentence as misc text
-    if idx < text.len() {
-        segments.push(it::Segment::Other(text[idx..].to_string()));
+    let mut new_segments = new_segments.into_values().collect::<Vec<_>>();
+    new_segments.sort_by(|a, b| {
+        a.range
+            .start
+            .cmp(&b.range.start)
+            .then(a.range.end.cmp(&b.range.end))
+    });
+    new_segments.iter_mut().for_each(|ns| {
+        ns.interpretations
+            .sort_by(|a, b| a.score.cmp(&b.score).reverse())
+    });
+    for new_segment in new_segments {
+        segments.push(new_segment);
     }
     segments
 }
 
-fn process_word(
-    segments: &mut Vec<it::Segment>,
-    text: &str,
-    word: ichiran::Word,
-    idx: &mut usize,
+// returns the range of the word in the text
+fn process_word_info(
+    wi: WordInfo,
+    remaining_text: &str,
     ichiran_word_to_id: &HashMap<(i32, String, String), i32>,
     kanji_to_readings: &HashMap<String, Vec<String>>,
     word_to_meanings: &HashMap<i32, Vec<String>>,
-) {
-    // handle word
-    let mut word_in_text = None;
-    let mut interpretations = vec![];
-    for alternative in word.alternatives {
-        let mut components = vec![];
-        match alternative {
-            ichiran::Alternative::WordInfo(info) => {
-                let score = info.score;
-                // replace zero width spaces
-                let reading_hiragana = replace_invisible_characters(&info.kana);
-                let component = to_lbr_word_info(
-                    info,
+    new_segments: &mut HashMap<Range<usize>, Segment>,
+    current_idx: usize,
+) -> Option<Range<usize>> {
+    let word = &wi.text;
+    let Some((start_idx, len)) = lbr_core::find_jp_equivalent(remaining_text, word) else {
+        tracing::warn!("Failed to find {word} in text {remaining_text}");
+        return None;
+    };
+    let local_range = start_idx..(start_idx + len);
+    let segment_range = local_range.start + current_idx..local_range.end + current_idx;
+    tracing::trace!(
+        "local range {local_range:?} in {remaining_text}, local result {}, segment range {segment_range:?}",
+        &remaining_text[local_range.clone()]
+    );
+    let Some(seq) = wi.seq else {
+        tracing::warn!("No seq for {word}");
+        return Some(segment_range);
+    };
+    let word_id = try_get_word_id(
+        seq,
+        remaining_text,
+        Some(&wi.reading),
+        ichiran_word_to_id,
+        kanji_to_readings,
+    )
+    .or_else(|| {
+        // try first conj
+        wi.conj
+            .get(0)
+            .and_then(|conj| conj.reading.as_ref())
+            .and_then(|reading| {
+                try_get_word_id(
+                    seq,
+                    remaining_text,
+                    Some(reading),
                     ichiran_word_to_id,
                     kanji_to_readings,
-                    word_to_meanings,
-                );
-                word_in_text = Some(component.word.clone());
-                components.push(component);
-                interpretations.push(it::Interpretation {
-                    score,
-                    reading_hiragana,
-                    components,
-                });
-            }
-            ichiran::Alternative::CompoundWordInfo(info) => {
-                word_in_text = Some(info.text);
-                // replace zero width spaces
-                let reading_hiragana = replace_invisible_characters(&info.kana);
-                for component in info.components {
-                    let component = to_lbr_word_info(
-                        component,
-                        ichiran_word_to_id,
-                        kanji_to_readings,
-                        word_to_meanings,
-                    );
-                    components.push(component);
-                }
-                interpretations.push(it::Interpretation {
-                    score: info.score,
-                    reading_hiragana,
-                    components,
-                });
-            }
-        };
-    }
-
-    // handle other segment between this and the previous word segment
-    let word_in_text = word_in_text.unwrap();
-    let (word_start_idx, length_in_target) =
-        match lbr_core::find_jp_equivalent(&text[*idx..], &word_in_text) {
-            Some(res) => res,
-            None => {
-                tracing::warn!(
-                    "Failed to find word '{word_in_text}' from ichiran in text '{}'",
-                    &text[*idx..]
-                );
-                return;
-            }
-        };
-    if word_start_idx != 0 {
-        let other = text[*idx..*idx + word_start_idx].to_string();
-        segments.push(it::Segment::Other(other));
-        *idx += word_start_idx;
-    }
-    *idx += length_in_target;
-
-    segments.push(it::Segment::Phrase {
-        phrase: word_in_text,
-        interpretations,
-    })
-}
-
-fn to_lbr_word_info(
-    info: ichiran::WordInfo,
-    ichiran_word_to_id: &HashMap<(i32, String, String), i32>,
-    kanji_to_readings: &HashMap<String, Vec<String>>,
-    word_to_meanings: &HashMap<i32, Vec<String>>,
-) -> it::WordInfo {
-    // we convert the ichiran seqs to our word ids here so we don't have to worry about them later
-    let word_id = if let Some(seq) = info.seq {
-        // first, we'll try with the base info reading
-        try_get_word_id(
-            seq,
-            &info.text,
-            Some(&info.reading),
-            ichiran_word_to_id,
-            kanji_to_readings,
-        )
-        .or_else(|| {
-            // second, we'll try the first conjugation...
-            let conj_reading = info
-                .conj
-                .first()
-                .and_then(|c| {
-                    c.reading
-                        .as_ref()
-                        .or_else(|| c.via.first().and_then(|v| v.reading.as_ref()))
-                })
-                .map(String::as_str);
-            try_get_word_id(
-                seq,
-                &info.text,
-                conj_reading,
-                ichiran_word_to_id,
-                kanji_to_readings,
-            )
-        })
-        /*
-            .or_else(|| {
-                // then with the word in text...
-                try_get_word_id(Some(&info.text), ichiran_word_to_id)
+                )
             })
-            .or_else(|| {
-                // lastly we'll try with the reading...
-                ichiran_word_to_id
-                    .get(&(seq, info.kana.clone(), info.kana.clone()))
-                    .copied()
-            });
-        */
-    } else {
-        None
-    };
-
+    });
     if word_id.is_none() {
-        tracing::warn!("Failed to find word id for {info:#?}");
+        tracing::warn!("Failed to find word_id for {}", wi.text);
     }
 
-    // replace zero width spaces
-    let reading_hiragana = replace_invisible_characters(&info.kana);
-    if word_id.is_none() {
-        tracing::debug!("Failed to find word id for {info:#?}");
-    }
+    let reading_hiragana = replace_invisible_characters(&wi.kana);
     let meanings = word_id
+        // get from map
         .and_then(|wid| word_to_meanings.get(&wid))
         .map(|v| {
             v.iter()
@@ -195,10 +170,11 @@ fn to_lbr_word_info(
                 })
                 .collect()
         })
+        // or otherwise from gloss
         .unwrap_or_else(|| {
-            info.gloss
+            wi.gloss
                 .into_iter()
-                .chain(info.conj.into_iter().flat_map(|c| {
+                .chain(wi.conj.into_iter().flat_map(|c| {
                     c.gloss
                         .into_iter()
                         .chain(c.via.into_iter().flat_map(|v| v.gloss))
@@ -207,18 +183,44 @@ fn to_lbr_word_info(
                     meaning: g.gloss,
                     meaning_info: g.info,
                 })
-                .chain(info.suffix.map(|s| it::Meaning {
+                .chain(wi.suffix.map(|s| it::Meaning {
                     meaning: s,
                     meaning_info: None,
                 }))
                 .collect()
         });
-    it::WordInfo {
-        word: info.text,
-        reading_hiragana,
+    let new_interpretation: it::Interpretation = it::Interpretation {
         word_id,
+        score: wi.score,
+        word: wi.text,
+        reading_hiragana,
         meanings,
-    }
+    };
+    match new_segments.entry(segment_range.clone()) {
+        Entry::Occupied(mut new_segment) => {
+            let interpretations = &mut new_segment.get_mut().interpretations;
+            if interpretations
+                .iter()
+                .all(|ni| ni.word_id != new_interpretation.word_id)
+            {
+                interpretations.push(new_interpretation);
+            }
+        }
+        Entry::Vacant(vacant) => {
+            let word_in_text = remaining_text
+                .get(local_range.clone())
+                .ok_or_else(|| {
+                    format!("Failed to index into '{remaining_text}' with {local_range:?}")
+                })
+                .unwrap();
+            vacant.insert(Segment {
+                text: word_in_text.to_string(),
+                interpretations: vec![new_interpretation],
+                range: segment_range.clone(),
+            });
+        }
+    };
+    Some(segment_range)
 }
 
 fn try_get_word_id(
@@ -386,4 +388,30 @@ fn is_digit(c: char) -> bool {
             | '兆'
             | '京'
     )
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use ichiran::IchiranCli;
+    use tracing::Level;
+
+    #[test]
+    fn here() {
+        tracing_subscriber::fmt()
+            .with_max_level(Level::TRACE)
+            .init();
+        let txt = "聞こえた";
+
+        let ichiran = IchiranCli::new("../../data/ichiran-cli".into());
+        let segments = ichiran.segment(txt, Some(4)).unwrap();
+        let segs = to_lbr_segments(
+            txt,
+            segments,
+            &HashMap::new(),
+            &HashMap::new(),
+            &HashMap::new(),
+        );
+        panic!("ohh ye {segs:#?}");
+    }
 }

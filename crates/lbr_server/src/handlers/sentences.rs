@@ -166,18 +166,10 @@ pub async fn segment(
             &state.word_to_meanings,
         )?;
         let mut word_ids = HashSet::new();
-        for seg in &segmented_sentence.segments {
-            if let lbr_core::ichiran_types::Segment::Phrase {
-                phrase: _,
-                interpretations,
-            } = seg
-            {
-                for interp in interpretations {
-                    for comp in &interp.components {
-                        if let Some(word_id) = comp.word_id {
-                            word_ids.insert(word_id);
-                        }
-                    }
+        for segment in &segmented_sentence.segments {
+            for interpretation in &segment.interpretations {
+                if let Some(word_id) = interpretation.word_id {
+                    word_ids.insert(word_id);
                 }
             }
         }
