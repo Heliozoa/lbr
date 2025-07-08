@@ -31,7 +31,6 @@ leptos_router = { version = "0.8.2", features = ["nightly"] }
 
 [profile.dev.package]
 furigana.opt-level = 3
-reanki.opt-level = 3
 ichiran.opt-level = 3
 serde.opt-level = 3
 serde_json.opt-level = 3

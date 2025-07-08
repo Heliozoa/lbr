@@ -1,7 +1,7 @@
 //! Types for responses from the backend to the frontend.
 
 pub use chrono::{DateTime, Utc};
-pub use lbr_core::ichiran_types::{Interpretation, Meaning, Segment, WordInfo};
+pub use lbr_core::ichiran_types::{Meaning, Segment, WordInfo};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
