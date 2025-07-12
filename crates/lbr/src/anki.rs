@@ -21,8 +21,8 @@ pub fn create_deck(
     let kanji_model = Arc::new(kanji::create_model());
     let word_template = Arc::new(word::create_template());
     let kanji_template = Arc::new(kanji::create_template());
-    word_cards.sort_by(|a, b| a.word_sentences.cmp(&b.word_sentences).reverse());
-    kanji_cards.sort_by(|a, b| a.kanji_words.cmp(&b.kanji_words).reverse());
+    word_cards.sort_unstable_by(|a, b| a.word_sentences.cmp(&b.word_sentences).reverse());
+    kanji_cards.sort_unstable_by(|a, b| a.kanji_words.cmp(&b.kanji_words).reverse());
     for (order, card) in word_cards.into_iter().enumerate() {
         tracing::debug!("creating word card {}", card.word);
         deck.add_note(card.into_note(word_model.clone(), word_template.clone(), order as u16));

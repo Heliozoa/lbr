@@ -7,12 +7,14 @@ use jadata::{
     kanji_similar::KanjiSimilar,
     kanjidic::Kanjidic2,
     kradfile::Kradfile,
+    similar_kanji,
 };
 use lbr_server::domain;
 use std::{
     collections::{HashMap, HashSet},
     fs::File,
     io::BufReader,
+    path::Path,
 };
 
 fn main() -> eyre::Result<()> {
@@ -62,13 +64,17 @@ fn main() -> eyre::Result<()> {
     let jmdict: JMdict =
         serde_xml_rs::from_reader(BufReader::new(jmdict)).context("Failed to deserialize data")?;
 
+    let sk = &args[7];
+    tracing::info!("Opening {sk}");
+    let sk = similar_kanji::parse(Path::new(sk))?;
+
     tracing::info!("Updating extra kanji");
-    update_kanji_extra(&kd2, &jmdict, &mut ke, ke_path)?;
+    update_kanji_extra(&kd2, &jmdict, &mut ke, ke_path, &sk)?;
 
     conn.transaction(|conn| {
         tracing::info!("Starting transaction");
-        update_kanji(conn, &kd2, &ke, &kf, &kn, &ks).context("Failed to update kanji")?;
-        update_words(conn, &jmdict).context("Failed to update words")?;
+        update_kanji(conn, &kd2, &ke, &kf, &kn, &ks, &sk).context("Failed to update kanji")?;
+        //update_words(conn, &jmdict).context("Failed to update words")?;
         eyre::Ok(())
     })?;
     tracing::info!("Finished transaction");
@@ -81,6 +87,7 @@ fn update_kanji_extra(
     jmdict: &JMdict,
     ke: &mut KanjiExtra,
     ke_path: &str,
+    sk: &HashMap<String, Vec<String>>,
 ) -> eyre::Result<()> {
     let kanjidic_kanji = kd2.character.iter().map(|c| c.literal.as_str());
     let extra_kanji = ke.kanji_extra.iter().map(|ke| ke.chara.as_str());
@@ -91,10 +98,14 @@ fn update_kanji_extra(
         .iter()
         .flat_map(|e| &e.k_ele)
         .map(|kele| &kele.keb)
-        .flat_map(|keb| lbr::kanji_from_word(keb))
-        .collect::<HashSet<_>>();
+        .flat_map(|keb| lbr::kanji_from_word(keb));
+    let similar_kanji = sk
+        .keys()
+        .map(String::as_str)
+        .chain(sk.values().flatten().map(String::as_str));
+    let external_kanji = jmdict_kanji.chain(similar_kanji).collect::<HashSet<_>>();
 
-    let missing_kanji = jmdict_kanji
+    let missing_kanji = external_kanji
         .difference(&included_kanji)
         .map(|missing_kanji| ExtraKanji {
             chara: missing_kanji.to_string(),
@@ -105,7 +116,7 @@ fn update_kanji_extra(
         .collect::<Vec<_>>();
     if !missing_kanji.is_empty() {
         ke.kanji_extra.extend(missing_kanji);
-        ke.kanji_extra.sort_by(|a, b| a.chara.cmp(&b.chara));
+        ke.kanji_extra.sort_unstable_by(|a, b| a.chara.cmp(&b.chara));
         let mut ke_file = File::create(ke_path).context("Failed to create file")?;
         serde_json::to_writer_pretty(&mut ke_file, &ke).context("Failed to serialize")?;
     }
@@ -120,6 +131,7 @@ fn update_kanji(
     kf: &Kradfile,
     kn: &KanjiNames,
     ks: &KanjiSimilar,
+    sk: &HashMap<String, Vec<String>>,
 ) -> eyre::Result<()> {
     use lbr_server::schema::{kanji as k, kanji_readings as kr, kanji_similar as ks};
 
@@ -233,7 +245,7 @@ fn update_kanji(
         .into_iter()
         .collect::<HashMap<String, i32>>();
     let mut new_similar_kanji = Vec::new();
-    for (kanji, similar) in &ks.kanji_similar {
+    for (kanji, similar) in ks.kanji_similar.iter().chain(sk.iter()) {
         for similar in similar {
             let kanji_id = kanji_to_id.get(kanji).copied().unwrap();
             let similar_id = kanji_to_id.get(similar).copied().unwrap();
@@ -246,7 +258,10 @@ fn update_kanji(
         }
     }
     for chunk in new_similar_kanji.chunks(255) {
-        diesel::insert_into(ks::table).values(chunk).execute(conn)?;
+        diesel::insert_into(ks::table)
+            .values(chunk)
+            .on_conflict_do_nothing()
+            .execute(conn)?;
     }
 
     tracing::info!("Processing extra kanji");
@@ -307,7 +322,7 @@ fn update_words(conn: &mut PgConnection, jmdict: &JMdict) -> eyre::Result<()> {
     use lbr_server::schema::{kanji as k, word_kanji as wk, words as w};
 
     let kanji_to_readings = domain::japanese::kanji_to_readings(conn)?;
-    std::fs::write("./kanjimap", format!("{kanji_to_readings:#?}"));
+    std::fs::write("./data/kanjimap", format!("{kanji_to_readings:#?}"))?;
 
     tracing::info!("Updating words");
     let existing_words_vec = w::table

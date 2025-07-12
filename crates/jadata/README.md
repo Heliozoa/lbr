@@ -5,6 +5,7 @@ Contains data files and types for de/serializing the included data files as well
 - JMdict
 - KANJIDIC2
 - Kradfile
+- similar-kanji
 
 ## Extra files
 - `./data/kanji_extra.json`: Kanji that are not included in KANJIDIC but do appear in JMdict.

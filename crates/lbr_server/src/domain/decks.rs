@@ -125,28 +125,48 @@ fn get_kanji_cards(conn: &mut PgConnection, deck_id: i32) -> eyre::Result<Vec<Ka
         .filter(k::name.is_not_null())
         .select(KanjiWordQuery::as_select())
         .load(conn)?;
-    let kanji_ids = kanji_words.iter().map(|kw| kw.kanji_id).collect::<Vec<_>>();
-    let source_words_by_kanji_id = kanji_words
+    let kanji_ids = kanji_words
+        .iter()
+        .map(|kw| kw.kanji_id)
+        .collect::<HashSet<_>>();
+
+    if kanji_ids.contains(&983) {
+        panic!("uh oh");
+    }
+
+    let source_words_by_kanji_id: HashMap<i32, Vec<KanjiWordQuery>> = kanji_words
         .iter()
         .cloned()
         .into_group_map_by(|swq| swq.kanji_id);
-    let similar_kanji: Vec<SimilarKanjiQuery> = ks::table
-        .inner_join(k::table.on(k::id.eq(ks::higher_kanji_id)))
-        .filter(ks::lower_kanji_id.eq_any(&kanji_ids))
+    let similar_kanji_lower: Vec<SimilarKanjiQuery> = ks::table
+        .inner_join(k::table.on(k::id.eq(ks::lower_kanji_id)))
         .select(SimilarKanjiQuery::as_select())
         .load(conn)?;
-    let mut kanji_id_to_similar_kanji = similar_kanji
+    let similar_kanji_higher: Vec<SimilarKanjiQuery> = ks::table
+        .inner_join(k::table.on(k::id.eq(ks::higher_kanji_id)))
+        .select(SimilarKanjiQuery::as_select())
+        .load(conn)?;
+    let mut higher_kanji_id_to_similar_kanji = similar_kanji_lower
         .into_iter()
-        .into_group_map_by(|skq| skq.kanji_id);
+        .into_group_map_by(|skq| skq.higher_kanji_id);
+    let mut lower_kanji_id_to_similar_kanji = similar_kanji_higher
+        .into_iter()
+        .into_group_map_by(|skq| skq.lower_kanji_id);
 
     let mut cards = Vec::new();
     for (kanji_id, words) in source_words_by_kanji_id {
         // for each kanji, choose random example word
         let word = words.choose(&mut rand::rng()).cloned().unwrap();
-        let similar_kanji = kanji_id_to_similar_kanji
+        let mut higher_similar_kanji = lower_kanji_id_to_similar_kanji
             .remove(&kanji_id)
             .unwrap_or_default();
-        let card = kanji_card_from_query(word, similar_kanji, words.len());
+        let mut lower_similar_kanji = higher_kanji_id_to_similar_kanji
+            .remove(&kanji_id)
+            .unwrap_or_default();
+        higher_similar_kanji.retain(|sk| kanji_ids.contains(&sk.higher_kanji_id));
+        lower_similar_kanji.retain(|sk| kanji_ids.contains(&sk.lower_kanji_id));
+        higher_similar_kanji.extend(lower_similar_kanji.into_iter());
+        let card = kanji_card_from_query(word, higher_similar_kanji, words.len());
         cards.push(card);
     }
     Ok(cards)
@@ -307,7 +327,8 @@ crate::query! {
 crate::query! {
     #[derive(Debug, Clone)]
     struct SimilarKanjiQuery {
-        kanji_id: i32 = kanji_similar::lower_kanji_id,
+        lower_kanji_id: i32 = kanji_similar::lower_kanji_id,
+        higher_kanji_id: i32 = kanji_similar::higher_kanji_id,
         kanji: String = kanji::chara,
         name: Option<String> = kanji::name,
     }

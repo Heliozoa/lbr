@@ -5,7 +5,7 @@ use itertools::Itertools;
 use lbr_api::{request as req, response as res};
 use leptos::prelude::*;
 use send_wrapper::SendWrapper;
-use std::{cell::RefCell, collections::HashSet, ops::Range, rc::Rc, sync::Arc};
+use std::{cell::RefCell, cmp::Ordering, collections::HashSet, ops::Range, rc::Rc, sync::Arc};
 
 #[component]
 pub fn SegmentedParagraphView(source_id: i32, paragraph: res::SegmentedParagraph) -> impl IntoView {
@@ -24,10 +24,11 @@ pub fn SegmentedParagraphView(source_id: i32, paragraph: res::SegmentedParagraph
                     "button mt-2 is-primary"
                 }
             };
+            let snippet_end = s.sentence.chars().take(4).map(|c| c.len_utf8()).sum();
             view! {
                 <div>
                     <button class=sentence_button_class on:click=move |_ev| active_sentence.set(idx)>
-                        {idx}: {s.sentence.clone()}
+                        {idx}: {s.sentence[..snippet_end].to_string()}
                     </button>
                 </div>
             }
@@ -188,8 +189,6 @@ pub fn SegmentedSentenceView(
 
     tracing::info!("fws {form_words:#?}");
 
-    let form = RwSignal::new(Form::init(&form_words));
-
     // group words by the starting index
     let mut grouped = Vec::new();
     let mut form_words = form_words.into_iter().peekable();
@@ -225,11 +224,33 @@ pub fn SegmentedSentenceView(
                     }
                 }
             }
+            // high score first
+            segs.sort_unstable_by(|a, b| match (a, b) {
+                (FormWordOr::FormWord(a), FormWordOr::FormWord(b)) => {
+                    a.score.cmp(&b.score).reverse().then_with(|| {
+                        // 中 readings are usually scored the same but なか is by far the most common one
+                        if a.word == "中" && b.word == "中" {
+                            if a.reading.as_deref() == Some("なか") {
+                                Ordering::Less
+                            } else {
+                                Ordering::Greater
+                            }
+                        } else {
+                            Ordering::Equal
+                        }
+                    })
+                }
+                (FormWordOr::FormWord(_), _) => Ordering::Less,
+                (_, FormWordOr::FormWord(_)) => Ordering::Greater,
+                (_, _) => Ordering::Equal,
+            });
             grouped.push(segs);
         } else {
             break;
         }
     }
+
+    let form = RwSignal::new(Form::init(&grouped));
 
     let form_word_views = grouped
         .into_iter()
@@ -351,9 +372,10 @@ pub fn SegmentedSentenceView(
         })
         .collect_view();
 
+    let accept_sentence = sentence.clone();
     let accept_sentence = Action::new(move |_| {
         let client = get_client();
-        let req = form.get().finish(sentence.clone());
+        let req = form.get().finish(accept_sentence.clone());
         tracing::info!("finished");
         let on_successful_accept = on_successful_accept.clone();
         async move {
@@ -384,6 +406,7 @@ pub fn SegmentedSentenceView(
     view! {
         <div class="block">
             <div id="paragraph-segmentation" class="subtitle" style="overflow-x:auto;">"Paragraph segmentation"</div>
+            <div class="block">{sentence}</div>
             {form_word_views}
             <button class="button is-primary" on:click=move |_ev| { accept_sentence.dispatch(&()); }>"Accept sentence"</button>
             {accept_result}
@@ -398,10 +421,10 @@ struct Form {
 }
 
 impl Form {
-    fn init(form_words: &[FormWordOr]) -> Self {
+    fn init(form_words: &[Vec<FormWordOr>]) -> Self {
         let mut accepted = Vec::new();
         let mut covered_idx = 0;
-        for form_word in form_words {
+        for form_word in form_words.iter().map(|fw| fw.iter()).flatten() {
             if let FormWordOr::FormWord(form_word) = form_word {
                 if form_word.range.start >= covered_idx {
                     // accept most likely interpretation
@@ -424,7 +447,7 @@ impl Form {
         tracing::info!("Accepting {}", form_word.field_id);
         // un-accept all conflicting interpretations
         self.accepted.retain(|fw| {
-            fw.range.start >= form_word.range.end || fw.range.end < form_word.range.start
+            fw.range.start >= form_word.range.end || fw.range.end <= form_word.range.start
         });
         self.accepted.push(form_word);
         tracing::info!("{:#?}", self.accepted);
@@ -444,6 +467,7 @@ impl Form {
     fn decline(&mut self, form_word: FormWord) {
         tracing::info!("Declining {}", form_word.field_id);
         self.accepted.retain(|fw| fw.field_id != form_word.field_id);
+        self.ignore_words.remove(&form_word.word_id);
         tracing::info!("{:#?}", self.accepted);
     }
 

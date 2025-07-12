@@ -80,7 +80,7 @@ fn print_common_unnamed_kanji(lbr_conn: &mut PgConnection) -> eyre::Result<()> {
             .unwrap_or_default()
             .to_vec();
 
-        kw.sort_by_key(|w| {
+        kw.sort_unstable_by_key(|w| {
             w.1.chars()
                 .filter(|c| wana_kana::utils::is_char_kanji(*c))
                 .count()

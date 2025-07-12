@@ -8,12 +8,14 @@ def main [] {
     let jmdictdb_path = input_default "JMdict download path" "./data/jmdictdb"
     let kanjidic_path = input_default "KANJIDIC2 download path" "./data/kanjidic2.xml"
     let kradfile_path = input_default "KRADFILE download path" "./data/kradfile"
+    let dl_similar_kanji_path = input_default "KRADFILE download path" "./data/similar-kanji"
 
     dl_ichiran_dump $ichiran_dump_path
     dl_jmdict $jmdict_path
     dl_jmdictdb $jmdictdb_path
     dl_kanjidic $kanjidic_path
     dl_kradfile $kradfile_path
+    dl_similar_kanji $dl_similar_kanji_path
 }
 
 # Downloads the database dump that is used to initialise the ichiran database.
@@ -75,6 +77,14 @@ export def dl_kradfile [path: string] {
         | complete
         | check_error
         | gunzip -c -
+        | complete
+        | check_error
+        | save --force $path
+}
+
+export def dl_similar_kanji [path: string] {
+    print $"Downloading similar kanji to ($path)"
+    wget --output-document=- https://raw.githubusercontent.com/siikamiika/similar-kanji/refs/heads/master/kanji.tgz_similars.ut8
         | complete
         | check_error
         | save --force $path

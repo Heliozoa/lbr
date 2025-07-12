@@ -143,10 +143,14 @@ pub fn create_model() -> Model {
     color: red;
 }
 #kanji {
-    font-size: 2rem;
+    font-size: 2.5rem;
+}
+#similar {
+    font-size: 2.5rem;
+    display: inline-block;
+    text-align: left;
 }
 #translation, #example {
-    font-size: 2rem;
     display: inline-block;
     text-align: left;
 }
@@ -169,6 +173,9 @@ pub fn create_template() -> Template {
         .to_string(),
         r#"
 <div id=answer>
+    <div id=kanji>
+        {{kanji}}
+    </div>
     <div id=name>
         {{name}}
     </div>
@@ -180,6 +187,10 @@ pub fn create_template() -> Template {
     </div>
     <div id=translation>
         {{example_source_word_translation}}
+    </div>
+    <br />
+    <div id=similar>
+        {{similar_kanji}}
     </div>
 </div>
 "#
