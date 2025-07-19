@@ -117,9 +117,7 @@ fn get_roots(
         if let Some(words) = jmdict_id_to_words.get(&current_seq) {
             for (id, word, reading) in words {
                 let key = (starting_seq, word.clone(), reading.clone());
-                if !ichiran_word_to_word_id.contains_key(&key) {
-                    ichiran_word_to_word_id.insert(key, *id);
-                }
+                ichiran_word_to_word_id.entry(key).or_insert(*id);
             }
         }
     }

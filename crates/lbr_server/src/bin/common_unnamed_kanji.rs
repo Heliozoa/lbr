@@ -36,7 +36,7 @@ fn print_common_unnamed_kanji(lbr_conn: &mut PgConnection) -> eyre::Result<()> {
             entry.push((m, w, t));
         });
 
-    let mut common_unnamed_kanji_db: Vec<(String, i64)> = k::table
+    let common_unnamed_kanji_db: Vec<(String, i64)> = k::table
         .inner_join(wk::table.on(wk::kanji_id.eq(k::id)))
         .inner_join(w::table.on(w::id.eq(wk::word_id)))
         .inner_join(sw::table.on(sw::word_id.eq(w::id.nullable())))

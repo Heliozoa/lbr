@@ -134,7 +134,7 @@ pub fn insert_sentence_words(
                 .as_ref()
                 .map(|reading| {
                     japanese::map_to_db_furigana(word, reading, kanji_to_readings).wrap_err_with(
-                        || format!("Failed to map furigana to reading for {}", reading),
+                        || format!("Failed to map furigana to reading for {reading}"),
                     )
                 })
                 .transpose()?

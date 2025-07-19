@@ -47,7 +47,7 @@ pub fn Navbar() -> impl IntoView {
             {navbar_links}
         </nav>
         <ErrorBoundary fallback={utils::errors_fallback}>
-            <Suspense fallback={move || view!  {}}>
+            <Suspense fallback={move || ().into_view()}>
                 //<div>
                     {move || logout_action.value().get().map(|o| o.unwrap_or_default()).unwrap_or_default().then(|| {
                         view! { <Redirect path="/" /> }

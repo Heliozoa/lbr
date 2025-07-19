@@ -417,8 +417,7 @@ pub fn Sentence() -> impl IntoView {
         });
         sentence_res
             .get()
-            .map(|sr| sr.ok())
-            .flatten()
+            .and_then(|sr| sr.ok())
             .flatten()
             .map(|sd| {
                 view! {

@@ -130,7 +130,7 @@ pub fn SegmentedSentenceView(
     let field_id = Rc::new(RefCell::new(0));
     let form_words = segments
         .into_iter()
-        .map(|s| {
+        .flat_map(|s| {
             let s_range = s.range.clone();
             let sentence = &sentence;
             let ignored_words = &ignored_words;
@@ -191,7 +191,6 @@ pub fn SegmentedSentenceView(
                 })
             })
         })
-        .flatten()
         .collect::<Vec<_>>();
 
     tracing::info!("fws {form_words:#?}");
@@ -371,7 +370,7 @@ pub fn SegmentedSentenceView(
                             }
                             .into_any()
                         } else {
-                            view! {}.into_any()
+                            ().into_any()
                         }
                     }
                     FormWordOr::Unknown { text_word, .. } => {
@@ -381,7 +380,7 @@ pub fn SegmentedSentenceView(
                             }
                             .into_any()
                         } else {
-                            view! {}.into_any()
+                            ().into_any()
                         }
                     }
                 })
@@ -448,7 +447,7 @@ impl Form {
     fn init(form_words: &[Vec<FormWordOr>]) -> Self {
         let mut accepted = Vec::new();
         let mut covered_idx = 0;
-        for form_word in form_words.iter().map(|fw| fw.iter()).flatten() {
+        for form_word in form_words.iter().flat_map(|fw| fw.iter()) {
             if let FormWordOr::FormWord(form_word) = form_word {
                 if form_word.range.start >= covered_idx {
                     // accept most likely interpretation
@@ -545,7 +544,7 @@ impl Form {
             }))
             .collect();
         req::SegmentedSentence {
-            sentence: sentence,
+            sentence,
             words,
             ignore_words: self.ignore_words.clone(),
         }

@@ -154,7 +154,7 @@ impl WordCard {
         let word_id = self.id;
         let guid = format!("lbr-word-{word_id}");
         let fields = self.into_fields();
-        Note::new(guid, model, vec![template], fields.to_fields()).order(order)
+        Note::new(guid, model, vec![template], fields.into_fields()).order(order)
     }
 }
 
@@ -221,7 +221,7 @@ impl WordFields {
     }
 
     // keep in sync with `fields`
-    fn to_fields(self) -> Vec<String> {
+    fn into_fields(self) -> Vec<String> {
         vec![
             self.id,
             self.count,

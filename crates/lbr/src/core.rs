@@ -141,7 +141,7 @@ fn process_word_info(
     )
     .or_else(|| {
         // try first conj
-        wi.conj.get(0).and_then(|conj| {
+        wi.conj.first().and_then(|conj| {
             conj.reading
                 .as_ref()
                 .and_then(|reading| {
@@ -155,8 +155,7 @@ fn process_word_info(
                 })
                 .or_else(|| {
                     // try first via if reading or conj word id is none
-                    conj.via
-                        .get(0)
+                    conj.via.first()
                         .and_then(|via| via.reading.as_ref())
                         .and_then(|reading| {
                             try_get_word_id(
@@ -280,7 +279,7 @@ fn try_get_word_id(
         dictionary_form,
         reading_standard.standardised,
     );
-    return ichiran_word_to_id
+    ichiran_word_to_id
         .get(&(
             seq,
             dictionary_form.clone(),
@@ -367,7 +366,7 @@ fn try_get_word_id(
                 reading_without_numbers,
             ))
         })
-        .copied();
+        .copied()
 }
 
 fn replace_invisible_characters(s: &str) -> String {

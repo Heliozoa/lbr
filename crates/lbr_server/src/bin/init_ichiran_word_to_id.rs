@@ -20,7 +20,7 @@ fn main() -> eyre::Result<()> {
     std::fs::write("./data/ichiran_word_to_id.bitcode", contents)?;
     std::fs::write(
         "./data/ichiran_word_to_id",
-        format!("{:#?}", ichiran_seq_to_word_id),
+        format!("{ichiran_seq_to_word_id:#?}"),
     )?;
     Ok(())
 }

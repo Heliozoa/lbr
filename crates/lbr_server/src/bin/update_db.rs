@@ -74,7 +74,7 @@ fn main() -> eyre::Result<()> {
     conn.transaction(|conn| {
         tracing::info!("Starting transaction");
         update_kanji(conn, &kd2, &ke, &kf, &kn, &ks, &sk).context("Failed to update kanji")?;
-        //update_words(conn, &jmdict).context("Failed to update words")?;
+        update_words(conn, &jmdict).context("Failed to update words")?;
         eyre::Ok(())
     })?;
     tracing::info!("Finished transaction");
@@ -116,7 +116,8 @@ fn update_kanji_extra(
         .collect::<Vec<_>>();
     if !missing_kanji.is_empty() {
         ke.kanji_extra.extend(missing_kanji);
-        ke.kanji_extra.sort_unstable_by(|a, b| a.chara.cmp(&b.chara));
+        ke.kanji_extra
+            .sort_unstable_by(|a, b| a.chara.cmp(&b.chara));
         let mut ke_file = File::create(ke_path).context("Failed to create file")?;
         serde_json::to_writer_pretty(&mut ke_file, &ke).context("Failed to serialize")?;
     }
@@ -526,10 +527,9 @@ fn translations_from_entry(entry: &Entry, word: Option<&str>, reading: &str) -> 
         .sense
         .iter()
         .filter(|s| {
+            // with no word, we can ignore stagk
             s.stagk.is_empty()
-                ||
-                // with no word, we can ignore stagk
-                word
+                || word
                     .map(|w| s.stagk.iter().any(|stagk| stagk == w))
                     .unwrap_or(true)
         })
