@@ -1,9 +1,10 @@
 //! Types for responses from the backend to the frontend.
 
 pub use chrono::{DateTime, Utc};
+use lbr_core::ichiran_types;
 pub use lbr_core::ichiran_types::{Meaning, Segment, WordInfo};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::{collections::HashSet, ops::Range};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Error {
@@ -104,12 +105,43 @@ pub struct SegmentedParagraph {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SegmentedParagraphSentence {
     pub sentence: String,
-    pub segments: Vec<Segment>,
+    pub segments: Vec<ApiSegment>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SegmentedSentence {
     pub sentence: String,
-    pub segments: Vec<Segment>,
+    pub segments: Vec<ApiSegment>,
     pub ignored_words: HashSet<i32>,
+}
+
+/// A segment of text, a single word or punctuation etc.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiSegment {
+    /// The segment as it appears in the text.
+    pub text: String,
+    /// List of potential interpretations for the text,
+    /// empty for non-word text segments.
+    pub interpretations: Vec<ApiInterpretation>,
+    /// The range covered by this segment in the original text.
+    pub range: Range<usize>,
+}
+
+/// A single interpretation for a segment of text.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiInterpretation {
+    /// LBR word id.
+    pub word_id: Option<i32>,
+    /// The higher the score, the more likely this is the correct interpretation according to ichiran.
+    pub score: i32,
+    /// The word as it appears in the text.
+    pub text_word: String,
+    /// The reading of the word as it appears in the text.
+    pub text_reading_hiragana: String,
+    /// The word as it appears in the database.
+    pub db_word: String,
+    /// The reading of the word as it appears in the database.
+    pub db_reading_hiragana: String,
+    /// List of possible meanings for the word.
+    pub meanings: Vec<ichiran_types::Meaning>,
 }

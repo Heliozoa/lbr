@@ -427,7 +427,7 @@ mod test {
         tracing_subscriber::fmt()
             .with_max_level(Level::TRACE)
             .init();
-        let txt = "しつこく、会う";
+        let txt = "言って";
 
         let ichiran = IchiranCli::new("../../data/ichiran-cli".into());
         let segments = ichiran.segment(txt, Some(1)).unwrap();

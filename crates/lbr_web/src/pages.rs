@@ -254,7 +254,8 @@ pub fn SourceSentences() -> impl IntoView {
     let source_res = utils::logged_in_resource!(get_source_details(source_id));
 
     // source
-    let sentences = move |sentences: Vec<res::Sentence>| {
+    let sentences = move |mut sentences: Vec<res::Sentence>| {
+        sentences.sort_by(|a, b| a.id.cmp(&b.id).reverse());
         let sentences_list = sentences
             .into_iter()
             .map(|s| {

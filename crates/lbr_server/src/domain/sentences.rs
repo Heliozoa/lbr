@@ -5,19 +5,23 @@ use crate::{eq, error::EyreResult, utils::diesel::PostgresChunks};
 use diesel::prelude::*;
 use eyre::WrapErr;
 use ichiran::{IchiranCli, IchiranError};
-use lbr_api::{request as req, response as res};
-use lbr_core::ichiran_types;
+use lbr_api::{
+    request as req,
+    response::{self as res, ApiInterpretation, ApiSegment},
+};
 use std::collections::{HashMap, HashSet};
 
 /// Segments a sentence using ichiran.
 pub fn segment_sentence(
-    _conn: &mut PgConnection,
+    conn: &mut PgConnection,
     ichiran: &IchiranCli,
     sentence: &str,
     ichiran_word_to_id: &HashMap<(i32, String, String), i32>,
     kanji_to_readings: &HashMap<String, Vec<String>>,
     word_to_meanings: &HashMap<i32, Vec<String>>,
-) -> eyre::Result<Vec<ichiran_types::Segment>> {
+) -> eyre::Result<Vec<ApiSegment>> {
+    use crate::schema::words as w;
+
     tracing::info!("Segmenting sentence '{sentence}'");
 
     // get individual words from sentence with ichiran
@@ -38,9 +42,37 @@ pub fn segment_sentence(
         word_to_meanings,
     );
 
+    let mut api_segmented_sentence = Vec::new();
+    // convert to database words where applicable
+    for segment in segmented_sentence.into_iter() {
+        let mut api_interpretations = Vec::new();
+        for interpretation in segment.interpretations.into_iter() {
+            if let Some(word_id) = interpretation.word_id {
+                let (word, reading) = w::table
+                    .filter(w::id.eq(word_id))
+                    .select((w::word, w::reading_standard))
+                    .get_result::<(String, String)>(conn)?;
+                api_interpretations.push(ApiInterpretation {
+                    word_id: interpretation.word_id,
+                    score: interpretation.score,
+                    text_word: interpretation.word,
+                    text_reading_hiragana: interpretation.reading_hiragana,
+                    db_word: word,
+                    db_reading_hiragana: reading,
+                    meanings: interpretation.meanings,
+                });
+            }
+        }
+        api_segmented_sentence.push(ApiSegment {
+            text: segment.text,
+            interpretations: api_interpretations,
+            range: segment.range,
+        });
+    }
+
     tracing::info!("Finished segmenting sentence '{sentence}'");
-    tracing::trace!("Segmented sentence: {segmented_sentence:#?}");
-    Ok(segmented_sentence)
+    tracing::trace!("Segmented sentence: {api_segmented_sentence:#?}");
+    Ok(api_segmented_sentence)
 }
 
 /// Processes a sentence into the appropriate response type.

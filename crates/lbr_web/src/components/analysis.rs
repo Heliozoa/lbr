@@ -85,9 +85,10 @@ struct FormWord {
     field_id: i32,
     word_id: i32,
     range: Range<usize>,
-    word_in_text: String,
-    word: String,
-    reading: Option<String>,
+    text_word: String,
+    text_reading: Option<String>,
+    db_word: String,
+    db_reading: Option<String>,
     score: i32,
     meanings: Vec<String>,
     tail: Option<String>,
@@ -97,11 +98,11 @@ struct FormWord {
 enum FormWordOr {
     FormWord(FormWord),
     Ignored {
-        word_in_text: String,
+        text_word: String,
         range: Range<usize>,
     },
     Unknown {
-        word_in_text: String,
+        text_word: String,
         range: Range<usize>,
     },
 }
@@ -121,7 +122,7 @@ pub fn SegmentedSentenceView(
     source_id: i32,
     sentence_id: Option<i32>,
     sentence: String,
-    segments: Vec<res::Segment>,
+    segments: Vec<res::ApiSegment>,
     ignored_words: Arc<HashSet<i32>>,
     on_successful_accept: Arc<dyn Fn() + Send + Sync>,
 ) -> impl IntoView {
@@ -135,18 +136,18 @@ pub fn SegmentedSentenceView(
             let ignored_words = &ignored_words;
             let field_id = field_id.clone();
             s.interpretations.clone().into_iter().map(move |i| {
-                let word_in_text = sentence[s_range.clone()].to_string();
+                let text_word = sentence[s_range.clone()].to_string();
 
                 let Some(word_id) = i.word_id else {
                     return FormWordOr::Unknown {
-                        word_in_text,
+                        text_word,
                         range: s_range.clone(),
                     };
                 };
                 // check ignored
                 if ignored_words.contains(&word_id) {
                     return FormWordOr::Ignored {
-                        word_in_text,
+                        text_word,
                         range: s_range.clone(),
                     };
                 }
@@ -164,10 +165,15 @@ pub fn SegmentedSentenceView(
                     })
                     .collect::<Vec<_>>();
 
-                let reading = if i.word == i.reading_hiragana {
+                let text_reading = if i.text_word == i.text_reading_hiragana {
                     None
                 } else {
-                    Some(i.reading_hiragana)
+                    Some(i.text_reading_hiragana)
+                };
+                let db_reading = if i.db_word == i.db_reading_hiragana {
+                    None
+                } else {
+                    Some(i.db_reading_hiragana)
                 };
 
                 *field_id.borrow_mut() += 1;
@@ -175,9 +181,10 @@ pub fn SegmentedSentenceView(
                     field_id: *field_id.borrow(),
                     word_id,
                     range: s_range.clone(),
-                    word_in_text,
-                    word: i.word,
-                    reading,
+                    text_word,
+                    text_reading,
+                    db_word: i.db_word,
+                    db_reading,
                     score: i.score,
                     meanings,
                     tail: None,
@@ -229,8 +236,8 @@ pub fn SegmentedSentenceView(
                 (FormWordOr::FormWord(a), FormWordOr::FormWord(b)) => {
                     a.score.cmp(&b.score).reverse().then_with(|| {
                         // 中 readings are usually scored the same but なか is by far the most common one
-                        if a.word == "中" && b.word == "中" {
-                            if a.reading.as_deref() == Some("なか") {
+                        if a.db_word == "中" && b.db_word == "中" {
+                            if a.text_reading.as_deref() == Some("なか") {
                                 Ordering::Less
                             } else {
                                 Ordering::Greater
@@ -261,6 +268,7 @@ pub fn SegmentedSentenceView(
                 .map(|fw| match fw {
                     FormWordOr::FormWord(fw) => {
                         let fw_accept = fw.clone();
+                        let fw_accept_reading = fw.clone();
                         let fw_decline = fw.clone();
                         let fw_ignore = fw.clone();
                         let fw_class = fw.clone();
@@ -288,13 +296,27 @@ pub fn SegmentedSentenceView(
                                 </button>
                             }
                         };
+                        let accept_reading_button = move || {
+                            let accepted_reading = form.read().is_accepted_reading(fw_accept_reading.field_id);
+                            let fw_accept_reading = fw_accept_reading.clone();
+                            let accept_reading = move |_ev| form.write().accept_reading(fw_accept_reading.clone());
+                            view! {
+                                <button
+                                    class="button"
+                                    disabled={accepted_reading}
+                                    on:click={accept_reading}
+                                >
+                                    "Accept Reading"
+                                </button>
+                            }
+                        };
                         let decline_button = move || {
-                            let accepted = form.read().is_accepted(fw_decline.field_id);
+                            let declined = form.read().is_declined(fw_decline.field_id, fw_decline.word_id);
                             let fw_decline = fw_decline.clone();
                             view! {
                                 <button
                                     class="button"
-                                    disabled={!accepted}
+                                    disabled={declined}
                                     on:click={move |_ev| form.write().decline(fw_decline.clone())}
                                 >
                                     "Decline"
@@ -302,7 +324,7 @@ pub fn SegmentedSentenceView(
                             }
                         };
                         let ignore_button = move || {
-                            let ignored = form.read().is_ignored(&fw_ignore);
+                            let ignored = form.read().is_ignored(fw_ignore.word_id);
                             let fw_ignore = fw_ignore.clone();
                             view! {
                                 <button
@@ -314,13 +336,13 @@ pub fn SegmentedSentenceView(
                                 </button>
                             }
                         };
-                        let word = if fw.reading.is_some() {
+                        let word = if fw.db_reading.is_some() {
                             view! {
-                                <div>{fw.word} " (" {fw.reading} ") [" {fw.score} "]"</div>
+                                <div>{fw.db_word} " (" {fw.db_reading} ") [" {fw.score} "]"</div>
                             }.into_any()
                         } else {
                             view! {
-                                <div>{fw.word} " [" {fw.score} "]"</div>
+                                <div>{fw.db_word} " [" {fw.score} "]"</div>
                             }.into_any()
                         };
                         view! {
@@ -328,33 +350,34 @@ pub fn SegmentedSentenceView(
                                 class="box is-flex is-flex-direction-column"
                                 class:has-background-success-light=move || form.read().is_accepted(fw_class.field_id)
                                 class:has-background-warning-light=move || !form.read().is_accepted(fw_class.field_id)
-                                class:has-background-info-light=move || form.read().is_ignored(&fw_class.clone())
+                                class:has-background-info-light=move || form.read().is_ignored(fw_class.word_id)
                             >
-                                <div><b>{fw.word_in_text}</b>{fw.tail}</div>
+                                <div><b>{fw.text_word}</b>{fw.tail}</div>
                                 {word}
                                 <div>{meanings_view}</div>
                                 <div>
                                     {accept_button}
+                                    {accept_reading_button}
                                     {decline_button}
                                     {ignore_button}
                                 </div>
                             </div>
                         }.into_any()
                     },
-                    FormWordOr::Ignored { word_in_text, .. } => {
+                    FormWordOr::Ignored { text_word, .. } => {
                         if group_size == 1 {
                             view! {
-                                <div>{word_in_text} (ignored)</div>
+                                <div>{text_word} (ignored)</div>
                             }
                             .into_any()
                         } else {
                             view! {}.into_any()
                         }
                     }
-                    FormWordOr::Unknown { word_in_text, .. } => {
+                    FormWordOr::Unknown { text_word, .. } => {
                         if group_size == 1 {
                             view! {
-                                <div>{word_in_text} (unknown)</div>
+                                <div>{text_word} (unknown)</div>
                             }
                             .into_any()
                         } else {
@@ -417,6 +440,7 @@ pub fn SegmentedSentenceView(
 #[derive(Debug, Clone)]
 struct Form {
     accepted: Vec<FormWord>,
+    accepted_readings: Vec<FormWord>,
     ignore_words: HashSet<i32>,
 }
 
@@ -435,8 +459,26 @@ impl Form {
         }
         Self {
             accepted,
+            accepted_readings: Vec::new(),
             ignore_words: HashSet::new(),
         }
+    }
+
+    fn clear_accepted_range(&mut self, range: Range<usize>) {
+        self.accepted
+            .retain(|fw| fw.range.start >= range.end || fw.range.end <= range.start);
+        self.accepted_readings
+            .retain(|fw| fw.range.start >= range.end || fw.range.end <= range.start);
+    }
+
+    fn clear_by_field_id(&mut self, field_id: i32) {
+        self.accepted.retain(|fw| fw.field_id != field_id);
+        self.accepted_readings.retain(|fw| fw.field_id != field_id);
+    }
+
+    fn clear_by_word_id(&mut self, word_id: i32) {
+        self.accepted.retain(|fw| fw.word_id != word_id);
+        self.accepted_readings.retain(|fw| fw.word_id != word_id);
     }
 
     fn is_accepted(&self, field_id: i32) -> bool {
@@ -446,29 +488,43 @@ impl Form {
     fn accept(&mut self, form_word: FormWord) {
         tracing::info!("Accepting {}", form_word.field_id);
         // un-accept all conflicting interpretations
-        self.accepted.retain(|fw| {
-            fw.range.start >= form_word.range.end || fw.range.end <= form_word.range.start
-        });
+        self.clear_accepted_range(form_word.range.clone());
         self.accepted.push(form_word);
-        tracing::info!("{:#?}", self.accepted);
     }
 
-    fn is_ignored(&self, form_word: &FormWord) -> bool {
-        self.ignore_words.contains(&form_word.word_id)
+    fn is_accepted_reading(&self, field_id: i32) -> bool {
+        self.accepted_readings
+            .iter()
+            .any(|fw| fw.field_id == field_id)
+    }
+
+    fn accept_reading(&mut self, form_word: FormWord) {
+        tracing::info!("Accepting reading {}", form_word.field_id);
+        // un-accept all conflicting interpretations
+        self.clear_accepted_range(form_word.range.clone());
+        self.accepted_readings.push(form_word);
+    }
+
+    fn is_ignored(&self, word_id: i32) -> bool {
+        self.ignore_words.contains(&word_id)
     }
 
     fn ignore(&mut self, form_word: FormWord) {
         tracing::info!("Ignoring {}", form_word.word_id);
-        self.accepted.retain(|fw| fw.word_id != form_word.word_id);
+        self.clear_by_word_id(form_word.word_id);
         self.ignore_words.insert(form_word.word_id);
-        tracing::info!("{:#?}", self.accepted);
+    }
+
+    fn is_declined(&self, field_id: i32, word_id: i32) -> bool {
+        !self.is_accepted(field_id)
+            && !self.is_accepted_reading(field_id)
+            && !self.is_ignored(word_id)
     }
 
     fn decline(&mut self, form_word: FormWord) {
         tracing::info!("Declining {}", form_word.field_id);
-        self.accepted.retain(|fw| fw.field_id != form_word.field_id);
+        self.clear_by_field_id(form_word.field_id);
         self.ignore_words.remove(&form_word.word_id);
-        tracing::info!("{:#?}", self.accepted);
     }
 
     fn finish(&self, sentence: String) -> req::SegmentedSentence {
@@ -479,8 +535,14 @@ impl Form {
                 id: Some(a.word_id),
                 idx_start: a.range.start as i32,
                 idx_end: a.range.end as i32,
-                reading: a.reading.clone(),
+                reading: a.text_reading.clone(),
             })
+            .chain(self.accepted_readings.iter().map(|a| req::Word {
+                id: None,
+                idx_start: a.range.start as i32,
+                idx_end: a.range.end as i32,
+                reading: a.text_reading.clone(),
+            }))
             .collect();
         req::SegmentedSentence {
             sentence: sentence,
