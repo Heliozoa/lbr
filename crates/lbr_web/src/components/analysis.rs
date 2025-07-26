@@ -3,9 +3,16 @@
 use crate::{context::get_client, error::WebResult};
 use itertools::Itertools;
 use lbr_api::{request as req, response as res};
-use leptos::prelude::*;
+use leptos::{html, prelude::*};
 use send_wrapper::SendWrapper;
-use std::{cell::RefCell, cmp::Ordering, collections::HashSet, ops::Range, rc::Rc, sync::Arc};
+use std::{
+    cell::RefCell,
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    ops::Range,
+    rc::Rc,
+    sync::Arc,
+};
 
 #[component]
 pub fn SegmentedParagraphView(source_id: i32, paragraph: res::SegmentedParagraph) -> impl IntoView {
@@ -344,6 +351,8 @@ pub fn SegmentedSentenceView(
                                 <div>{fw.db_word} " [" {fw.score} "]"</div>
                             }.into_any()
                         };
+                        let override_reading: NodeRef<html::Input> = NodeRef::new();
+                        form.write().add_override_reading(fw_class.field_id, override_reading.clone());
                         view! {
                             <div
                                 class="box is-flex is-flex-direction-column"
@@ -353,6 +362,12 @@ pub fn SegmentedSentenceView(
                             >
                                 <div><b>{fw.text_word}</b>{fw.tail}</div>
                                 {word}
+                                <input
+                                    class="input"
+                                    type="text"
+                                    placeholder="Override reading"
+                                    node_ref=override_reading
+                                />
                                 <div>{meanings_view}</div>
                                 <div>
                                     {accept_button}
@@ -441,6 +456,7 @@ struct Form {
     accepted: Vec<FormWord>,
     accepted_readings: Vec<FormWord>,
     ignore_words: HashSet<i32>,
+    override_readings: HashMap<i32, NodeRef<html::Input>>,
 }
 
 impl Form {
@@ -460,7 +476,29 @@ impl Form {
             accepted,
             accepted_readings: Vec::new(),
             ignore_words: HashSet::new(),
+            override_readings: HashMap::new(),
         }
+    }
+
+    fn add_override_reading(&mut self, field_id: i32, node_ref: NodeRef<html::Input>) {
+        tracing::info!("storing for {field_id}");
+        self.override_readings.insert(field_id, node_ref);
+    }
+
+    fn get_reading(&self, field_id: i32, reading: Option<&str>) -> Option<String> {
+        tracing::info!("getting reading for {field_id} ({reading:?})");
+        let override_reading = self
+            .override_readings
+            .get(&field_id)
+            .unwrap()
+            .get()
+            .unwrap()
+            .value();
+        tracing::info!("found {override_reading}");
+        if !override_reading.is_empty() {
+            return Some(override_reading);
+        }
+        reading.map(str::to_string)
     }
 
     fn clear_accepted_range(&mut self, range: Range<usize>) {
@@ -534,13 +572,13 @@ impl Form {
                 id: Some(a.word_id),
                 idx_start: a.range.start as i32,
                 idx_end: a.range.end as i32,
-                reading: a.text_reading.clone(),
+                reading: self.get_reading(a.field_id, a.text_reading.as_deref()),
             })
             .chain(self.accepted_readings.iter().map(|a| req::Word {
                 id: None,
                 idx_start: a.range.start as i32,
                 idx_end: a.range.end as i32,
-                reading: a.text_reading.clone(),
+                reading: self.get_reading(a.field_id, a.text_reading.as_deref()),
             }))
             .collect();
         req::SegmentedSentence {
