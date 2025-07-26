@@ -155,7 +155,8 @@ fn process_word_info(
                 })
                 .or_else(|| {
                     // try first via if reading or conj word id is none
-                    conj.via.first()
+                    conj.via
+                        .first()
                         .and_then(|via| via.reading.as_ref())
                         .and_then(|reading| {
                             try_get_word_id(

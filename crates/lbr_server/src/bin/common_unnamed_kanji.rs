@@ -48,27 +48,38 @@ fn print_common_unnamed_kanji(lbr_conn: &mut PgConnection) -> eyre::Result<()> {
 
     let file = std::fs::File::open("/home/sasami-san/Dev/lbr/crates/jadata/data/kanji_names.json")
         .unwrap();
-    let s: KanjiNames = serde_json::from_reader(file).unwrap();
+    let kanji_names_json: KanjiNames = serde_json::from_reader(file).unwrap();
 
     let mut dupe_check = HashSet::new();
-    for n in s.kanji_names.values() {
+    for n in kanji_names_json.kanji_names.values() {
         if dupe_check.contains(n) {
             println!("dupe {n}");
         }
         dupe_check.insert(n);
     }
 
-    let existing_names = k::table
-        .select(k::name)
-        .get_results::<Option<String>>(lbr_conn)?
+    let kanji_names_db = k::table
+        .select((k::chara, k::name))
+        .get_results::<(String, Option<String>)>(lbr_conn)?;
+
+    for (kanji, name) in &kanji_names_db {
+        if let Some(name) = name.as_ref() {
+            if !kanji_names_json.kanji_names.contains_key(kanji) {
+                println!("missing \"{}\": \"{}\"", kanji, name)
+            }
+        }
+    }
+
+    let existing_names = kanji_names_db
         .into_iter()
+        .map(|knd| knd.1)
         .flatten()
-        .chain(s.kanji_names.values().map(String::from))
+        .chain(kanji_names_json.kanji_names.values().map(String::from))
         .collect::<HashSet<_>>();
 
     let common_unnamed_kanji = common_unnamed_kanji_db
         .into_iter()
-        .filter(|c| !s.kanji_names.contains_key(&c.0))
+        .filter(|c| !kanji_names_json.kanji_names.contains_key(&c.0))
         .collect::<Vec<_>>();
 
     let mut names: HashMap<String, String> = HashMap::new();

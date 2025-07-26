@@ -353,6 +353,15 @@ pub fn SegmentedSentenceView(
                         };
                         let override_reading: NodeRef<html::Input> = NodeRef::new();
                         form.write().add_override_reading(fw_class.field_id, override_reading.clone());
+
+                        let before = &sentence[..fw.range.start];
+                        let before_chars = before.chars().count();
+                        let before = before.chars().skip(before_chars.saturating_sub(4)).collect::<String>();
+
+                        let after = &sentence[fw.range.end..];
+                        let after_chars = after.chars().count();
+                        let after = after.chars().take(after_chars.min(4)).collect::<String>();
+
                         view! {
                             <div
                                 class="box is-flex is-flex-direction-column"
@@ -360,7 +369,7 @@ pub fn SegmentedSentenceView(
                                 class:has-background-warning-light=move || !form.read().is_accepted(fw_class.field_id)
                                 class:has-background-info-light=move || form.read().is_ignored(fw_class.word_id)
                             >
-                                <div><b>{fw.text_word}</b>{fw.tail}</div>
+                                <div>{before}<b>{fw.text_word}</b>{after}</div>
                                 {word}
                                 <input
                                     class="input"
