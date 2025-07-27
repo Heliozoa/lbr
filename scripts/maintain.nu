@@ -14,10 +14,12 @@ use prepare-ichiran-db.nu [
     prepare_ichiran_db
 ]
 use prepare-ichiran-seq-to-word-id.nu
+use backup.nu
 
 # Updates the data sources used by the project without throwing out existing lbr data.
 export def main [] {
     initialise_logging
+    backup
     with-env (env-vars) {
         print "Updating data files"
         dl_ichiran_dump "./data/ichiran.pgdump"
@@ -39,7 +41,8 @@ export def main [] {
                 "./crates/jadata/data/kanji_names.json"
                 "./crates/jadata/data/kanji_similar.json"
                 "./crates/jadata/data/kanji_extra.json"
-                "./data/JMdict_e_examp.xml")
+                "./data/JMdict_e_examp.xml"
+                "./data/similar-kanji")
             | complete
             | check_error
         }
