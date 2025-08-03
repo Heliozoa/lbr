@@ -28,7 +28,6 @@ leptos_router = { version = "0.8.2", features = ["nightly"] }
 # ichiran = { path = "../ichiran-rs" }
 # furigana = { path = "../furigana" }
 
-
 [profile.dev.package]
 furigana.opt-level = 3
 ichiran.opt-level = 3

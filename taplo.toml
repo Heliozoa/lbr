@@ -3,6 +3,7 @@
 
 [formatting]
 align_comments = false
+allowed_blank_lines = 1
 reorder_keys = true
 
 [[rule]]
