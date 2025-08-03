@@ -65,15 +65,14 @@ fn print_common_unnamed_kanji(lbr_conn: &mut PgConnection) -> eyre::Result<()> {
     for (kanji, name) in &kanji_names_db {
         if let Some(name) = name.as_ref() {
             if !kanji_names_json.kanji_names.contains_key(kanji) {
-                println!("missing \"{}\": \"{}\"", kanji, name)
+                println!("missing \"{kanji}\": \"{name}\"")
             }
         }
     }
 
     let existing_names = kanji_names_db
         .into_iter()
-        .map(|knd| knd.1)
-        .flatten()
+        .flat_map(|knd| knd.1)
         .chain(kanji_names_json.kanji_names.values().map(String::from))
         .collect::<HashSet<_>>();
 

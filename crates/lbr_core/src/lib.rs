@@ -15,6 +15,10 @@ pub fn find_jp_equivalent(text: &str, target: &str) -> Option<(usize, usize)> {
     const NUM_RANGE: RangeInclusive<char> = '0'..='9';
     const FW_NUM_RANGE: RangeInclusive<char> = '０'..='９';
 
+    if target.is_empty() {
+        return None;
+    }
+
     let mut text_idx = 0;
     let mut text_chars = text.chars();
     let mut target_length_in_text = 0;
@@ -98,5 +102,11 @@ mod test {
     fn finds_width_equivalent() {
         let res = find_jp_equivalent("そろそろ１０時間ですね", "10");
         assert_eq!(res, Some((12, 6)));
+    }
+
+    #[test]
+    fn works_with_empty() {
+        let res = find_jp_equivalent("asd", "");
+        assert_eq!(res, None);
     }
 }

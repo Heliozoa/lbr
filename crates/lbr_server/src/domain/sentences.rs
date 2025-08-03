@@ -25,7 +25,7 @@ pub fn segment_sentence(
     tracing::info!("Segmenting sentence '{sentence}'");
 
     // get individual words from sentence with ichiran
-    let segments = match ichiran.segment(sentence, Some(8)) {
+    let segments = match ichiran.segment(sentence, Some(16)) {
         Ok(segments) => segments,
         Err(err) => {
             if let IchiranError::IchiranError { stdout, stderr } = &err {

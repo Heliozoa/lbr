@@ -15,7 +15,7 @@ license.workspace = true
 [dependencies]
 lbr_core.workspace = true
 
-furigana = "0.1.10"
+furigana = "0.1.12"
 ichiran = "0.6.0"
 reanki = { version = "0.1.0", git = "https://github.com/Heliozoa/reanki.git", rev = "17b8c9f37afe64235b2ec94571bbf20a0887d327" }
 serde = { version = "1.0.148", features = ["derive"] }

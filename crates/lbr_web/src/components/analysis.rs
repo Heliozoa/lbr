@@ -352,7 +352,7 @@ pub fn SegmentedSentenceView(
                             }.into_any()
                         };
                         let override_reading: NodeRef<html::Input> = NodeRef::new();
-                        form.write().add_override_reading(fw_class.field_id, override_reading.clone());
+                        form.write().add_override_reading(fw_class.field_id, override_reading);
 
                         let before = &sentence[..fw.range.start];
                         let before_chars = before.chars().count();

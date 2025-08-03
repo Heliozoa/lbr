@@ -45,6 +45,7 @@ pub fn to_lbr_segments(
                             current_idx = alternative_start_idx;
                             match alternative {
                                 Alternative::WordInfo(wi) => {
+                                    tracing::trace!("processing wordinfo {}", wi.text);
                                     if let Some(range) = process_word_info(
                                         wi,
                                         remaining_text,
@@ -60,7 +61,9 @@ pub fn to_lbr_segments(
                                     }
                                 }
                                 Alternative::CompoundWordInfo(cwi) => {
+                                    tracing::trace!("processing compoundwordinfo");
                                     for component in cwi.components {
+                                        tracing::trace!("processing component {}", component.text);
                                         let remaining_text = &text[current_idx..];
                                         if let Some(range) = process_word_info(
                                             component,
@@ -117,8 +120,52 @@ fn process_word_info(
     new_segments: &mut HashMap<Range<usize>, Segment>,
     current_idx: usize,
 ) -> Option<Range<usize>> {
-    let word = &wi.text;
-    let Some((start_idx, len)) = lbr_core::find_jp_equivalent(remaining_text, word) else {
+    let mut word = wi.text;
+    let mut reading = wi.reading;
+    let mut reading_hiragana = replace_invisible_characters(&wi.kana);
+    let jp_equivalent = lbr_core::find_jp_equivalent(remaining_text, &word)
+        .or_else(|| {
+            // in some cases such as 言ってる ichiran will segment it as 言って いる
+            // including the い which is not present in the original text
+            // searching for "る" in the entire rest of the sentence is a little risky so we'll
+            // only accept it if it's right at the start
+            if word == "いる" {
+                let jp_equivalent = lbr_core::find_jp_equivalent(remaining_text, &"る")?;
+                if jp_equivalent.0 == 0 {
+                    word = "る".to_string();
+                    reading = "る".to_string();
+                    reading_hiragana = "る".to_string();
+                    return Some(jp_equivalent);
+                }
+            }
+            None
+        })
+        .or_else(|| {
+            // in some cases such as 責められちゃう ichiran will segment it as 責められて　ちゃう,
+            // including the て which is not present in the original text
+            // so we'll try without it
+            if word.chars().last() != Some('て') {
+                return None;
+            }
+            let word_chars = word.chars().count();
+            let word_without_last = word.chars().take(word_chars - 1).collect::<String>();
+            let jp_equivalent = lbr_core::find_jp_equivalent(remaining_text, &word_without_last)?;
+            word = word_without_last;
+
+            let reading_chars = reading.chars().count();
+            let reading_without_last = reading.chars().take(reading_chars - 1).collect::<String>();
+            reading = reading_without_last;
+
+            let kana_chars = reading_hiragana.chars().count();
+            let kana_without_last = reading_hiragana
+                .chars()
+                .take(kana_chars - 1)
+                .collect::<String>();
+            reading_hiragana = kana_without_last;
+
+            Some(jp_equivalent)
+        });
+    let Some((start_idx, len)) = jp_equivalent else {
         tracing::warn!("Failed to find {word} in text {remaining_text}");
         return None;
     };
@@ -135,7 +182,7 @@ fn process_word_info(
     let word_id = try_get_word_id(
         seq,
         word_in_text,
-        &wi.reading,
+        &reading,
         ichiran_word_to_id,
         kanji_to_readings,
     )
@@ -171,10 +218,9 @@ fn process_word_info(
         })
     });
     if word_id.is_none() {
-        tracing::warn!("Failed to find word_id for {}", wi.text);
+        tracing::warn!("Failed to find word_id for {word}");
     }
 
-    let reading_hiragana = replace_invisible_characters(&wi.kana);
     let meanings = word_id
         // get from map
         .and_then(|wid| word_to_meanings.get(&wid))
@@ -208,7 +254,7 @@ fn process_word_info(
     let new_interpretation: it::Interpretation = it::Interpretation {
         word_id,
         score: wi.score,
-        word: wi.text,
+        word,
         reading_hiragana,
         meanings,
     };
@@ -427,7 +473,7 @@ mod test {
         tracing_subscriber::fmt()
             .with_max_level(Level::TRACE)
             .init();
-        let txt = "言って";
+        let txt = "ご飯を買いに行ってると思います。";
 
         let ichiran = IchiranCli::new("../../data/ichiran-cli".into());
         let segments = ichiran.segment(txt, Some(1)).unwrap();
@@ -438,6 +484,6 @@ mod test {
             &HashMap::new(),
             &HashMap::new(),
         );
-        panic!("ohh ye {segs:#?}");
+        panic!();
     }
 }
