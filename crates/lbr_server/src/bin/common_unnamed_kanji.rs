@@ -6,7 +6,7 @@ use jadata::kanji_names::KanjiNames;
 use std::{
     collections::{HashMap, HashSet},
     env,
-    io::{stdin, stdout, Write},
+    io::{Write, stdin, stdout},
 };
 
 fn main() -> eyre::Result<()> {

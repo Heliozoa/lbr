@@ -5,9 +5,9 @@ use crate::{
     error::{WebError, WebResult},
 };
 pub use crate::{logged_in_resource, untangle};
-use leptos::{prelude::*, IntoView};
+use leptos::{IntoView, prelude::*};
 use leptos_router::params::Params;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use std::{fmt::Debug, future::Future};
 
 /// Generic loading fallback view.

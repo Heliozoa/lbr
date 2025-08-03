@@ -1,10 +1,10 @@
 //! Contains functionality related to lbr_core.
 
-use crate::{is_kanji, standardise_reading, StandardisedReading};
+use crate::{StandardisedReading, is_kanji, standardise_reading};
 use ichiran::{Alternative, WordInfo};
 use lbr_core::ichiran_types::{self as it, Segment};
 use std::{
-    collections::{hash_map::Entry, HashMap},
+    collections::{HashMap, hash_map::Entry},
     ops::{Not, Range},
 };
 
@@ -130,7 +130,7 @@ fn process_word_info(
             // searching for "る" in the entire rest of the sentence is a little risky so we'll
             // only accept it if it's right at the start
             if word == "いる" {
-                let jp_equivalent = lbr_core::find_jp_equivalent(remaining_text, &"る")?;
+                let jp_equivalent = lbr_core::find_jp_equivalent(remaining_text, "る")?;
                 if jp_equivalent.0 == 0 {
                     word = "る".to_string();
                     reading = "る".to_string();
@@ -144,7 +144,7 @@ fn process_word_info(
             // in some cases such as 責められちゃう ichiran will segment it as 責められて　ちゃう,
             // including the て which is not present in the original text
             // so we'll try without it
-            if word.chars().last() != Some('て') {
+            if word.ends_with('て') {
                 return None;
             }
             let word_chars = word.chars().count();

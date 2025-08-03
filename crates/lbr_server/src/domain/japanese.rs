@@ -41,7 +41,9 @@ pub fn map_to_db_furigana(
 ) -> eyre::Result<Vec<Furigana>> {
     let furigana = furigana::map(word, reading, kanji_to_readings);
     let furigana = if furigana.is_empty() {
-        tracing::warn!("Failed to map furigana accurately for '{word}' with reading '{reading}', using naive mapping");
+        tracing::warn!(
+            "Failed to map furigana accurately for '{word}' with reading '{reading}', using naive mapping"
+        );
         furigana::map_naive(word, reading)
     } else {
         furigana

@@ -1,7 +1,7 @@
 use lbr_web::App;
 use tracing::Level;
 use tracing_subscriber::{fmt::format::Pretty, prelude::*};
-use tracing_web::{performance_layer, MakeWebConsoleWriter};
+use tracing_web::{MakeWebConsoleWriter, performance_layer};
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]

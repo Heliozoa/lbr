@@ -12,10 +12,10 @@ pub mod utils;
 use crate::handlers::{decks, sentences, sources, words};
 use authentication::{Expiration, SessionCache};
 use axum::{
+    Router,
     extract::FromRef,
     response::{Html, IntoResponse},
     routing::{delete, get, post},
-    Router,
 };
 use diesel::{
     prelude::*,

@@ -1,15 +1,15 @@
 //! Frequently used imports for handlers.
 
 pub use crate::{
+    LbrState,
     authentication::Authentication,
     error::{EyreResult, LbrResult},
     schema,
-    utils::diesel::{eq, query, PostgresChunks},
-    LbrState,
+    utils::diesel::{PostgresChunks, eq, query},
 };
 pub use axum::{
-    extract::{Path, State},
     Json,
+    extract::{Path, State},
 };
 pub use diesel::prelude::*;
 pub use eyre::WrapErr;

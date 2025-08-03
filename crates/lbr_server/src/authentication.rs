@@ -2,18 +2,18 @@
 
 use crate::LbrState;
 use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
 use axum::{
-    extract::{FromRequestParts, OptionalFromRequestParts},
-    http::{request::Parts, StatusCode},
     RequestPartsExt,
+    extract::{FromRequestParts, OptionalFromRequestParts},
+    http::{StatusCode, request::Parts},
 };
-use moka::{future::Cache, Expiry};
+use moka::{Expiry, future::Cache};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt::Debug, time::Duration};
-use tower_cookies::{cookie::SameSite, Cookie, Cookies, SignedCookies};
+use tower_cookies::{Cookie, Cookies, SignedCookies, cookie::SameSite};
 
 pub type SessionCache = Cache<i32, Session>;
 

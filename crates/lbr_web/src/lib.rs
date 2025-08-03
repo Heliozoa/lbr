@@ -9,7 +9,7 @@ pub mod utils;
 use components::*;
 use leptos::prelude::*;
 use leptos_meta::*;
-use leptos_router::{components::*, ParamSegment, StaticSegment};
+use leptos_router::{ParamSegment, StaticSegment, components::*};
 use pages::*;
 
 /// Wraps the content in a basic layout and a final fallback error boundary which should never actually trigger
