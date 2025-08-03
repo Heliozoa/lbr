@@ -4,10 +4,10 @@ resolver = "2"
 
 [workspace.package]
 authors = ["Heliozoa <daniel.x.martinez@helsinki.fi>"]
-edition = "2021"
+edition = "2024"
 license = "AGPL-3.0-or-later"
 repository = "https://github.com/Heliozoa/lbr"
-rust-version = "1.63"
+rust-version = "1.85"
 version = "0.1.0"
 
 [workspace.dependencies]
