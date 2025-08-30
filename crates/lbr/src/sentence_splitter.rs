@@ -21,9 +21,9 @@ impl<'a> Iterator for SentenceSplitter<'a> {
     type Item = &'a str;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // scroll past whitespace
+        // scroll past whitespace and punctuation
         for c in self.s[self.idx..].chars() {
-            if c.is_whitespace() {
+            if c.is_whitespace() || [',', '、'].contains(&c) {
                 self.idx += c.len_utf8();
             } else {
                 break;
@@ -55,15 +55,32 @@ impl<'a> Iterator for SentenceSplitter<'a> {
             return None;
         }
 
+        let periods = "。…‥.";
+        let mut inside_start_periods = next_chunk
+            .chars()
+            .next()
+            .map(|f| periods.contains(f))
+            .unwrap_or_default();
         let mut at_sentence_end = false;
         let mut quote_stack = Vec::<char>::new();
         let sentence_enders = "。？！…‥.?!";
 
         // go through each character
         for c in next_chunk.chars() {
+            if inside_start_periods && c.is_whitespace() {
+                // periods followed by whitespace, sentence over
+                return Some(self.s[start_idx..self.idx].trim_start());
+            }
+            if inside_start_periods && !periods.contains(c) {
+                // no longer inside start periods
+                inside_start_periods = false;
+            }
             // check for end-of-sentence and end-of-end-of-sentence if not in quote
             if sentence_enders.contains(c) && quote_stack.is_empty() {
-                at_sentence_end = true;
+                // if we're still inside start periods, we don't count it as the sentence end
+                if !(periods.contains(c) && inside_start_periods) {
+                    at_sentence_end = true;
+                }
             } else if at_sentence_end && quote_stack.is_empty() {
                 // sentence over
                 return Some(self.s[start_idx..self.idx].trim_start());
@@ -225,5 +242,21 @@ mod test {
         let ss = SentenceSplitter::new(sentences);
         let sentences = ss.collect::<Vec<_>>();
         assert_eq!(sentences, &["おはよう...!?", "さようなら。"]);
+    }
+
+    #[test]
+    fn dots_followed_by_comma() {
+        let sentences = "庭で......、何をしてるんだろう......。";
+        let ss = SentenceSplitter::new(sentences);
+        let sentences = ss.collect::<Vec<_>>();
+        assert_eq!(sentences, &["庭で......", "何をしてるんだろう......。"])
+    }
+
+    #[test]
+    fn sentence_starting_with_periods() {
+        let sentences = "...はあ。";
+        let ss = SentenceSplitter::new(sentences);
+        let sentences = ss.collect::<Vec<_>>();
+        assert_eq!(sentences, &["...はあ。"])
     }
 }

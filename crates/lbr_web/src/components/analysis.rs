@@ -237,26 +237,8 @@ pub fn SegmentedSentenceView(
                     }
                 }
             }
-            // high score first
-            segs.sort_unstable_by(|a, b| match (a, b) {
-                (FormWordOr::FormWord(a), FormWordOr::FormWord(b)) => {
-                    a.score.cmp(&b.score).reverse().then_with(|| {
-                        // 中 readings are usually scored the same but なか is by far the most common one
-                        if a.db_word == "中" && b.db_word == "中" {
-                            if a.text_reading.as_deref() == Some("なか") {
-                                Ordering::Less
-                            } else {
-                                Ordering::Greater
-                            }
-                        } else {
-                            Ordering::Equal
-                        }
-                    })
-                }
-                (FormWordOr::FormWord(_), _) => Ordering::Less,
-                (_, FormWordOr::FormWord(_)) => Ordering::Greater,
-                (_, _) => Ordering::Equal,
-            });
+            // length first, score second
+            segs.sort_unstable_by(|a, b| sort_by_length(a, b).then(sort_by_score(a, b)));
             grouped.push(segs);
         } else {
             break;
@@ -595,5 +577,38 @@ impl Form {
             words,
             ignore_words: self.ignore_words.clone(),
         }
+    }
+}
+
+fn sort_by_length(a: &FormWordOr, b: &FormWordOr) -> Ordering {
+    match (a, b) {
+        (FormWordOr::FormWord(a), FormWordOr::FormWord(b)) => {
+            a.range.end.cmp(&b.range.end).reverse()
+        }
+        (FormWordOr::FormWord(_), _) => Ordering::Less,
+        (_, FormWordOr::FormWord(_)) => Ordering::Greater,
+        (_, _) => Ordering::Equal,
+    }
+}
+
+fn sort_by_score(a: &FormWordOr, b: &FormWordOr) -> Ordering {
+    match (a, b) {
+        (FormWordOr::FormWord(a), FormWordOr::FormWord(b)) => {
+            a.score.cmp(&b.score).reverse().then_with(|| {
+                // 中 readings are usually scored the same but なか is by far the most common one
+                if a.db_word == "中" && b.db_word == "中" {
+                    if a.text_reading.as_deref() == Some("なか") {
+                        Ordering::Less
+                    } else {
+                        Ordering::Greater
+                    }
+                } else {
+                    Ordering::Equal
+                }
+            })
+        }
+        (FormWordOr::FormWord(_), _) => Ordering::Less,
+        (_, FormWordOr::FormWord(_)) => Ordering::Greater,
+        (_, _) => Ordering::Equal,
     }
 }
