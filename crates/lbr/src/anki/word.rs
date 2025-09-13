@@ -237,7 +237,7 @@ impl WordFields {
 }
 
 /// Globally unique anki model ID. Randomly chosen.
-const LBR_WORD_ANKI_MODEL_ID: i32 = -2108777964;
+const LBR_WORD_ANKI_MODEL_ID: i64 = -2108777964;
 pub fn create_model() -> Model {
     let fields = WordFields::fields();
     Model::new(
@@ -287,7 +287,7 @@ ruby rt {
     )
 }
 
-const LBR_WORD_ANKI_TEMPLATE_ID: i32 = -911618187;
+const LBR_WORD_ANKI_TEMPLATE_ID: i64 = -911618187;
 pub fn create_template() -> Template {
     Template::new(
         LBR_WORD_ANKI_TEMPLATE_ID,

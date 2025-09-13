@@ -125,7 +125,7 @@ impl KanjiFields {
 }
 
 /// Globally unique anki model ID. Randomly chosen.
-const LBR_KANJI_ANKI_MODEL_ID: i32 = -1289186172;
+const LBR_KANJI_ANKI_MODEL_ID: i64 = -1289186172;
 pub fn create_model() -> Model {
     let fields = KanjiFields::fields();
     Model::new(
@@ -160,7 +160,7 @@ pub fn create_model() -> Model {
     )
 }
 
-const LBR_KANJI_ANKI_TEMPLATE_ID: i32 = -155074387;
+const LBR_KANJI_ANKI_TEMPLATE_ID: i64 = -155074387;
 pub fn create_template() -> Template {
     Template::new(
         LBR_KANJI_ANKI_TEMPLATE_ID,
