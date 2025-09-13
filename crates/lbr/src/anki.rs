@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 pub fn create_deck(
     name: String,
-    id: i32,
+    id: i64,
     mut word_cards: Vec<WordCard>,
     mut kanji_cards: Vec<KanjiCard>,
 ) -> Deck {

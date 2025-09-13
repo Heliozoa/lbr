@@ -205,7 +205,7 @@ pub async fn generate(
             &mut conn,
             deck.name.clone(),
             deck.id,
-            deck.anki_deck_id as i32,
+            deck.anki_deck_id,
             user_id,
         )?;
         let mut buf = Cursor::new(Vec::new());
