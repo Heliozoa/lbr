@@ -21,7 +21,7 @@ pub fn gen_deck(
     tracing::debug!("Created {} cards", word_cards.len() + kanji_cards.len());
 
     tracing::info!("Creating deck");
-    let package = lbr::anki::create_deck(name, anki_deck_id.into(), word_cards, kanji_cards);
+    let package = lbr::anki::create_deck(name, anki_deck_id, word_cards, kanji_cards);
     tracing::info!("Created deck");
 
     Ok(package)

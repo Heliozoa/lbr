@@ -42,8 +42,15 @@ fn print_common_unnamed_kanji(lbr_conn: &mut PgConnection) -> eyre::Result<()> {
         .inner_join(sw::table.on(sw::word_id.eq(w::id.nullable())))
         .filter(k::name.is_null())
         .group_by(k::chara)
-        .order(diesel::dsl::count_distinct(sw::sentence_id).desc())
-        .select((k::chara, diesel::dsl::count_distinct(sw::sentence_id)))
+        .order(
+            diesel::dsl::count(sw::sentence_id)
+                .aggregate_distinct()
+                .desc(),
+        )
+        .select((
+            k::chara,
+            diesel::dsl::count(sw::sentence_id).aggregate_distinct(),
+        ))
         .get_results::<(String, i64)>(lbr_conn)?;
 
     let file = std::fs::File::open("/home/sasami-san/Dev/lbr/crates/jadata/data/kanji_names.json")
