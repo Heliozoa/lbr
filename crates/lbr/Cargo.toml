@@ -17,7 +17,7 @@ lbr_core.workspace = true
 
 furigana = "0.1.12"
 ichiran = "0.6.0"
-reanki = { version = "0.1.0", git = "https://github.com/Heliozoa/reanki.git", rev = "24e36220df60f78f65d9a37faefcc4f1452cbeeb" }
+reanki = { version = "0.1.0", git = "https://github.com/Heliozoa/reanki.git", rev = "96dcde552d49554c88d7bdb0de1da796019d3502" }
 serde = { version = "1.0.148", features = ["derive"] }
 thiserror = "2.0.9"
 tracing = "0.1.37"
