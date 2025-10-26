@@ -2,8 +2,9 @@
 //! See <https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project>
 
 use serde::{Deserialize, Serialize};
-use serde_xml_rs::{Deserializer, EventReader, ParserConfig};
+use serde_xml_rs::Deserializer;
 use std::io::Read;
+use xml::{EventReader, ParserConfig};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

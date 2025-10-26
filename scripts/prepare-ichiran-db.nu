@@ -24,16 +24,19 @@ export def prepare_ichiran_db_dump_prompt []: nothing -> string {
 # Initialises the ichiran database.
 export def prepare_ichiran_db [database_name: string, database_user: string, database_dump: string]: nothing -> string {
     print $"Dropping database `($database_name)`"
+    print "Asking password for postgres (dropdb)"
     dropdb --username=postgres --if-exists $database_name
         | complete
         | check_error
 
     print "Creating database"
+    print "Asking password for postgres (createdb)"
     createdb --username=postgres --owner=($database_user) --encoding='UTF8' --locale='ja_JP.utf8' --template=template0 $database_name
         | complete
         | check_error
 
     print "Restoring database, this may take a while"
+    print "Asking password for postgres (pg_restore)"
     pg_restore --clean --if-exists --no-owner --role=($database_user) --username=postgres --dbname=($database_name) $database_dump
         | complete
         # pg_restore will probably report errors that we don't care about, so we'll only warn here

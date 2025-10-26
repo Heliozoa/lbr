@@ -30,7 +30,7 @@ export def prepare_ichiran_cli_connection_user_prompt []: nothing -> string {
 }
 
 export def prepare_ichiran_cli_connection_password_prompt []: nothing -> string {
-    return (input_password "ichiran database password")
+    return (input_password "ichiran database user password")
 }
 
 export def prepare_ichiran_cli_connection_host_prompt []: nothing -> string {

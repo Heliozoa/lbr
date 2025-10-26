@@ -122,8 +122,8 @@ diesel::table! {
         word -> Text,
         reading -> Text,
         reading_standard -> Text,
-        translations -> Array<Nullable<Text>>,
         furigana -> Array<Nullable<Furigana>>,
+        translations -> Array<Nullable<Text>>,
     }
 }
 

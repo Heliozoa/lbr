@@ -1,4 +1,5 @@
 accepted = [
+  "AGPL-3.0-or-later",
   "AGPL-3.0",
   "GPL-3.0",
   "MPL-2.0",
@@ -10,4 +11,6 @@ accepted = [
   "BSL-1.0",
   "CC0-1.0",
   "Unicode-DFS-2016",
+  "Unicode-3.0",
+  "bzip2-1.0.6"
 ]

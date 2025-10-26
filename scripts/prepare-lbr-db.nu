@@ -19,11 +19,4 @@ export def prepare_lbr_db [database_url: string] {
     diesel database reset --migration-dir ./crates/lbr_server/migrations --database-url $database_url
         | complete
         | check_error
-
-    print "Seeding database"
-    timeit {
-        cargo run --release -p lbr_server --bin update_db
-            | complete
-            | check_error
-    }
 }

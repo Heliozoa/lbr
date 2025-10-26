@@ -40,7 +40,7 @@ leptos_meta = { workspace = true, features = ["ssr"] }
 moka = { version = "0.12.1", features = ["future"] }
 rand = "0.9.0"
 serde = "1.0.164"
-serde-xml-rs = "0.7.0"
+serde-xml-rs = "0.8.1"
 serde_json = "1.0.97"
 tempfile = "3.6.0"
 tokio = { version = "1.28.2", features = ["full"] }
@@ -51,3 +51,4 @@ tower-http = { version = "0.6.1", features = ["cors", "fs"] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.17"
 wana_kana = "4.0.0"
+xml-rs = "0.8.27"

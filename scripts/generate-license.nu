@@ -10,14 +10,16 @@ def main [] {
 
 # Generates files that contain all of the third-party license information.
 export def generate_license [target: string]: nothing -> string {
-    if (target == "web") {
-        cargo about generate ./about/web.hbs > ./data/license-web.html
+    if ($target == "web") {
+        cargo about generate ./about/web.hbs
             | complete
             | check_error
-    } else if (target == "docker") {
-        cargo about generate ./about/docker.hbs > ./data/license-docker.md
+            | save -f ./data/license-web.html
+    } else if ($target == "docker") {
+        cargo about generate ./about/docker.hbs
             | complete
             | check_error
+            | save -f ./data/license-docker.md
     } else {
         print "Invalid input"
         exit 1

@@ -9,7 +9,7 @@ CREATE TABLE words (
     jmdict_id INTEGER NOT NULL,
     word TEXT NOT NULL,
     reading TEXT NOT NULL,
-    reading_standard TEXT,
+    reading_standard TEXT NOT NULL,
     furigana FURIGANA [] NOT NULL,
     translations TEXT [] NOT NULL
 );

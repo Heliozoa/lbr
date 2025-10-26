@@ -26,7 +26,12 @@ use generate-license.nu [
 use generate-env.nu [
     generate_env
 ]
-use downloads.nu
+use downloads.nu [
+    dl_ichiran_dump
+    dl_jmdict
+    dl_kanjidic
+    dl_kradfile
+]
 
 # Initialises everything the project needs to function from scratch.
 def main [] {
@@ -54,12 +59,13 @@ def main [] {
     let ichiran_connection_user = prepare_ichiran_cli_connection_user_prompt
     let ichiran_connection_password = prepare_ichiran_cli_connection_password_prompt
     let ichiran_connection_host = prepare_ichiran_cli_connection_host_prompt
-    prepare_ichiran_cli $ichiran_connection_name $ichiran_connection_user $ichiran_connection_password $ichiran_connection_host $jmdictdb_path
-    prepare_ichiran_db $ichiran_database_name $ichiran_database_user $ichiran_database_dump
-    prepare-ichiran-seq-to-word-id
 
     prepare-lbr-db-user
     prepare_lbr_db $lbr_connection
+
+    prepare_ichiran_db $ichiran_database_name $ichiran_database_user $ichiran_database_dump
+    prepare_ichiran_cli $ichiran_connection_name $ichiran_connection_user $ichiran_connection_password $ichiran_connection_host $jmdictdb_path
+    prepare-ichiran-seq-to-word-id
 
     generate_license "web"
     generate_license "docker"
