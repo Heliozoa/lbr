@@ -40,9 +40,10 @@ pub struct Codepoint {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CpValue {
-    #[serde(rename = "$value")]
-    pub value: String,
+    #[serde(rename = "@cp_type")]
     pub cp_type: String,
+    #[serde(rename = "#text")]
+    pub text: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,9 +55,10 @@ pub struct Radical {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RadValue {
-    #[serde(rename = "$value")]
-    pub value: u8,
+    #[serde(rename = "@rad_type")]
     pub rad_type: String,
+    #[serde(rename = "#text")]
+    pub text: u8,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,9 +77,10 @@ pub struct Misc {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Variant {
-    #[serde(rename = "$value")]
-    pub value: String,
+    #[serde(rename = "@var_type")]
     pub var_type: String,
+    #[serde(rename = "#text")]
+    pub text: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -89,11 +92,14 @@ pub struct DicNumber {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DicRef {
-    #[serde(rename = "$value")]
-    pub value: String,
+    #[serde(rename = "@dr_type")]
     pub dr_type: String,
+    #[serde(rename = "@m_vol")]
     pub m_vol: Option<String>,
+    #[serde(rename = "@m_page")]
     pub m_page: Option<String>,
+    #[serde(rename = "#text")]
+    pub text: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -105,11 +111,12 @@ pub struct QueryCode {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct QCode {
-    #[serde(rename = "$value")]
-    pub value: String,
-
+    #[serde(rename = "@qc_type")]
     pub qc_type: String,
+    #[serde(rename = "@skip_misclass")]
     pub skip_misclass: Option<String>,
+    #[serde(rename = "#text")]
+    pub text: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -133,17 +140,21 @@ pub struct Rmgroup {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Reading {
-    #[serde(rename = "$value")]
-    pub value: String,
+    #[serde(rename = "@r_type")]
     pub r_type: String,
+    #[serde(rename = "@on_type")]
     pub on_type: Option<String>,
+    #[serde(rename = "@r_status")]
     pub r_status: Option<String>,
+    #[serde(rename = "#text")]
+    pub text: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Meaning {
-    #[serde(rename = "$value")]
-    pub value: String,
+    #[serde(rename = "@m_lang")]
     pub m_lang: Option<String>,
+    #[serde(rename = "#text")]
+    pub text: String,
 }

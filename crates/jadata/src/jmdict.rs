@@ -30,7 +30,9 @@ pub struct Entry {
     pub ent_seq: String,
     #[serde(default)]
     pub k_ele: Vec<KEle>,
+    #[serde(default)]
     pub r_ele: Vec<REle>,
+    #[serde(default)]
     pub sense: Vec<Sense>,
 }
 
@@ -89,21 +91,27 @@ pub struct Sense {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Lsource {
-    #[serde(rename = "$value")]
-    pub value: Option<String>,
+    #[serde(rename = "@xml:lang")]
     pub lang: Option<String>,
+    #[serde(rename = "@ls_type")]
     pub ls_type: Option<String>,
+    #[serde(rename = "@ls_wasei")]
     pub ls_wasei: Option<String>,
+    #[serde(rename = "#text")]
+    pub text: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Gloss {
-    #[serde(rename = "$value")]
-    pub value: String,
+    #[serde(rename = "@xml:lang")]
     pub lang: Option<String>,
+    #[serde(rename = "@g_gend")]
     pub g_gend: Option<String>,
+    #[serde(rename = "@g_type")]
     pub g_type: Option<String>,
+    #[serde(rename = "#text")]
+    pub text: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -117,9 +125,10 @@ pub struct Example {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ExSrce {
-    #[serde(rename = "$value")]
-    pub value: String,
+    #[serde(rename = "@exsrc_type")]
     pub exsrc_type: String,
+    #[serde(rename = "#text")]
+    pub text: String,
 }
 
 fn make_config() -> ParserConfig {

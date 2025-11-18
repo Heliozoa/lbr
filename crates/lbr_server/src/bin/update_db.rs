@@ -161,7 +161,7 @@ fn update_kanji(
             .iter()
             .flat_map(|rm| &rm.meaning)
             .filter(|m| m.m_lang.is_none())
-            .map(|m| &m.value)
+            .map(|m| &m.text)
             .collect::<Vec<_>>();
         let components = kf
             .kanji_to_components
@@ -204,10 +204,10 @@ fn update_kanji(
             .filter(|r| r.r_type == "ja_on" || r.r_type == "ja_kun")
         {
             let (reading, okurigana) = reading
-                .value
+                .text
                 .split_once(".")
                 .map(|(r, o)| (r, Some(o)))
-                .unwrap_or((&reading.value, None));
+                .unwrap_or((&reading.text, None));
             new_kanji_readings.push((
                 kr::kanji_id.eq(kanji_id),
                 kr::reading.eq(reading),
@@ -457,9 +457,6 @@ fn update_words(conn: &mut PgConnection, jmdict: &JMdict) -> eyre::Result<()> {
         .map(|a| (a.1, a))
         .collect::<HashMap<_, _>>();
     for (existing_word_id, etc) in existing_word_ids {
-        if etc.0 != 1207560 {
-            //continue;
-        }
         if !words_in_db.contains(&existing_word_id) {
             tracing::error!(
                 "word in db {existing_word_id} {} {} not found while processing jmdict",
@@ -539,7 +536,7 @@ fn translations_from_entry(entry: &Entry, word: Option<&str>, reading: &str) -> 
                 .gloss
                 .iter()
                 .filter(|g| g.lang.is_none())
-                .map(|g| g.value.as_str())
+                .map(|g| g.text.as_str())
                 .collect::<Vec<_>>()
                 .join(", ");
 
