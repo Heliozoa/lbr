@@ -53,8 +53,7 @@ fn print_common_unnamed_kanji(lbr_conn: &mut PgConnection) -> eyre::Result<()> {
         ))
         .get_results::<(String, i64)>(lbr_conn)?;
 
-    let file = std::fs::File::open("./crates/jadata/data/kanji_names.json")
-        .unwrap();
+    let file = std::fs::File::open("./crates/jadata/data/kanji_names.json").unwrap();
     let kanji_names_json: KanjiNames = serde_json::from_reader(file).unwrap();
 
     let mut dupe_check = HashSet::new();
